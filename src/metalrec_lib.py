@@ -11,6 +11,7 @@
     
 '''
 import re
+import sys
 
 ## ======================================================================
 ## From CIGAR string, find number of indels and substitutions  
@@ -198,3 +199,48 @@ def readAlign(alignRecord):
         qend = qstart + qlen - 1
 
     return {'qname':qname, 'flag':int(fields[1]),'is_onlymap':is_onlymap,'all_seg_proper':all_seg_proper,'is_unmapped':is_unmapped,'is_next_seg_unmapped':is_next_seg_unmapped,'is_reversecomplement':is_reversecomplement,'is_next_seg_reversecomplement':is_next_seg_reversecomplement,'is_first_seg':is_first_seg,'is_last_seg':is_last_seg,'is_secondary_alignment':is_secondary_alignment,'is_pcr':is_pcr,'is_supplementary_alignment':is_supplementary_alignment,'rstart':rstart, 'mapQ':mapQ, 'cigarstring':cigarstring,'cigar':cigar,'positions':positions,'rend':rend,'rname':rname,'qSeq':qSeq,'qstart':qstart,'qend':qend,'NM':NM}
+
+## ======================================================================
+## Remove low quality alignments from short reads to long read, from the 
+## mapping results.
+## ======================================================================
+
+## function to check the CIGAR string to see if this record is bad or not
+## works with sam format 1.4
+## later should make it work with sam format 1.3
+
+def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
+    fields = alignRecord.split("\t") # split by tabs
+    cigarstring = fields[5] # CIGAR string
+    if cigarstring == '*': # if cigar string is not available, treat as good unless the tag indicates that the read is unmapped
+        if readAlign(alignRecord)['is_unmapped']:
+            return True
+        else:
+            return False
+    else:
+        cigar_info = cigar(cigarstring)
+        # if consecutive sub or indels is longer than the threshold, treat as bad
+        if cigar_info['ins_len'] > maxIns or cigar_info['sub_len'] > maxSub or cigar_info['del_len'] > maxDel:
+            return True
+        else:
+            mismatchLen = cigar_info['ins_len'] + cigar_info['del_len'] + cigar_info['sub_len']
+            # if total error bps is too big, treat as bad
+            if mismatchLen > cigar_info['seq_len']*maxErrRate:
+                return True
+            else:
+                return False
+    
+def rm_bad_record(samFile,samNew, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
+    newsam = open(samNew,'w')
+    keepRec = 0
+    with open(samFile,'r') as mysam:
+        for line in mysam:
+            if line[0] == '@': # copy header lines
+                newsam.write(line)
+            else:
+                record = line.strip('\n')
+                if not is_record_bad(record, maxSub, maxIns, maxDel, maxErrRate): # if this alignment is good
+                    newsam.write(line)
+                    keepRec += 1
+    newsam.close()
+    sys.stdout.write('Total number of records kept is {}. \n'.format(keepRec))
