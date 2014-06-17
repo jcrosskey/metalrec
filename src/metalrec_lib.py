@@ -244,3 +244,54 @@ def rm_bad_record(samFile,samNew, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20)
                     keepRec += 1
     newsam.close()
     sys.stdout.write('Total number of records kept is {}. \n'.format(keepRec))
+
+def get_bases(cigar_string, qseq, start_pos):
+    ''' from CIGAR string, query segment (in alignment record), and starting position (1-based) on the ref sequence, return position wise base call from the read.
+        Assuming that cigar_string is available, doesn't matter if it's sam 1.3 format or 1.4 format
+        
+        Input: cigar_string, query aligned segment, and the 1-based starting mapping position on the reference sequence
+        
+        Output: (pos_dict, ins_dict), tuple of 2 dictionaries, one for the non-insertion positions, and one for the insertion positions.
+                When there is a deletion from the reference sequence, the base called will be "D"
+    '''
+    char = re.findall('\D',cigar_string) # operation characters, MIDNSHP=X
+    char = [x.upper() for x in char]  # convert to upper case
+    count = map(int,re.findall('\d+',cigar_string)) # corresponding count for each operation
+    pos_dict = dict() # ref_pos (1-based) => base call
+    ins_dict = dict() # ref_pos (1-based) => inserted base
+    query_pos = 0
+
+    # left end of the alignment
+    if char[0] == 'S' or char[0] == 'N': # skipped region on the reference sequence (clipped or skipped)
+        query_pos += count[0] # mapping starting position on the query segment (0-based)
+        char = char[1:] # delete the first CIGAR operation and the corresponding count
+        count = count[1:]
+    elif char[0] == 'H': # hard clipping at the beginning
+        char = char[1:]
+        count = count[1:]
+
+    # clipping (soft or hard) or skipping at the end of the mapping
+    if char[-1] in 'SNH': 
+        char = char[:-1]
+        count = count[:-1]
+
+    # Base calling, loop all the positions except clipping and skipping
+    for pos in xrange(len(char)):
+        if char[pos] == 'M' or char[pos] == 'X' or char[pos] == '=': # matching or mismatching
+            for i in xrange(count[pos]):
+                pos_dict[start_pos] = qseq[query_pos] # base at the ref position in the read
+                start_pos += 1
+                query_pos += 1
+        elif char[pos] == 'I': # insertion into reference sequence
+            for i in xrange(count[pos]):
+                ins_dict[start_pos+i] = qseq[query_pos]
+                query_pos += 1
+        elif char[pos] == 'D' or char[pos] == 'N': # deletion or skipped region from reference sequence
+            for i in xrange(count[pos]):
+                pos_dict[start_pos] = 'D'
+                start_pos += 1
+        else: # unknown CIGAR operations, print message
+            sys.stdout.write(" unknown CIGAR operation: {}\n".format(char[pos]))
+
+    return pos_dict, ins_dict
+
