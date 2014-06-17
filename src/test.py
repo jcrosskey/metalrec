@@ -23,10 +23,11 @@ parser = argparse.ArgumentParser(description="parse sam file and get summary sta
                                  )
 
 ## input files and directories
-parser.add_argument("-i","--in",help="input file",dest='inputFile',required=True)
+parser.add_argument("-i","--in",help="input sam file",dest='samFile',required=True)
+parser.add_argument("-i1","--in1",help="input ref sequence file",dest='seqFile',required=True)
 
 ## output directory
-parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
+#parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
 
 ## =================================================================
 ## main function
@@ -36,7 +37,10 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    metalrec_lib.rm_bad_record(args.inputFile, args.outputFile)
+    rSeq = metalrec_lib.read_single_seq(args.seqFile)
+    ref_bps, ref_ins_dict, consensus_seq, cov_depths = metalrec_lib.get_consensus(args.samFile,rSeq)
+    print "\n",consensus_seq,"\n"
+    print cov_depths
 
 ##==============================================================
 ## call from command line (instead of interactively)
