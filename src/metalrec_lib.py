@@ -19,22 +19,36 @@ def cigar(cigar_string):
     char = [x.upper() for x in char]  # convert to upper case
     count = map(int,re.findall('\d+',cigar_string))
     read_len = sum(count[i] for i in xrange(len(char)) if char[i] in 'MIS=XH') # length of the mapped read (including clipped part)
-    seq_len = sum(count[i] for i in xrange(len(char)) if char[i] in 'MI=X') # length of the mapped read (excluding lipped part)
+    seq_len = sum(count[i] for i in xrange(len(char)) if char[i] in 'MI=X') # length of the mapped read (excluding clipped part)
     ref_region_len = sum(count[i] for i in xrange(len(char)) if char[i] in 'MD=X') # length of the region on the reference sequence corresponding to the read
     ins_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'I') # insert bps
     del_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'D') # deletion bps
+    try:
+        max_ins_len = max(count[i] for i in xrange(len(char)) if char[i] == 'I') #  maximum insertion stretch
+    except ValueError:
+        max_ins_len = 0
+
+    try:
+        max_del_len = max(count[i] for i in xrange(len(char)) if char[i] == 'D') #  maximum deletion stretch
+    except ValueError:
+        max_del_len = 0
 
     match_len = None # these are only available with X= in the cigar string, sam 1.4 and after
     sub_len = None
+    max_sub_len = 0
     if '=' in char or 'X' in char: # if either '=' or 'X' is detected, indicating sam 1.4 format for CIGAR string
         match_len = sum(count[i] for i in xrange(len(char)) if char[i] == '=') # matched bps
         sub_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'X') # substitution bps
+        try:
+            max_sub_len = max(count[i] for i in xrange(len(char)) if char[i] == 'X') # maximum substitution stretch
+        except ValueError:
+            max_sub_len = 0
         align_len = match_len + sub_len
     else:   # sam 1.3, aligned bps from 'M'
         align_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'M') # aligned bps(including matching and substitution)
 
     pad_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'P') # padded bps, inserted both in reference sequence and the read sequence)
-    return {'read_len':read_len, 'seq_len': seq_len, 'ref_len':ref_region_len, 'ins_len':ins_len, 'del_len':del_len, 'match_len':match_len, 'sub_len':sub_len, 'align_len':align_len, 'pad_len':pad_len}
+    return {'read_len':read_len, 'seq_len': seq_len, 'ref_len':ref_region_len, 'ins_len':ins_len, 'del_len':del_len, 'match_len':match_len, 'sub_len':sub_len, 'align_len':align_len, 'pad_len':pad_len, 'max_ins': max_ins_len, 'max_del': max_del_len, 'max_sub': max_sub_len}
 
 ## ======================================================================
 ## From MD tag, find the number of matched, deletion, and substitution bps 
@@ -197,6 +211,14 @@ def readAlign(alignRecord):
 ## later should make it work with sam format 1.3
 ## ======================================================================
 def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
+    ''' Test and see if an alignment record is bad in the sam file.
+        Input:  alignRecord - a mapping line in sam file
+                maxSub - maximum stretches of substitution
+                maxIns - maximum stretches of insertion
+                maxDel - maximum stretches of deletion
+                maxErrRate - maximum total error rate of the read
+        Output: boolean value, True if bad else False
+    '''
     fields = alignRecord.split("\t") # split by tabs
     cigarstring = fields[5] # CIGAR string
     if cigarstring == '*': # if cigar string is not available, treat as good unless the tag indicates that the read is unmapped
@@ -207,12 +229,12 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
     else:
         cigar_info = cigar(cigarstring)
         # if consecutive sub or indels is longer than the threshold, treat as bad
-        if cigar_info['ins_len'] > maxIns or cigar_info['sub_len'] > maxSub or cigar_info['del_len'] > maxDel:
+        if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
             return True
         else:
             mismatchLen = cigar_info['ins_len'] + cigar_info['del_len'] + cigar_info['sub_len']
             # if total error bps is too big, treat as bad
-            if mismatchLen > cigar_info['seq_len']*maxErrRate:
+            if mismatchLen > (cigar_info['seq_len'] + cigar_info['del_len'])*maxErrRate:
                 return True
             else:
                 return False
@@ -274,12 +296,12 @@ def get_bases(cigar_string, qseq, start_pos):
     for pos in xrange(len(char)):
         if char[pos] == 'M' or char[pos] == 'X' or char[pos] == '=': # matching or mismatching
             for i in xrange(count[pos]):
-                pos_dict[start_pos] = qseq[query_pos] # base at the ref position in the read
+                pos_dict[start_pos] = (query_pos, qseq[query_pos]) # base at the ref position in the read
                 start_pos += 1
                 query_pos += 1
         elif char[pos] == 'I': # insertion into reference sequence
             for i in xrange(count[pos]):
-                ins_dict[start_pos+i] = qseq[query_pos]
+                ins_dict[start_pos+i] = (query_pos, qseq[query_pos])
                 query_pos += 1
         elif char[pos] == 'D' or char[pos] == 'N': # deletion or skipped region from reference sequence
             for i in xrange(count[pos]):
@@ -328,12 +350,12 @@ def get_consensus(samFile, rSeq, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
 
                     for pos in pos_dict: # all the matching/mismatching/deletion positions
                         #print pos, '=>', pos_dict[pos]
-                        ref_bps[pos-1][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base pair frequencies in the reference sequence
+                        ref_bps[pos-1][alphabet.find(pos_dict[pos][-1])] += 1 # update the corresponding base pair frequencies in the reference sequence
 
                     for ins in ins_dict: # all the insertion positions
                         if not ref_ins_dict.has_key(ins): # if this position has not appeared in the big insertion dictionary, initialize it
                             ref_ins_dict[ins] = [0] * 4 # length is 4 because there is no 'D' at insertion position
-                        ref_ins_dict[ins][alphabet.find(ins_dict[ins])] += 1 # if this position was already seen, just update frequencies of bases
+                        ref_ins_dict[ins][alphabet.find(ins_dict[ins][-1])] += 1 # if this position was already seen, just update frequencies of bases
 
                     if keepRec % 10000 == 0:
                         sys.stdout.write('  processed {} good records\n'.format(keepRec))
