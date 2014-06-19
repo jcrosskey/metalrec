@@ -430,3 +430,177 @@ def get_consensus(samFile, ref_fasta, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0
     rSeq = read_single_seq(ref_fasta)
     ref_bps, ref_ins_dict = read_sam(samFile)
     return ref_consensus(ref_bps, ref_ins_dict, rSeq)
+
+## ======================================================================
+## compress repeated letters in a sequence (homopolymer), 
+## and find the counts for each non-repeat letter
+## ======================================================================
+def compress_homopolymer(string):
+    ''' Compress repeated letters in a string, and find the counts for each of the non-repeat letter. 
+        It converts all letters to upper case first.
+        Input:  string - a string
+        Output: tuple - (nonrepeating letters in upper case, their corresponding counts)
+    '''
+    if not string.isupper():
+        string = string.upper()
+    reduced_string = re.sub(r'([ACGT])\1+',r'\1',string) # Find the reduced string
+    counts = []
+    current_pos = 0
+    # find the counts (lengths of stretches) for each letter in the reduced string
+    for letter_index in xrange(len(reduced_string)-1):
+        next_diff_pos = string.index(reduced_string[letter_index + 1], current_pos)
+        counts.append(next_diff_pos - current_pos)
+        current_pos = next_diff_pos
+    counts.append(len(string) - current_pos)
+    return reduced_string, counts
+
+def locate_in_compress(string, pos):
+    reduced_string, counts = compress_homopolymer(string)
+    if pos == 0:
+        return 0
+    else:
+        for i in xrange(1,len(reduced_string)):
+            if sum(counts[:i]) - 1 >= pos:
+                return i-1 
+## ======================================================================
+## Massage the alignement locally, to prefer indels over substitutions,
+## without increasing total number of changes of base pairs
+## ======================================================================
+# First version takes care of left-hand-side part
+def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):
+    ''' cigarstring should be sam 1.4 format, with X indicating mismatch
+    '''
+    if cigar_string.find('X') == -1 : # no mismatch in this read, nothing to do, just return 0
+        return 0 
+
+    char = re.findall('\D',cigar_string) # operation characters, MIDNSHP=X
+    char = [x.upper() for x in char]  # convert to upper case
+    count = map(int,re.findall('\d+',cigar_string))
+    cigar_list = re.findall('\D|\d+',cigar_string) # cigar string as a list of str (numbers and operations) 
+    alphabet = 'ACGT'
+
+    # Clipping on the left end, remove the first operation, and remove the clipped part in the qSeq
+    if char[0] in 'SH':
+        qSeq = qSeq[count[0]:]
+        char = char[1:]
+        count = count[1:]
+        chopped_cigar_l = ''.join(cigar_list[:2])
+        left_clip = True
+
+    # Clipping on the right end, remove the first operation, and remove the clipped part in the qSeq
+    if char[-1] in 'SH':
+        qSeq = qSeq[:count[-1]]
+        char = char[:-1]
+        count = count[:-1]
+        chopped_cigar_r = ''.join(cigar_list[-2:])
+        left_clip = True
+
+    # find the index of mismatch operations in the cigar operations
+    firstX_in_cigar = char.find('X')
+    lastX_in_cigar = char.rfind('X')
+    # Only consider the mismatches in the first 2 positions and the last 2 positions
+    if firstX_in_cigar not in [0, 1] and lastX_in_cigar not in [len(char)-2, len(char)-1]:
+        return 0
+    #sys.stdout.write('first mismatch is the {}th operation.\n'.format(firstX_in_cigar))
+
+    ### Left end operations ###
+    elif firstX_in_cigar in [0,1]:
+        # First find the position of the first substitution
+        # both in the query sequence and the reference sequence
+        firstX = sum(count[x] for x in xrange(len(count)) if x < firstX_in_cigar and x is not 'D')  # corresponding position on the query sequence for the first mismatch
+        firstX_rSeq = sum(count[x] for x in xrange(len(count)) if x < firstX_in_cigar and x is not 'I') - 1 + rstart # corresponding position on the reference sequence for the first mismatch
+        #sys.stdout.write('first mismatch is the {}th position in query sequence.\n'.format(firstX))
+        #sys.stdout.write('first mismatch is the {}th position in ref sequence.\n'.format(firstX_rSeq))
+
+        # check and see if the mismatched base is the same as the next base in the reference sequence
+        # If so, change the mismatch to insert, shift mapping start position 1 bp to the right
+        if qSeq[:(firstX+1)] == rSeq[(firstX_rSeq - firstX+1):(firstX_rSeq + 2)]:
+            cigar_string = re.sub('1X','1I',cigar_string,count=1)
+            rstart += 1
+            return rstart, cigar_string
+        # Next check if the mismatched base is the same as the previous base in the reference sequence
+        # If so, change the mismatch to deletion, shift mapping start position 1 bp to the left
+        elif rstart - firstX > 1: # there are more bases to shift the query sequence to the left
+            if qSeq[:(firstX + 1)] == rSeq[(firstX_rSeq-1-firstX):(firstX_rSeq)]:
+                cigar_string = chopped_cigar_l + str(count[firstX_in_cigar - 1] + 1) if firstX==0 else '1'  + '=1D' + ''.join(cigar_list[(2*firstX_in_cigar+2):]) + chopped_cigar_r
+                rstart -= 1
+            else:
+                return 0
+        else:
+            return 0
+
+    ### Right end operations ###
+    elif lastX_in_cigar in [len(char)-2, len(char)-1]:
+        lastX = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'D')
+        lastX_rSeq = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'I') - 1 + rstart # corresponding position on the reference sequence for the first mismatch
+    ## !!!!!! Pick up from here !!!!!!
+        # check and see if the mismatched base is the same as the next base in the reference sequence
+        # If so, change the mismatch to deletion, shift mapping ending position 1 bp to the right, nothing to change here, since rend is not reported in sam file
+        if qSeq[:(firstX+1)] == rSeq[(firstX_rSeq - firstX+1):(firstX_rSeq + 2)]:
+            cigar_string = re.sub('1X','1I',cigar_string,count=1)
+            rstart += 1
+            return rstart, cigar_string
+        # Next check if the mismatched base is the same as the previous base in the reference sequence
+        # If so, change the mismatch to deletion, shift mapping start position 1 bp to the left
+        elif rstart - firstX > 1: # there are more bases to shift the query sequence to the left
+            if qSeq[:(firstX + 1)] == rSeq[(firstX_rSeq-1-firstX):(firstX_rSeq)]:
+                cigar_string = chopped_cigar_l + str(count[firstX_in_cigar - 1] + 1) if firstX==0 else '1'  + '=1D' + ''.join(cigar_list[(2*firstX_in_cigar+2):]) + chopped_cigar_r
+                rstart -= 1
+            else:
+                return 0
+        else:
+            return 0
+
+def shift_ends(samFile, rSeq, samNew):
+    newsam = open(samNew,'w')
+    changeRec = 0
+    with open(samFile,'r') as mysam:
+        for line in mysam:
+            if line[0] == '@': # copy header lines
+                newsam.write(line)
+            else:
+                fields = line.strip('\n').split('\t')
+                cigar_string = fields[5]
+                if cigar_string.find('X') != -1:
+                    print cigar_string
+                    qSeq = fields[9]
+                    rstart = int(fields[3])
+                    rend = rstart + cigar(cigar_string)['ref_len'] - 1
+                    res = massage_mapping(rSeq, qSeq, rstart, rend, cigar_string)
+                    #print res
+                    if res != 0:
+                        fields[3] = str(res[0])
+                        fields[5] = res[1]
+                        line = '\t'.join(fields) + '\n'
+                        sys.stdout.write(fields[0] + '\n')
+                        newsam.write(line)
+                        changeRec += 1
+                    else:
+                        newsam.write(line)
+                else:
+                    newsam.write(line)
+    newsam.close()
+    sys.stdout.write('Total number of records changed is {}. \n'.format(changeRec))
+
+#### unused code, may be useful later.
+#print 'check to the right'
+#sys.stdout.write("cannot move right as insertion, continue to next try \n")
+
+##compress_qSeq, count_qSeq  = compress_homopolymer(qSeq) # compressed sequence and counts for the query sequence
+# check and see if the mismatched base is the same as the previous base in the reference sequence
+# search left for a letter that is not the same as the first one
+#leftmost_char = rSeq[rstart - 1] # leftmost character of the aligned region on the reference sequence
+#sys.stdout.write('Left most character on reference is the {}\n'.format(leftmost_char))
+
+#diff_chars = alphabet.replace(leftmost_char,"")
+#sys.stdout.write('now looking for characters {}\n'.format(diff_chars))
+
+#left_one = max([rSeq.rfind(x,0,rstart-1) for x in diff_chars]) # position of the first different character to the left
+#sys.stdout.write('the first different char to the left has index {}\n'.format(left_one))
+
+#rSeq_ext = rSeq[left_one : rend ] # extend the mapped region to that position
+#sys.stdout.write('extended region on reference sequence is {}\n'.format(rSeq_ext))
+
+#firstX_rSeq = firstX_rSeq  - left_one
+#sys.stdout.write('first mismatch is the {}th position in extended ref sequence.\n'.format(firstX_rSeq))
+#compress_rSeq, count_rSeq  = compress_homopolymer(rSeq_ext) # compressed sequence and counts for the reference sequence

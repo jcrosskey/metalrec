@@ -41,6 +41,7 @@ def main(argv=None):
     ref_bps, ref_ins_dict, consensus_seq, cov_depths = metalrec_lib.get_consensus(args.samFile,rSeq)
     print "\n",consensus_seq,"\n"
     print cov_depths
+    #metalrec_lib.rm_bad_record(args.samFile,args.outputFile)
 
 ##==============================================================
 ## call from command line (instead of interactively)
