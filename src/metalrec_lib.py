@@ -493,11 +493,13 @@ def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):
         char = char[:-1]
         count = count[:-1]
         chopped_cigar_r = ''.join(cigar_list[-2:])
-        left_clip = True
+        right_clip = True
 
     # find the index of mismatch operations in the cigar operations
     firstX_in_cigar = char.find('X')
     lastX_in_cigar = char.rfind('X')
+    numX_in_cigar = char.count('X') # total number of Xs in the cigar string
+
     # Only consider the mismatches in the first 2 positions and the last 2 positions
     if firstX_in_cigar not in [0, 1] and lastX_in_cigar not in [len(char)-2, len(char)-1]:
         return 0
@@ -515,6 +517,7 @@ def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):
         # check and see if the mismatched base is the same as the next base in the reference sequence
         # If so, change the mismatch to insert, shift mapping start position 1 bp to the right
         if qSeq[:(firstX+1)] == rSeq[(firstX_rSeq - firstX+1):(firstX_rSeq + 2)]:
+            numX_in_cigar -= 1
             cigar_string = re.sub('1X','1I',cigar_string,count=1)
             rstart += 1
             return rstart, cigar_string
@@ -522,6 +525,7 @@ def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):
         # If so, change the mismatch to deletion, shift mapping start position 1 bp to the left
         elif rstart - firstX > 1: # there are more bases to shift the query sequence to the left
             if qSeq[:(firstX + 1)] == rSeq[(firstX_rSeq-1-firstX):(firstX_rSeq)]:
+                numX_in_cigar -= 1
                 cigar_string = chopped_cigar_l + str(count[firstX_in_cigar - 1] + 1) if firstX==0 else '1'  + '=1D' + ''.join(cigar_list[(2*firstX_in_cigar+2):]) + chopped_cigar_r
                 rstart -= 1
             else:
@@ -530,20 +534,28 @@ def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):
             return 0
 
     ### Right end operations ###
-    elif lastX_in_cigar in [len(char)-2, len(char)-1]:
-        lastX = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'D')
-        lastX_rSeq = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'I') - 1 + rstart # corresponding position on the reference sequence for the first mismatch
-    ## !!!!!! Pick up from here !!!!!!
-        # check and see if the mismatched base is the same as the next base in the reference sequence
-        # If so, change the mismatch to deletion, shift mapping ending position 1 bp to the right, nothing to change here, since rend is not reported in sam file
-        if qSeq[:(firstX+1)] == rSeq[(firstX_rSeq - firstX+1):(firstX_rSeq + 2)]:
-            cigar_string = re.sub('1X','1I',cigar_string,count=1)
-            rstart += 1
+    elif numX_in_cigar > 0 and lastX_in_cigar in [len(char)-2, len(char)-1]:
+        lastX = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'D') # corresponding position on the query sequence for the last mismatch
+        lastX_rSeq = sum(count[x] for x in xrange(len(count)) if x < lastX_in_cigar and x is not 'I') - 1 + rstart # corresponding position on the reference sequence for the last mismatch
+
+        right_chars_len = len(qSeq) - lastX # length of the characters to the right of the mismatch position in the query sequence, this position included
+
+        # check and see if the chars from the mismatched position to the end are the same as the stretch of chars starting from the char to the left in the reference sequence
+        # If so, change the mismatch to insertion, shift mapping ending position 1 bp to the left, nothing need to do for rstart
+        if qSeq[lastX:] == rSeq[(lastX_rSeq - 1):(lastX_rSeq - 1 + right_chars_len)]
+            if right_clip and cigar_list[-3]=='X':
+                cigar_list[-3] = 'I'
+            elif cigar_list[-1]=='X':
+                cigar_list[-1] = 'I'
+            else:
+                return 0
+            cigar_string = ''.join(cigar_list)
             return rstart, cigar_string
-        # Next check if the mismatched base is the same as the previous base in the reference sequence
-        # If so, change the mismatch to deletion, shift mapping start position 1 bp to the left
-        elif rstart - firstX > 1: # there are more bases to shift the query sequence to the left
-            if qSeq[:(firstX + 1)] == rSeq[(firstX_rSeq-1-firstX):(firstX_rSeq)]:
+        # Next check if the mismatched base is the same as the next base in the reference sequence
+        # If so, change the mismatch to deletion
+        elif lastX_rSeq + right_chars_len < len(rSeq): # there are more bases to shift the query sequence to the right
+            if qSeq[lastX:] == rSeq[(lastX_rSeq + 1):(lastX_rSeq + 1 + right_chars_len)]
+                ####!!!!!! change cigar_string with deletion!!!!!!
                 cigar_string = chopped_cigar_l + str(count[firstX_in_cigar - 1] + 1) if firstX==0 else '1'  + '=1D' + ''.join(cigar_list[(2*firstX_in_cigar+2):]) + chopped_cigar_r
                 rstart -= 1
             else:
