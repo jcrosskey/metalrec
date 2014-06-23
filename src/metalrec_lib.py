@@ -4,6 +4,7 @@
 '''
 import re
 import sys
+import samread
 
 ## ======================================================================
 ## From CIGAR string, find number of indels and substitutions  
@@ -74,57 +75,6 @@ def md(MD_tag):
     return {'match_len':match_len, 'del_len':del_len, 'sub_len':sub_len}
 
 ## ======================================================================
-## parse a single line in sam file with an aligned read record
-## extract information
-## This is somehow redundant with the samread class implementation.
-## Question: Will this be faster than construct a whole class??
-## ======================================================================
-def readAlign(alignRecord):
-    """ From alignment record for a read, get the following information:
-        1. qname - query read name
-        2. flag
-        3. rname - reference sequence name
-        4. pos - 1-based leftmost mapping position on the reference sequence
-        5. mapQ - mapping quality
-        6. cigarstring - CIGAR string
-        the files following are: rnext, pnext, tlen, seq, qual
-        10. seq - segment sequence
-        
-        Output:
-        Dictionary with these fields, including some other inferred ones:
-        1. qstart, qend, rstart(pos), rend, positions
-        2. what else?
-    """
-    fields = alignRecord.split("\t") # split by tabs
-    qname = fields[0]
-    flag = int(fields[1]) # bitwise Flag
-
-    # FLAG explanation one by one
-    is_paired = flag & 0x1 == 0x1 # 0x1: read is paired
-    is_proper_pair = flag & 0x2 == 0x2 # 0x2: reads mapped in proper pair 
-    is_unmapped = flag & 0x4 == 0x4 # 0x4: read unmapped
-    mate_is_unmapped = flag & 0x8 == 0x8 # 0x8: mate/next read unmapped
-    is_reverse = flag & 0x10 == 0x10 # 0x10: read being reverse complemented
-    mate_is_reverse = flag & 0x20 == 0x20 # 0x20: mate/next read being reverse complemented
-    is_read1 = flag & 0x40 == 0x40 # 0x40: first read in the pair
-    is_read2 = flag & 0x80 == 0x80 # 0x80: second read in the pair
-    is_secondary = flag & 0x100 == 0x100 # 0x100: secondary alignment, false if mapping is primary
-    is_qcfail = flag & 0x200 == 0x200 # 0x200: not passing quality control
-    is_duplicate = flag & 0x400 == 0x400 # 0x400: read is PCR or optical duplicate
-    is_supplementary = flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
-    
-    rname = fields[2] # reference sequence name
-    rstart = int(fields[3]) # starting mapping position on the reference sequence, 1-based
-    try: # mapping quality
-        mapQ = int(fields[4])
-    except ValueError:
-        mapQ = -1
-    cigarstring = fields[5] # CIGAR string
-    qSeq = fields[9] # segment sequence
-
-    return {'qname':qname, 'flag':flag,'is_paired':is_paired, 'is_proper_pair':is_proper_pair, 'is_unmapped':is_unmapped, 'mate_is_unmapped': mate_is_unmapped, 'is_reverse':is_reverse, 'mate_is_reverse':mate_is_reverse, 'is_read1':is_read1, 'is_read2':is_read2, 'is_secondary':is_secondary, 'is_qcfail':is_qcfail, 'is_duplicate':is_duplicate, 'is_supplementary':is_supplementary, 'rname':rname, 'rstart':rstart, 'mapQ':mapQ, 'cigarstring':cigarstring, 'qSeq':qSeq }
-
-## ======================================================================
 ## function to check the CIGAR string to see if this record is bad or not
 ## works with sam format 1.4
 ## later should make it work with sam format 1.3
@@ -141,7 +91,7 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
     fields = alignRecord.split("\t") # split by tabs
     cigarstring = fields[5] # CIGAR string
     if cigarstring == '*': # if cigar string is not available, treat as good unless the tag indicates that the read is unmapped
-        if readAlign(alignRecord)['is_unmapped']:
+        if samread.SamRead(alignRecord).is_unmapped():
             return True
         else:
             return False

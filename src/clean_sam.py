@@ -24,6 +24,10 @@ parser = argparse.ArgumentParser(description="parse sam file and get summary sta
 
 ## input files and directories
 parser.add_argument("-i","--in",help="input sam file",dest='samFile',required=True)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
+parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
+parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
+parser.add_argument("--maxErr",help="maximum error rate allowed",dest='maxErr',default=0.20, type=float)
 #parser.add_argument("-i1","--in1",help="input ref sequence file",dest='seqFile',required=True)
 
 ## output directory
@@ -37,7 +41,7 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    metalrec_lib.rm_bad_record(args.samFile, args.outputFile)
+    metalrec_lib.rm_bad_record(args.samFile, args.outputFile,args.maxSub, args.maxIns, args.maxDel, args.maxErr)
 #    rSeq = metalrec_lib.read_single_seq(args.seqFile)
 #    ref_bps, ref_ins_dict, consensus_seq, cov_depths = metalrec_lib.get_consensus(args.samFile,rSeq)
 #    print "\n",consensus_seq,"\n"
