@@ -76,6 +76,8 @@ def md(MD_tag):
 ## ======================================================================
 ## parse a single line in sam file with an aligned read record
 ## extract information
+## This is somehow redundant with the samread class implementation.
+## Question: Will this be faster than construct a whole class??
 ## ======================================================================
 def readAlign(alignRecord):
     """ From alignment record for a read, get the following information:
@@ -95,115 +97,32 @@ def readAlign(alignRecord):
     """
     fields = alignRecord.split("\t") # split by tabs
     qname = fields[0]
-    flag = format(int(fields[1]),'016b') # binary format
-    flag = map(int,flag) # convert flag from string to integers
+    flag = int(fields[1]) # bitwise Flag
 
-    # interpret bitwise flags
-    if flag[-1] == 1:
-        is_onlymap = False
-    else:
-        is_onlymap = True
-
-    if flag[-2] == 1:
-        all_seg_proper = True
-    else:
-        all_seg_proper = False
-
-    if flag[-3] == 1:
-        is_unmapped = True
-    else:
-        is_unmapped = False
-
-    if flag[-4] == 1:
-        is_next_seg_unmapped = True
-    else:
-        is_next_seg_unmapped = False
-
-    if flag[-5] == 1:
-        is_reversecomplement = True
-    else:
-        is_reversecomplement = False
-
-    if flag[-6] == 1:
-        is_next_seg_reversecomplement = True
-    else:
-        is_next_seg_reversecomplement = False
-
-    if flag[-7] == 1:
-        is_first_seg = True
-    else:
-        is_first_seg = False
-
-    if flag[-8] == 1:
-        is_last_seg = True
-    else:
-        is_last_seg = False
-
-    if flag[-9] == 1:
-        is_secondary_alignment = True
-    else:
-        is_secondary_alignment = False
-
-    if flag[-10] == 1:
-        fail_quality = True
-    else:
-        fail_quality = False
-
-    if flag[-11] == 1:
-        is_pcr = True
-    else:
-        is_pcr = False
-
-    if flag[-12] == 1:
-        is_supplementary_alignment = True
-    else:
-        is_supplementary_alignment = False
+    # FLAG explanation one by one
+    is_paired = flag & 0x1 == 0x1 # 0x1: read is paired
+    is_proper_pair = flag & 0x2 == 0x2 # 0x2: reads mapped in proper pair 
+    is_unmapped = flag & 0x4 == 0x4 # 0x4: read unmapped
+    mate_is_unmapped = flag & 0x8 == 0x8 # 0x8: mate/next read unmapped
+    is_reverse = flag & 0x10 == 0x10 # 0x10: read being reverse complemented
+    mate_is_reverse = flag & 0x20 == 0x20 # 0x20: mate/next read being reverse complemented
+    is_read1 = flag & 0x40 == 0x40 # 0x40: first read in the pair
+    is_read2 = flag & 0x80 == 0x80 # 0x80: second read in the pair
+    is_secondary = flag & 0x100 == 0x100 # 0x100: secondary alignment, false if mapping is primary
+    is_qcfail = flag & 0x200 == 0x200 # 0x200: not passing quality control
+    is_duplicate = flag & 0x400 == 0x400 # 0x400: read is PCR or optical duplicate
+    is_supplementary = flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     rname = fields[2] # reference sequence name
     rstart = int(fields[3]) # starting mapping position on the reference sequence, 1-based
-    mapQ = int(fields[4]) # mapping quality
+    try: # mapping quality
+        mapQ = int(fields[4])
+    except ValueError:
+        mapQ = -1
     cigarstring = fields[5] # CIGAR string
     qSeq = fields[9] # segment sequence
 
-    # search for NM tag
-    NM_pos = alignRecord.find('NM:i:')
-    if NM_pos != -1: # if NM tag exists
-        NM = int(alignRecord[(NM_pos+5):alignRecord.find('\t',NM_pos+5)])
-    else:
-        NM = None
-    
-    char = re.findall('\D',cigarstring) # operation characters, MIDNSHP=X
-    char = [x.upper() for x in char]  # convert to upper case
-    count = map(int,re.findall('\d+',cigarstring))
-    #print cigarstring, '\t',len(char), '\t', len(count)
-
-    positions = []
-    if cigarstring == '*':
-        cigar = [(0,'M')]
-        rend = rstart
-        qstart = 0
-        qend = 0
-    else:
-        cigar = [(count[x], char[x]) for x in xrange(len(char))]
-
-        lastBp = rstart-1
-        for bp, ch in cigar:
-            if ch in 'MX=D':# matching or deletion
-                for i in xrange(bp):
-                    positions.append(lastBp+1 + i)
-                lastBp = positions[-1]
-            elif ch == 'N':
-                lastBp += bp # skipped region
-        rend = positions[-1]
-
-        qstart = 1
-        bp, ch = cigar[0]
-        if ch in 'HS':
-            qstart = bp + 1
-        qlen = sum([x[0] for x in cigar if x[1] in 'MIX='])
-        qend = qstart + qlen - 1
-
-    return {'qname':qname, 'flag':int(fields[1]),'is_onlymap':is_onlymap,'all_seg_proper':all_seg_proper,'is_unmapped':is_unmapped,'is_next_seg_unmapped':is_next_seg_unmapped,'is_reversecomplement':is_reversecomplement,'is_next_seg_reversecomplement':is_next_seg_reversecomplement,'is_first_seg':is_first_seg,'is_last_seg':is_last_seg,'is_secondary_alignment':is_secondary_alignment,'is_pcr':is_pcr,'is_supplementary_alignment':is_supplementary_alignment,'rstart':rstart, 'mapQ':mapQ, 'cigarstring':cigarstring,'cigar':cigar,'positions':positions,'rend':rend,'rname':rname,'qSeq':qSeq,'qstart':qstart,'qend':qend,'NM':NM}
+    return {'qname':qname, 'flag':flag,'is_paired':is_paired, 'is_proper_pair':is_proper_pair, 'is_unmapped':is_unmapped, 'mate_is_unmapped': mate_is_unmapped, 'is_reverse':is_reverse, 'mate_is_reverse':mate_is_reverse, 'is_read1':is_read1, 'is_read2':is_read2, 'is_secondary':is_secondary, 'is_qcfail':is_qcfail, 'is_duplicate':is_duplicate, 'is_supplementary':is_supplementary, 'rname':rname, 'rstart':rstart, 'mapQ':mapQ, 'cigarstring':cigarstring, 'qSeq':qSeq }
 
 ## ======================================================================
 ## function to check the CIGAR string to see if this record is bad or not
@@ -265,12 +184,16 @@ def rm_bad_record(samFile,samNew, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20)
 def get_bases(cigar_string, qseq='', start_pos=''):
     ''' from CIGAR string, query segment (in alignment record), and starting position (1-based) on the ref sequence, return position wise base call from the read.
         Assuming that cigar_string is available, doesn't matter if it's sam 1.3 format or 1.4 format
+        If there is only one input argument, treat it as the whole alignment record.
         
         Input: cigar_string, query aligned segment, and the 1-based starting mapping position on the reference sequence
         
         Output: (pos_dict, ins_dict), tuple of 2 dictionaries, one for the non-insertion positions, and one for the insertion positions.
                 When there is a deletion from the reference sequence, the base called will be "D"
+                pos_dict: ref_pos => (query_pos, base), or ref_pos => 'D'
+                ins_dict: ref_pos => (query_pos, baese(s)) # the inserted length could be 1, or greater than 1
     '''
+    # the whole alignment record
     if qseq == '' and start_pos == '':
         fields = cigar_string.strip('\n').split('\t')
         cigar_string = fields[5]
@@ -279,6 +202,7 @@ def get_bases(cigar_string, qseq='', start_pos=''):
     char = re.findall('\D',cigar_string) # operation characters, MIDNSHP=X
     char = [x.upper() for x in char]  # convert to upper case
     count = map(int,re.findall('\d+',cigar_string)) # corresponding count for each operation
+
     pos_dict = dict() # ref_pos (1-based) => base call
     ins_dict = dict() # ref_pos (1-based) => inserted base
     query_pos = 0
@@ -305,9 +229,8 @@ def get_bases(cigar_string, qseq='', start_pos=''):
                 start_pos += 1
                 query_pos += 1
         elif char[pos] == 'I': # insertion into reference sequence
-            for i in xrange(count[pos]):
-                ins_dict[start_pos+i] = (query_pos, qseq[query_pos])
-                query_pos += 1
+            ins_dict[start_pos] = (query_pos, qseq[query_pos:(query_pos + count[pos])])
+            query_pos += count[pos]
         elif char[pos] == 'D' or char[pos] == 'N': # deletion or skipped region from reference sequence
             for i in xrange(count[pos]):
                 pos_dict[start_pos] = 'D'
@@ -337,7 +260,7 @@ def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
         for line in mysam:
             if line[0] == '@': # header line
                 if line[1:3] == 'SQ': # reference sequence dictionary
-                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # referenece sequence name
+                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                     rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
                     print "length of the reference is", rLen
                     ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
@@ -633,5 +556,107 @@ def shift_ends(samFile, rSeq, samNew):
 def get_pos(ref_bps, ref_ins_dict):
     ''' Get the polymorphic positions and the positions where the insertion happened
     '''
-    num_bases = [ 5 - x.count(0) for x in ref_bps ]
-    return poly_pos, ins_pos = [ x for x in xrange(len(num_bases) if num_bases[x] > 1 ], ref_ins_dict.keys()
+    # TODO: however, if the coverage depth is very low (for example 2, one should not discard the bases with support of 1 read #
+    #num_bases = [ 5 - x.count(0) - x.count(1) for x in ref_bps ] # for each position, get the number of bases with support of at least 2 reads. If there is only 1 read, it most probably will be an error.
+    num_bases = [ 5 - x.count(0) for x in ref_bps ] # for each position, get the number of bases with support of at least 2 reads. If there is only 1 read, it most probably will be an error.
+    return [ x for x in xrange(len(num_bases)) if num_bases[x] > 1 ], ref_ins_dict.keys()
+
+def ref_extension(ref_bps, ref_ins_dict, rSeq):
+    ''' From the output of function get_consensus ( list of mat/mismat/del positions, and dictionary of ins positions), extend the reference sequence to include all the insertion positions
+        
+        Input: ref_bps - list of lists, one for each position on the reference sequence (without padding)
+               ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
+               rSeq - original reference sequence
+
+        Output: The extended consensus sequence, the insertion dictionary where insertions were added to the reference sequence, and coverage depth vector
+    '''
+    alphabet = 'ACGTD' # all the possible base pairs at a position
+    rLen = len(rSeq)
+    cov_depths = []
+    true_ins = dict() # 'true' insertions into reference sequence
+
+    ## correspondence between old positions and new positions after insertion in the reference sequence
+    orig_pos_dict = dict()
+    ins_pos_dict = dict()
+
+    # loop through all the positions of the reference sequence
+    for i in xrange(len(rSeq)):
+        non_ins_bps = ref_bps[i] # non-insertion base calls
+        cov_depth = sum(non_ins_bps) # coverage depth at this position
+        cov_depths.append(cov_depth) # append the new coverage depth to the vector
+        if cov_depth == 0: # not covered by any short read
+            continue # the base is kept the same as the reference sequence
+        else: # if there is coverage, check and see if there is possible insertion at this position
+            if ref_ins_dict.has_key(i+1): # If there is insertion into the ref sequence at this position, ref_ins_dict is 1-based, unlike the non_ins_bps
+                ins_bps = ref_ins_dict[i+1] # count vector for all possible insertion bases
+                if (cov_depth <= 3) or (4 - ins_bps.count(0) - ins_bps.count(1) > 1  and cov_depth > 3): # if coverage is less than or equal to 3, or at least 2 positions with support greater than 1, treat as insertion 
+                    true_ins[i] = alphabet[ins_bps.index(max(ins_bps))] # the most frequent base will be saved
+                    sys.stdout.write('At position {}: inserted {}\t{:>}\n'.format(i + 1, alphabet[ins_bps.index(max(ins_bps))], float(max(ins_bps))/float(cov_depth)))
+
+    rSeq_ext = rSeq
+    # Now insert the 'true' insertions into the sequence
+    length_increase = 0
+    for ins in sorted(true_ins):
+        insert_position = ins + length_increase
+        ins_pos_dict[ins] = insert_position
+        while pos < insert_position:
+            orig_pos_dict[pos] = pos
+            pos += 1
+        rSeq_ext = rSeq_ext[:insert_position] + true_ins[ins] + rSeq_ext[insert_position:]
+        length_increase += 1 # increased length of the reference sequence
+
+    return rSeq_ext, true_ins, orig_pos_dict, ins_pos_dict, cov_depths
+
+def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
+    ''' Get support information (of short reads) at the polymorphic positions
+    '''
+    alphabet = 'ACGTD' # all the possible base pairs at a position
+    reads_dict = dict()
+    proc_reads = 0
+    with open(samFile, 'r') as mysam:
+        for line in mysam:
+            if line[0] == '@': # header line
+                continue
+            else:
+                line = line.strip()
+                if not is_record_bad(line,maxSub, maxIns, maxDel, maxErrRate): # if this alignment record passes the threshold, gather its information
+                    fields = line.split('\t')
+                    rstart = int(fields[3])
+                    cigar_string = fields[5]
+                    rend = rstart + cigar(cigar_string)['ref_len'] - 1
+                    pos_dict, ins_dict = get_bases(line) # base calling from this read
+                    read_string = ''
+                    ins_string = ''
+
+                    for pos in poly_pos: # polymorphic positions
+                        if pos < max(pos_dict.keys()):
+                            if pos >= rstart-1:
+                                read_string += str(pos) + pos_dict[pos+1][-1]
+                        else:
+                            break
+
+                    for pos in true_ins: # insertion positions
+                        if len(ins_dict) == 0:
+                            if pos >= rstart - 1:
+                                ins_string += str(pos) + 'D'
+                        else:
+                            if pos < max(ins_dict.keys()):
+                                if pos >= rstart - 1 and pos < rend :
+                                    if ins_dict.has_key(pos+1):
+                                        ins_string += str(pos) + ins_dict[pos+1][-1]
+                                    else:
+                                        ins_string += str(pos) + 'D'
+                            else:
+                                break
+
+                    all_string = read_string + ':' + ins_string # read_string and ins_string concatenated
+                    if reads_dict.has_key(all_string):
+                        reads_dict[all_string] += 1
+                    else:
+                        reads_dict[all_string] = 1
+                    proc_reads += 1
+
+                    if proc_reads % 10000 == 0:
+                        sys.stdout.write("processed {} good reads\n".format(proc_reads))
+                        return reads_dict
+    return reads_dict
