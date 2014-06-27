@@ -503,6 +503,9 @@ def shift_ends(samFile, rSeq, samNew):
     newsam.close()
     sys.stdout.write('Total number of records changed is {}. \n'.format(changeRec))
 
+## ======================================================================
+##  Get the polymorphic positions and the positions where the insertion happened
+## ======================================================================
 def get_pos(ref_bps, ref_ins_dict):
     ''' Get the polymorphic positions and the positions where the insertion happened
     '''
@@ -610,3 +613,121 @@ def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3
                         sys.stdout.write("processed {} good reads\n".format(proc_reads))
                         return reads_dict
     return reads_dict
+
+## ======================================================================
+## use dynamic progamming (Needleman-Wunch) to find all best alignments, 
+## the following shift the indel positions to the leftmost position in all the
+## output alignment, and pick out the non-equivalent ones
+## ======================================================================
+def shift_to_left(align):
+    ''' Take the result from Bio.pairwise2.align.global**, shift the indels in the homopolymer to the leftmost positions.
+    
+        Input:  The result (align) is a list of tuples: (seqA, seqB, score, begin, end). seqA and seqB are strings showing the alignment between the sequences. score is the score of the alignment. begin and end are indexes into seqA and seqB that indicate the where the alignment occurs.
+                Consider one tuple in the list as input to this function.
+                Note: We'll consider that seqA is part of the reference sequence, and seqB is the short read sequence, and the global alignment is done, with no gap penalty at the ends for seqB, but gap penalty at the ends of seqA
+
+        Output: The alignment after shifting
+    '''
+    seqA, seqB, score, begin, end = align
+    # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+    first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+    last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+
+    ins_char = re.compile('-')
+
+    # insert positions in sequence A and B
+    insA = [m.start() for m in ins_char.finditer(seqA, first_non_gap, last_non_gap)]
+    insB = [m.start() for m in ins_char.finditer(seqB, first_non_gap, last_non_gap)]
+    insAB = insA + insB
+    insAB.sort()
+
+    for ins_pos in insAB:
+        if ins_pos in insA:
+            base = seqB[ins_pos] # base call corresponding to the insertion position
+            if seqA[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqA[:ins_pos]).start()
+                seqA = seqA[:l_base] + '-' + seqA[(l_base+1):ins_pos] + base + seqA[(ins_pos+1):]
+        else:
+            base = seqA[ins_pos] # base call corresponding to the insertion position
+            if seqB[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqB[:ins_pos]).start()
+                seqB = seqB[:l_base] + '-' + seqB[(l_base+1):ins_pos] + base + seqB[(ins_pos+1):]
+
+    return (seqA, seqB, score, begin, end)
+
+def shift_and_reduce(align_list):
+    ''' Take the result from Bio.pairwise2.align.global**, shift the indels in the homopolymer to the leftmost positions, and keep the distinct ones after shifting
+        Input:  list of tuples: (seqA, seqB, score, begin, end)
+        Output: list of tuples where homopolymer equivalent ones are reduced
+    '''
+    if len(align_list) == 1:
+        return align_list
+    else:
+        new_list = []
+        for align in align_list:
+            new_align = shift_to_left(align)
+            if new_align not in new_list:
+                new_list.append(new_align)
+        return new_list
+    
+def get_cigar(seqA, seqB):
+    ''' Get CIGAR string from the align result 
+        Input:  seqA and seqB from the alignment (seqA, seqB, score, begin, end)
+        Output: cigar_string, seqA and seqB's aligned part (with opening and ending gaps trimmed)
+    '''
+
+    # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+    first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+    last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+    seqA = seqA[first_non_gap:last_non_gap]
+    seqB = seqB[first_non_gap:last_non_gap]
+    
+    cigar_dict = {'=':0, 'X':0, 'D':0, 'I':0}
+    cigar_string = ''
+    mode = '0'
+    if seqA[0] == seqB[0]:
+        mode = '='
+        cigar_dict['='] = 1
+    elif seqA[0] == '-':
+        mode = 'I'
+        cigar_dict['I'] = 1
+    elif seqB[0] == '-':
+        mode = 'D'
+        cigar_dict['D'] = 1
+    elif seqA[0] != seqB[0]:
+        mode = 'X'
+        cigar_dict['X'] = 1
+    else:
+        sys.stderr.write('{} <-> {} in alignment! \n'.format(seqA[0], seqB[0]))
+
+    for i in xrange(1,len(seqA)):
+        if seqA[i] == seqB[i]:
+            if mode == '=':
+                cigar_dict['='] += 1
+            else:
+                cigar_string += str(cigar_dict[mode]) + mode
+                cigar_dict[ '=' ] = 1
+                mode = '='
+        elif seqA[i] == '-':
+            if mode == 'I':
+                cigar_dict['I'] += 1
+            else:
+                cigar_string += str(cigar_dict[mode]) + mode
+                cigar_dict['I'] = 1
+                mode = 'I'
+        elif seqB[i] == '-':
+            if mode == 'D':
+                cigar_dict['D'] += 1
+            else:
+                cigar_string += str(cigar_dict[mode]) + mode
+                cigar_dict['D'] = 1
+                mode = 'D'
+        elif seqA[i] != seqB[i]: 
+            if mode == 'X':
+                cigar_dict['X'] += 1
+            else:
+                cigar_string += str(cigar_dict[mode]) + mode
+                cigar_dict['X'] = 1
+                mode = 'X'
+    cigar_string += str(cigar_dict[mode]) + mode
+    return cigar_string,seqA,seqB
