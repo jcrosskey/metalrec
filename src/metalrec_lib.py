@@ -230,14 +230,14 @@ def get_bases_from_align(align, start_pos):
     query_pos = 0
     for i in xrange(len(seqA)):
         if seqA[i] == '-':
-            ins_dict[ ref_pos ] = (query_pos, seqB[query_pos])
+            ins_dict[ ref_pos ] = (query_pos, seqB[i])
             query_pos += 1
+        elif seqB[i] == '-':
+            pos_dict[ ref_pos ] = 'D'
+            ref_pos += 1
         else:
-            if seqB[i] == '-':
-                pos_dict[ ref_pos ] = (query_pos, 'D')
-            else:
-                pos_dict[ ref_pos ] = (query_pos, seqB[query_pos])
-                query_pos += 1
+            pos_dict[ ref_pos ] = (query_pos, seqB[i])
+            query_pos += 1
             ref_pos += 1
 
     return pos_dict, ins_dict
