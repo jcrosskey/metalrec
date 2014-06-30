@@ -9,6 +9,7 @@ Created on Fri Jun 18 13:14:18 2014
 import sys
 import argparse
 import metalrec_lib
+import time
 
 ## =================================================================
 ## argument parser
@@ -24,11 +25,14 @@ parser = argparse.ArgumentParser(description="parse sam file and get summary sta
 
 ## input files and directories
 parser.add_argument("-i","--in",help="input sam file",dest='samFile',required=True)
+parser.add_argument("-i1","--in1",help="input ref sequence file",dest='seqFile',required=True)
+
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
-parser.add_argument("--maxErr",help="maximum error rate allowed",dest='maxErr',default=0.20, type=float)
-#parser.add_argument("-i1","--in1",help="input ref sequence file",dest='seqFile',required=True)
+parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.020, type=float)
+parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
+parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
 
 ## output directory
 parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
@@ -40,9 +44,12 @@ def main(argv=None):
     
     if argv is None:
         args = parser.parse_args()
-
-    metalrec_lib.rm_bad_record(args.samFile, args.outputFile,args.maxSub, args.maxIns, args.maxDel, args.maxErr)
-#    rSeq = metalrec_lib.read_single_seq(args.seqFile)
+    print "\n==========================================================="
+    start_time = time.time()
+    rSeq = metalrec_lib.read_single_seq(args.seqFile)
+    metalrec_lib.clean_samfile(args.samFile, args.outputFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate)
+    print "total time :" + str(time.time() - start_time) +  "seconds"
+    print "==========================================================="
 #    ref_bps, ref_ins_dict, consensus_seq, cov_depths = metalrec_lib.get_consensus(args.samFile,rSeq)
 #    print "\n",consensus_seq,"\n"
 #    print cov_depths

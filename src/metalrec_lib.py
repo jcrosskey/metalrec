@@ -5,6 +5,8 @@
 import re
 import sys
 import samread
+from Bio import pairwise2 # pairwise alignment using dynamic programming
+from Bio.pairwise2 import format_alignment
 
 ## ======================================================================
 ## From CIGAR string, find number of indels and substitutions  
@@ -79,32 +81,35 @@ def md(MD_tag):
 ## works with sam format 1.4
 ## later should make it work with sam format 1.3
 ## ======================================================================
-def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
+def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
     ''' Test and see if an alignment record is bad in the sam file.
         Input:  alignRecord - a mapping line in sam file
                 maxSub - maximum stretches of substitution
                 maxIns - maximum stretches of insertion
                 maxDel - maximum stretches of deletion
-                maxErrRate - maximum total error rate of the read
+                maxSubRate - maximum total substitution rate of the read
+                maxInsRate - maximum total insertion rate of the read
+                maxDelRate - maximum total deletion rate of the read
         Output: boolean value, True if bad else False
     '''
     fields = alignRecord.split("\t") # split by tabs
     cigarstring = fields[5] # CIGAR string
-    if cigarstring == '*': # if cigar string is not available, treat as good unless the tag indicates that the read is unmapped
-        if samread.SamRead(alignRecord).is_unmapped():
-            return True
-        else:
-            return False
+    if cigarstring == '*': # if cigar string is not available, treat as bad (no longer check the bitwise flag to make sure it's really not mapped)
+        return True
     else:
         cigar_info = cigar(cigarstring)
         # if consecutive sub or indels is longer than the threshold, treat as bad
         if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
             return True
+        # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
         else:
-            mismatchLen = cigar_info['ins_len'] + cigar_info['del_len'] + cigar_info['sub_len']
-            # if total error bps is too big, treat as bad
-            if mismatchLen > (cigar_info['seq_len'] + cigar_info['del_len'])*maxErrRate:
+            if cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len']:
                 return True
+            elif cigar_info['ins_len'] > maxInsRate * cigar_info['seq_len']:
+                return True
+            elif cigar_info['del_len'] > maxDelRate * cigar_info['seq_len']:
+                return True
+            # Finally, if it passes all the thresholds, it's a good record
             else:
                 return False
     
@@ -112,20 +117,45 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
 ## Remove low quality alignments from short reads to long read, from the 
 ## mapping results.
 ## ======================================================================
-def rm_bad_record(samFile,samNew, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
+def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
     newsam = open(samNew,'w')
     keepRec = 0
+    discardRec = 0
     with open(samFile,'r') as mysam:
         for line in mysam:
             if line[0] == '@': # copy header lines
                 newsam.write(line)
+                if line[1:3] == 'SQ':
+                    rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
             else:
                 record = line.strip('\n')
-                if not is_record_bad(record, maxSub, maxIns, maxDel, maxErrRate): # if this alignment is good
+                fields = record.split('\t')
+                if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
+                    myread = samread.SamRead(record)
+                    # improve the alignment to the reference sequence by dynamic programming
+                    # original starting and ending positions on the reference sequence of the mapped region
+                    ref_region_start = max( myread.rstart - 10, 1)
+                    ref_region_end = min(myread.get_rend() + 10, rLen)
+                    # query sequence with clipped part trimmed
+                    trimmed_qseq = myread.get_trim_qseq()
+                    # redo global alignment using dynamic programming
+                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+                    new_align = pick_align(realign_res) # pick the first mapping 
+                    cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+                    # update information in the sam record
+                    fields[3] = str(ref_region_start + new_align[3]) # starting position
+                    fields[5] = cigarstring # cigar string
+                    fields[9] = trimmed_qseq # trimmed query sequence
+                    # write updated record in the new file
+                    line = '\t'.join(fields) + '\n'
                     newsam.write(line)
                     keepRec += 1
+                else:
+                    discardRec += 1
     newsam.close()
+    # report some summary
     sys.stdout.write('Total number of records kept is {}. \n'.format(keepRec))
+    sys.stdout.write('Total number of records discarded is {}. \n'.format(discardRec))
 
 ## ======================================================================
 ## From the CIGAR string of an alignment, the start position on the reference,
@@ -190,11 +220,32 @@ def get_bases(cigar_string, qseq='', start_pos=''):
 
     return pos_dict, ins_dict
 
+def get_bases_from_align(align, start_pos):
+    ''' same as above, but from pairwise alignment results (of Bio.pairwise2 module), summarize the mapping '''
+    pos_dict = dict() # ref_pos (1-based) => base call
+    ins_dict = dict() # ref_pos (1-based) => inserted base
+    
+    seqA, seqB, score, begin, end = align
+    ref_pos = start_pos
+    query_pos = 0
+    for i in xrange(len(seqA)):
+        if seqA[i] == '-':
+            ins_dict[ ref_pos ] = (query_pos, seqB[query_pos])
+            query_pos += 1
+        else:
+            if seqB[i] == '-':
+                pos_dict[ ref_pos ] = (query_pos, 'D')
+            else:
+                pos_dict[ ref_pos ] = (query_pos, seqB[query_pos])
+                query_pos += 1
+            ref_pos += 1
+
+    return pos_dict, ins_dict
 ## ======================================================================
 ## From the mapping sam file and the reference sequence,
 ## get the mapping information for the reference sequence, base by base
 ## ======================================================================
-def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
+def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
     ''' Get consensus sequence from alignments of short reads to a long read.
 
         Input: samFile - .sam file generated by mapping
@@ -216,7 +267,7 @@ def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
                     ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
             else:
                 line = line.strip()
-                if not is_record_bad(line,maxSub, maxIns, maxDel, maxErrRate): # if this alignment record passes the threshold, gather its information
+                if not is_record_bad(line, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
                     keepRec += 1
                     fields = line.split("\t") # split by tabs
                     cigarstring = fields[5] # CIGAR string
@@ -236,6 +287,68 @@ def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
 
                     if keepRec % 10000 == 0:
                         sys.stdout.write('  processed {} good records\n'.format(keepRec))
+    
+    return ref_bps, ref_ins_dict
+
+def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2, minPacBioLen=1000, minCV=10):
+    ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
+
+        Input:  samFile - .sam file generated by mapping
+                threshold parameters
+
+        Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
+                ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
+    '''
+    alphabet = 'ACGTD' # all the possible base pairs at a position
+    ref_ins_dict = dict() # global insertion dictionary for the reference sequence
+    keepRec = 0
+    lineNum = 0
+    
+    with open(samFile, 'r') as mysam:
+        for line in mysam:
+            lineNum += 1 
+            if line[0] == '@': # header line
+                if line[1:3] == 'SQ': # reference sequence dictionary
+                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
+                    rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
+                    print "length of the reference is", rLen
+                    if rLen < minPacBioLen:
+                        return 0 
+                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
+            else:
+                record = line.strip('\n')
+                fields = record.split('\t')
+                if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
+                    keepRec += 1
+                    myread = samread.SamRead(record)
+                    # improve the alignment to the reference sequence by dynamic programming
+                    # extend original starting and ending positions on the reference sequence of the mapped region by 5 bps on each end
+                    ref_region_start = max( myread.rstart - 5, 1)
+                    ref_region_end = min(myread.get_rend() + 5, rLen)
+                    # query sequence with clipped part trimmed
+                    trimmed_qseq = myread.get_trim_qseq()
+                    # redo global alignment using dynamic programming
+                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+                    new_align = pick_align(realign_res) # pick the first mapping 
+                    pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
+                    if myread.qname == 'HISEQ03:379:C2WP8ACXX:7:1203:19706:9668/1':
+                        print new_align
+                        print pos_dict
+                        print ins_dict
+                        print get_cigar(new_align[0], new_align[1])
+                    for pos in pos_dict: # all the matching/mismatching/deletion positions
+                        ref_bps[pos-1][alphabet.find(pos_dict[pos][-1])] += 1 # update the corresponding base pair frequencies in the reference sequence
+
+                    for ins in ins_dict: # all the insertion positions
+                        if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                            ref_ins_dict[ins] = [0] * 4 # length is 4 because there is no 'D' at insertion position
+                        ref_ins_dict[ins][alphabet.find(ins_dict[ins][-1])] += 1 # if this position was already seen, just update frequencies of bases
+
+                    if keepRec % 1000 == 0:
+                        sys.stdout.write('  processed {} good records\n'.format(keepRec))
+                    if keepRec % 5000 == 0:
+                        print lineNum
+                        return ref_bps, ref_ins_dict
     
     return ref_bps, ref_ins_dict
 
@@ -560,7 +673,7 @@ def ref_extension(ref_bps, ref_ins_dict, rSeq):
 
     return rSeq_ext, true_ins, orig_pos_dict, ins_pos_dict, cov_depths
 
-def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):
+def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3, maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
     ''' Get support information (of short reads) at the polymorphic positions
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
@@ -572,7 +685,7 @@ def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3
                 continue
             else:
                 line = line.strip()
-                if not is_record_bad(line,maxSub, maxIns, maxDel, maxErrRate): # if this alignment record passes the threshold, gather its information
+                if not is_record_bad(line,maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment record passes the threshold, gather its information
                     fields = line.split('\t')
                     rstart = int(fields[3])
                     cigar_string = fields[5]
@@ -670,6 +783,33 @@ def shift_and_reduce(align_list):
                 new_list.append(new_align)
         return new_list
     
+def pick_align(align_list):
+    ''' From a list of equivalent alignments between 2 sequences, pick the one whose indel positions are the most left
+    '''
+    leftmost_indel_pos = (10000,10000)
+    bestalign = ''
+    for align in align_list:
+        seqA, seqB, score, begin, end = align
+        # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+        first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+        last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+
+        # Only look at the aligned part
+        seqA = seqA[first_non_gap:last_non_gap]
+        seqB = seqB[first_non_gap:last_non_gap]
+
+        ins_char = re.compile('-')
+        # insert positions in sequence A and B
+        insA = [m.start() for m in ins_char.finditer(seqA)]
+        insB = [m.start() for m in ins_char.finditer(seqB)]
+        this_indel_pos = (sum(insA+insB), sum(insB)) # use two sums as the measure, one for both sequences and one for the query sequence
+
+        if this_indel_pos < leftmost_indel_pos:
+            leftmost_indel_pos = this_indel_pos
+            bestalign = align
+    return seqA, seqB, score, first_non_gap, last_non_gap # return the list of aligns whose indel positions are the leftmost
+    #return bestalign # return the list of aligns whose indel positions are the leftmost
+
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 
         Input:  seqA and seqB from the alignment (seqA, seqB, score, begin, end)
@@ -730,4 +870,39 @@ def get_cigar(seqA, seqB):
                 cigar_dict['X'] = 1
                 mode = 'X'
     cigar_string += str(cigar_dict[mode]) + mode
-    return cigar_string,seqA,seqB
+    return cigar_string,first_non_gap
+## ======================================================================
+## Extract the good region of PacBio read, which has >= 10 coverage depth,
+## and is 1000 bps long (contiguous).
+## If there is more than 1 region in the PacBio read satisfying this condition,
+## keep them both, separately (as in 2 files??)
+## ======================================================================
+def get_good_regions(ref_bps, ref_ins_dict, rSeq, minPacBioLen=1000, minCV=10):
+    ''' From mapping results from Illumina reads to a PacBio read, find the regions of PacBio read that satisfy these conditions:
+        1.  Every base pair in the region is covered by at least 10 reads
+        2.  The contiguous region has length >= 1000 bps
+        
+        Input:  ref_bps - dictionary for the match/mismatch and the deletion positions
+                ref_ins_dict - dictionary for the insertion positions
+                rSeq - PacBio sequence
+        Output: ? TODO: fill in this part
+    '''
+    alphabet = 'ACGTD' # all the possible base pairs at a position
+    rLen = len(rSeq)
+    # if the whole sequence is shorter than 1000 bps, do not consider this sequence
+    if rLen < minPacBioLen:
+        return []
+
+    cov_depths = []
+    good_regions = []
+    # loop through all the positions of the reference sequence
+    for i in xrange(rLen):
+        non_ins_bps = ref_bps[i] # non-insertion base calls
+        cov_depth = sum(non_ins_bps) # coverage depth at this position
+        cov_depths.append(cov_depth) # append the new coverage depth to the vector
+    
+    low_CV_pos = [-1] + [ i for i in xrange(rLen) if cov_depths[i] < minCV ] + [rLen]
+    for i in xrange(1, len(low_CV_pos)):
+        if low_CV_pos[i] - low_CV_pos[i-1] >= minPacBioLen:
+            good_regions.append((low_CV_pos[i-1]+1, low_CV_pos[i])) # found a good region (begin, end) where rSeq[begin:end] is long enough and covered well
+    return good_regions

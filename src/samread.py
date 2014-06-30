@@ -81,8 +81,8 @@ class SamRead:
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     # check and see if this mapping is too noisy to be included
-    def is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxErrRate=0.20):
-        return metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel, maxErrRate)
+    def is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
+        return metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
 
     # get nucleotide, base by base
     def get_bases(self):
@@ -98,3 +98,17 @@ class SamRead:
         qseq = self.qSeq
         start_pos = self.rstart
         return metalrec_lib.get_bases(self.cigarstring, self.qSeq, self.rstart)
+    
+    # trim the query sequence to only keep the aligned part, get rid of the clipped sequence at the two ends
+    # only soft clipped part is present in the qseq, not the hard clipped sequence
+    def get_trim_qseq(self):
+        if 'S' in self.cigarstring:
+            cigar_list = re.findall('\D|\d+',self.cigarstring) # cigar string as a list of str (numbers and operations) 
+            if cigar_list[1] == 'S':
+                qSeq = self.qSeq[int(cigar_list[0]):]
+            if cigar_list[-1] == 'S':
+                qSeq = self.qSeq[:int(cigar_list[-2])]
+            return qSeq
+        else:
+            return self.qSeq
+
