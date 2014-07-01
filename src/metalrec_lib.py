@@ -823,12 +823,13 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
     
     # check the match/mismatch/deletion first
     for pos in ref_ins_dict:
-        cv = cvs[pos] # coverage depth at this position
-        base_calls = [ alphabet[i] for i in xrange(4) if ref_ins_dict[pos][i] >= minReads and ref_ins_dict[pos][i] >= cv * minPercent ]
-        if len(base_calls) > 1:
-            poly_ins.append((pos, base_calls))
-        else:
-            consensus_ins.append((pos, base_calls[0]))
+        if pos >= region[0] and pos < region[1]:
+            cv = cvs[pos] # coverage depth at this position
+            base_calls = [ alphabet[i] for i in xrange(4) if ref_ins_dict[pos][i] >= minReads and ref_ins_dict[pos][i] >= cv * minPercent ]
+            if len(base_calls) > 1:
+                poly_ins.append((pos, base_calls))
+            else:
+                consensus_ins.append((pos, base_calls[0]))
     return poly_bps, poly_ins, consensus_bps, consensus_ins
 
 
