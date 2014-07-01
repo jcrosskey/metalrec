@@ -815,7 +815,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
         # check the match/mismatch/deletion first
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv)
-        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[i] >= minReads and ref_bps[i] >= cv * minPercent ]
+        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads and ref_bps[pos][i] >= cv * minPercent ]
         if len(base_calls) > 1:
             poly_bps.append((pos, base_calls))
         elif len(base_calls) == 1:
