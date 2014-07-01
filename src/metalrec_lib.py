@@ -244,6 +244,7 @@ def get_bases_from_align(align, start_pos):
         if seqA[i] == '-':
             ins_dict[ ref_pos ] = (query_pos, seqB[i])
             query_pos += 1
+            # TODO: consecutive insertions, this cannot handle very well
         elif seqB[i] == '-':
             pos_dict[ ref_pos ] = 'D'
             ref_pos += 1
@@ -802,7 +803,6 @@ def get_good_regions(ref_bps, ref_ins_dict, rSeq, minPacBioLen=1000, minCV=10):
 def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01):
     ''' Get the polymorphic positions and the positions where the insertion happened
     '''
-    # TODO: however, if the coverage depth is very low (for example 2, one should not discard the bases with support of 1 read #
     if region is None: # region to consider
         region = (0, len(ref_bps))
     poly_bps = [] # list of tuples
