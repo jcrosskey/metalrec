@@ -818,15 +818,16 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
         base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[i] >= minReads and ref_bps[i] >= cv * minPercent ]
         if len(base_calls) > 1:
             poly_bps.append((pos, base_calls))
-        else:
+        elif len(base_calls) == 1:
             consensus_bps.append((pos, base_calls[0]))
         # check the insertion
         if pos in ref_ins_dict: 
             base_calls = [ alphabet[i] for i in xrange(4) if ref_ins_dict[pos][i] >= minReads and ref_ins_dict[pos][i] >= cv * minPercent ]
             if len(base_calls) > 1:
                 poly_ins.append((pos, base_calls))
-            else:
+            elif len(base_calls) == 1:
                 consensus_ins.append((pos, base_calls[0]))
+
     return poly_bps, poly_ins, consensus_bps, consensus_ins
 
 
