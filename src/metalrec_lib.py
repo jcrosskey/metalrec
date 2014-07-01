@@ -811,8 +811,8 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
     consensus_ins = []
     alphabet = 'ACGTD' # all the possible base pairs at a position
     cvs = []
-    # check the match/mismatch/deletion first
     for pos in xrange(region[0], region[1]):
+        # check the match/mismatch/deletion first
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv)
         base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[i] >= minReads and ref_bps[i] >= cv * minPercent ]
@@ -820,11 +820,8 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
             poly_bps.append((pos, base_calls))
         else:
             consensus_bps.append((pos, base_calls[0]))
-    
-    # check the match/mismatch/deletion first
-    for pos in ref_ins_dict:
-        if pos >= region[0] and pos < region[1]:
-            cv = cvs[pos] # coverage depth at this position
+        # check the insertion
+        if pos in ref_ins_dict: 
             base_calls = [ alphabet[i] for i in xrange(4) if ref_ins_dict[pos][i] >= minReads and ref_ins_dict[pos][i] >= cv * minPercent ]
             if len(base_calls) > 1:
                 poly_ins.append((pos, base_calls))
