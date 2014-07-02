@@ -114,16 +114,11 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxI
         if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
             return True
         # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or cigar_info['ins_len'] > maxInsRate * cigar_info['seq_len'] or cigar_info['del_len'] > maxDelRate * cigar_info['seq_len']:
+            return True
+        # Finally, if it passes all the thresholds, it's a good record
         else:
-            if cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len']:
-                return True
-            elif cigar_info['ins_len'] > maxInsRate * cigar_info['seq_len']:
-                return True
-            elif cigar_info['del_len'] > maxDelRate * cigar_info['seq_len']:
-                return True
-            # Finally, if it passes all the thresholds, it's a good record
-            else:
-                return False
+            return False
     
 ## ======================================================================
 ## Remove low quality alignments from short reads to long read, from the 
