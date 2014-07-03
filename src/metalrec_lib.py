@@ -336,23 +336,20 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                     if keepRec % 1000 == 0:
                         sys.stdout.write('  processed {} good records\n'.format(keepRec))
                     # TODO: use only 5000 reads, for testing purpose, remove this for real analysis
-                    if keepRec % 5000 == 0:
-                        print lineNum
-                        sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
-                        return ref_bps, ref_ins_dict
+                    #if keepRec % 5000 == 0:
+                    #    print lineNum
+                    #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
+                    #    return ref_bps, ref_ins_dict
                 else:
                     discardRec += 1
     
     sys.stdout.write("discarded {} reads.\n".format(discardRec))
     return ref_bps, ref_ins_dict, readinfo
-
-## ======================================================================
-## use dynamic progamming (Needleman-Wunch) to find all best alignments, 
-## the following shift the indel positions to the leftmost position in all the
-## output alignment, and pick out the non-equivalent ones
 ## ======================================================================
 def pick_align(align_list):
-    ''' From a list of equivalent alignments between 2 sequences, pick the one whose indel positions are the most left
+    ''' From a list of equivalent alignments between 2 sequences using dynamic progamming (Needleman-Wunch), pick the one whose indel positions are the most left
+        Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
+        Output: align - one of the tuple in the list (seqA, seqB, score, first_non_gap_pos, last_non_gap_pos), last two elements were begin and end originally
     '''
     leftmost_indel_pos = (10000,10000)
     bestalign = ''
@@ -376,8 +373,7 @@ def pick_align(align_list):
             leftmost_indel_pos = this_indel_pos
             bestalign = align
     return seqA, seqB, score, first_non_gap, last_non_gap # return the list of aligns whose indel positions are the leftmost
-    #return bestalign # return the list of aligns whose indel positions are the leftmost
-
+## ======================================================================
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 
         Input:  seqA and seqB from the alignment (seqA, seqB, score, begin, end)
@@ -440,20 +436,14 @@ def get_cigar(seqA, seqB):
     cigar_string += str(cigar_dict[mode]) + mode
     return cigar_string,first_non_gap
 ## ======================================================================
-## Extract the good region of PacBio read, which has >= 10 coverage depth,
-## and is 1000 bps long (contiguous).
-## If there is more than 1 region in the PacBio read satisfying this condition,
-## keep them both, separately (as in 2 files??)
-## ======================================================================
-def get_good_regions(ref_bps, ref_ins_dict, rSeq, minPacBioLen=1000, minCV=10):
+def get_good_regions(ref_bps, rSeq, minPacBioLen=1000, minCV=10):
     ''' From mapping results from Illumina reads to a PacBio read, find the regions of PacBio read that satisfy these conditions:
         1.  Every base pair in the region is covered by at least 10 reads
         2.  The contiguous region has length >= 1000 bps
         
         Input:  ref_bps - dictionary for the match/mismatch and the deletion positions
-                ref_ins_dict - dictionary for the insertion positions
                 rSeq - PacBio sequence
-        Output: ? TODO: fill in this part
+        Output: good_regions - list of tuples, each tuple contain the begin and end coordinates of a good region
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
     rLen = len(rSeq)
@@ -474,12 +464,15 @@ def get_good_regions(ref_bps, ref_ins_dict, rSeq, minPacBioLen=1000, minCV=10):
         if low_CV_pos[i] - low_CV_pos[i-1] >= minPacBioLen:
             good_regions.append((low_CV_pos[i-1]+1, low_CV_pos[i])) # found a good region (begin, end) where rSeq[begin:end] is long enough and covered well
     return good_regions
-
-## ======================================================================
-##  Get the polymorphic positions in the specified region (>=1000bps and covered by >=10 reads)
 ## ======================================================================
 def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01):
-    ''' Get the polymorphic positions and the positions where the insertion happened
+    ''' Get the polymorphic positions where the insertion happened, in the specified region (>=1000bps and covered by >=10 reads)
+        Input:  ref_bps, ref_ins_dict - output objects from read_and_process_sam, noninsertion and insertion information for all the positions from the Illumina reads
+                region - (begin, end) tuple of a region to consider
+        Output: poly_bps - polymorphic non-insertion positions
+                poly_ins - polymorphic insertion positions
+                consensus_bps - nonpolymorphic non-insertion positions, get the consensus
+                consensus_ins - nonpolymorphic insertion positions, get the consensus
     '''
     if region is None: # region to consider
         region = (0, len(ref_bps))
@@ -488,7 +481,9 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
     consensus_bps = []
     consensus_ins = []
     alphabet = 'ACGTD' # all the possible base pairs at a position
-    cvs = []
+    cvs = [] # list of coverage depths
+
+    # consider all the positions in the specified region
     for pos in xrange(region[0], region[1]):
         # check the match/mismatch/deletion first
         cv = sum(ref_bps[pos]) # coverage depth
@@ -498,114 +493,71 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
             poly_bps.append((pos, base_calls))
         elif len(base_calls) == 1:
             consensus_bps.append((pos, base_calls[0]))
+        # TODO: what if non of the base satisfies the condition?
+
         # check the insertion
         if pos in ref_ins_dict: 
-            base_calls = [ alphabet[i] for i in xrange(4) if ref_ins_dict[pos][i] >= minReads and ref_ins_dict[pos][i] >= cv * minPercent ]
-            if len(base_calls) > 1:
-                poly_ins.append((pos, base_calls))
-            elif len(base_calls) == 1:
-                consensus_ins.append((pos, base_calls[0]))
+            for i in xrange(len(ref_ins_dict[pos])): # look at all the bases inserted at this position
+                pos_list = ref_ins_dict[pos][i]
+                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads and pos_list[j] >= cv * minPercent ]
+                if len(base_calls) > 1:
+                    poly_ins.append(([pos,i], base_calls))
+                elif len(base_calls) == 1:
+                    consensus_ins.append(([pos,i], base_calls[0]))
 
     return poly_bps, poly_ins, consensus_bps, consensus_ins
-
-
-def ref_extension(ref_bps, ref_ins_dict, rSeq):
-    ''' From the output of function get_consensus ( list of mat/mismat/del positions, and dictionary of ins positions), extend the reference sequence to include all the insertion positions
+## ======================================================================
+def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None ):
+    ''' Extend the reference sequence, insert the insertion positions in the reference sequence, and return correspondence between old positions and their new positions in the extended sequence
         
-        Input: ref_bps - list of lists, one for each position on the reference sequence (without padding)
-               ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
-               rSeq - original reference sequence
+        Input:  poly_bps, poly_ins, consensus_bps, consensus_ins - output from previous function (get_poly_pos)
+                rseq - reference sequence
+                region - (begin,end) of the region to work on
 
-        Output: The extended consensus sequence, the insertion dictionary where insertions were added to the reference sequence, and coverage depth vector
+        Output: newSeq - new extended reference sequence corresponding to the region
+                bp_pos_dict - dictionary old position => new position in the extended sequence
+                ins_pos_dict - same dictionary for the insertion positions (
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
-    rLen = len(rSeq)
-    cov_depths = []
-    true_ins = dict() # 'true' insertions into reference sequence
+    rLen = len(rseq)
+    if region is None: # if region is not specified, get it from poly_bps and consensus_bps
+        begin = min([i[0] for i in consensus_bps + poly_bps])
+        end = max([i[0] for i in consensus_bps + poly_bps])
+        region = (begin,end+1)
+    #rseq = rseq[region[0]:region[1]] # only look at the specified region
+    ins_pos = [ i[0][0] for i in poly_ins + consensus_ins ] # all the insertion positions, if there is more than 1 base inserted, the position will be repeated
+    bp_pos = [i[0] for i in poly_bps + consensus_bps] # all the non-insertion positions
+    ins_pos_uniq = list(set(ins_pos))
+    ins_pos_uniq.sort()
 
-    ## correspondence between old positions and new positions after insertion in the reference sequence
-    orig_pos_dict = dict()
+    poly_bp_pos = [i[0] for i in poly_bps]
+    consensus_bp_pos = [i[0] for i in consensus_bps]
+
     ins_pos_dict = dict()
+    bp_pos_dict = dict()
 
-    # loop through all the positions of the reference sequence
-    for i in xrange(len(rSeq)):
-        non_ins_bps = ref_bps[i] # non-insertion base calls
-        cov_depth = sum(non_ins_bps) # coverage depth at this position
-        cov_depths.append(cov_depth) # append the new coverage depth to the vector
-        if cov_depth == 0: # not covered by any short read
-            continue # the base is kept the same as the reference sequence
-        else: # if there is coverage, check and see if there is possible insertion at this position
-            if ref_ins_dict.has_key(i+1): # If there is insertion into the ref sequence at this position, ref_ins_dict is 1-based, unlike the non_ins_bps
-                ins_bps = ref_ins_dict[i+1] # count vector for all possible insertion bases
-                if (cov_depth <= 3) or (4 - ins_bps.count(0) - ins_bps.count(1) > 1  and cov_depth > 3): # if coverage is less than or equal to 3, or at least 2 positions with support greater than 1, treat as insertion 
-                    true_ins[i] = alphabet[ins_bps.index(max(ins_bps))] # the most frequent base will be saved
-                    sys.stdout.write('At position {}: inserted {}\t{:>}\n'.format(i + 1, alphabet[ins_bps.index(max(ins_bps))], float(max(ins_bps))/float(cov_depth)))
-
-    rSeq_ext = rSeq
-    # Now insert the 'true' insertions into the sequence
-    length_increase = 0
-    for ins in sorted(true_ins):
-        insert_position = ins + length_increase
-        ins_pos_dict[ins] = insert_position
-        while pos < insert_position:
-            orig_pos_dict[pos] = pos
-            pos += 1
-        rSeq_ext = rSeq_ext[:insert_position] + true_ins[ins] + rSeq_ext[insert_position:]
-        length_increase += 1 # increased length of the reference sequence
-
-    return rSeq_ext, true_ins, orig_pos_dict, ins_pos_dict, cov_depths
-
-def getinfo_at_ambipos(samFile, true_ins, poly_pos, maxSub=3, maxIns=3, maxDel=3, maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
-    ''' Get support information (of short reads) at the polymorphic positions
-    '''
-    alphabet = 'ACGTD' # all the possible base pairs at a position
-    reads_dict = dict()
-    proc_reads = 0
-    with open(samFile, 'r') as mysam:
-        for line in mysam:
-            if line[0] == '@': # header line
-                continue
+    inserted_bases = 0
+    current_pos = region[0]
+    newSeq = ''
+    for ins in ins_pos_uniq:
+        for mypos in xrange(current_pos, ins):
+            if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage
+                newSeq += rseq[mypos]
             else:
-                line = line.strip()
-                if not is_record_bad(line,maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment record passes the threshold, gather its information
-                    fields = line.split('\t')
-                    rstart = int(fields[3])
-                    cigar_string = fields[5]
-                    rend = rstart + cigar(cigar_string)['ref_len'] - 1
-                    pos_dict, ins_dict = get_bases(line) # base calling from this read
-                    read_string = ''
-                    ins_string = ''
+                newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # if there is consensus
+            bp_pos_dict[mypos] = mypos + inserted_bases # old position => new position in the extended ref sequence
+        # now look at the insertion position
+        newSeq += '-' * ins_pos.count(ins)
+        ins_pos_dict[ins] = ins + inserted_bases
+        inserted_bases += ins_pos.count(ins) # update number of inserted bases
+        current_pos = ins
 
-                    for pos in poly_pos: # polymorphic positions
-                        if pos < max(pos_dict.keys()):
-                            if pos >= rstart-1:
-                                read_string += str(pos) + pos_dict[pos+1][-1]
-                        else:
-                            break
-
-                    for pos in true_ins: # insertion positions
-                        if len(ins_dict) == 0:
-                            if pos >= rstart - 1:
-                                ins_string += str(pos) + 'D'
-                        else:
-                            if pos < max(ins_dict.keys()):
-                                if pos >= rstart - 1 and pos < rend :
-                                    if ins_dict.has_key(pos+1):
-                                        ins_string += str(pos) + ins_dict[pos+1][-1]
-                                    else:
-                                        ins_string += str(pos) + 'D'
-                            else:
-                                break
-
-                    all_string = read_string + ':' + ins_string # read_string and ins_string concatenated
-                    if reads_dict.has_key(all_string):
-                        reads_dict[all_string] += 1
-                    else:
-                        reads_dict[all_string] = 1
-                    proc_reads += 1
-
-                    if proc_reads % 10000 == 0:
-                        sys.stdout.write("processed {} good reads\n".format(proc_reads))
-                        return reads_dict
-    return reads_dict
-
+    # positions after the last insertion
+    for mypos in xrange(current_pos, region[1]):
+        if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage
+            newSeq += rseq[mypos]
+        else:
+            newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # if there is consensus
+        bp_pos_dict[mypos] = mypos + inserted_bases # old position => new position in the extended ref sequence
+    return newSeq, bp_pos_dict, ins_pos_dict
+## ======================================================================
