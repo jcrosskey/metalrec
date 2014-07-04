@@ -7,9 +7,11 @@ Created on Thu Jul 03 13:49:18 2014
 @author: cjg
 """
 import sys
+import os
 import argparse
+import glob
+import shutil
 import metalrec_lib
-import time
 
 ## =================================================================
 ## argument parser
@@ -24,8 +26,9 @@ parser = argparse.ArgumentParser(description="Find good regions of a PacBio read
                                  )
 
 ## input files and directories
-parser.add_argument("-i","--in",help="input sam file",dest='samFile',required=True)
-parser.add_argument("-i1","--in1",help="input ref sequence file",dest='seqFile',required=True)
+parser.add_argument("-i","--in",help="input sam file",dest='samFile',default='')
+parser.add_argument("-f","--fasta",help="input ref sequence file",dest='seqFile',default='')
+parser.add_argument("-d","--inputDir",help="input directory including results for filtered subreads",dest='inputDir',default='')
 
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
@@ -40,7 +43,8 @@ parser.add_argument("--polyR",help="minimum proportion of read support for a bas
 
 
 ## output directory
-parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
+parser.add_argument("-od","--outputDir",help="output directory to store results for reads with good regions",dest='outputDir',default='./subreads_with_good_regions')
+parser.add_argument("-o","--out",help="output file",dest='outputFile',default='./good_regions.txt')
 
 ## =================================================================
 ## main function
@@ -49,29 +53,80 @@ def main(argv=None):
     
     if argv is None:
         args = parser.parse_args()
-    print "\n==========================================================="
-    start_time = time.time()
-    rSeq = metalrec_lib.read_single_seq(args.seqFile)
-    rname = 'unknown'
-    with open(args.samFile, 'r') as mysam:
-        for line in mysam:
-            if line[0] == '@': # header line
-                if line[1:3] == 'SQ': # reference sequence dictionary
-                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
-                    break
-    ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(args.samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV)
-    good_regions = metalrec_lib.get_good_regions(ref_bps, rSeq, args.minPacBioLen, args.minCV)
-    sys.stdout.write("good regions" + str(good_regions) + "\n")
+    if not os.path.exists(args.outputDir):
+        os.makedirs(args.outputDir)
+    if args.samFile != '': # if there is sinlge sam file and sequence file in the input
+        samFile = args.samFile
+        seqFile = args.seqFile
+        if args.inputDir != '':
+            sys.stderr.write("cannot take single sam file and directory as input at the same time...\n")
+            sys.exit(0)
+        if not os.path.exists(samFile):
+            sys.stderr.write("input sam file {} does not exist...\n".format(samFile))
+            sys.exit(0)
+        if not os.path.exists(seqFile):
+            sys.stderr.write("input sequence file {} does not exist...\n".format(seqFile))
+            sys.exit(0)
 
-    myout = open(args.outputFile,'a')
-    myout.write(rname)
-    if len(good_regions) > 0:
-        for region in good_regions:
-            myout.write("\t{}".format(str(region)))
-    myout.write('\n')
-    myout.close()
-    print "total time :" + str(time.time() - start_time) +  " seconds"
-    print "==========================================================="
+        rSeq = metalrec_lib.read_single_seq(seqFile)
+        rname = 'unknown'
+        with open(samFile, 'r') as mysam:
+            for line in mysam:
+                if line[0] == '@': # header line
+                    if line[1:3] == 'SQ': # reference sequence dictionary
+                        rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
+                        break
+        ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV)
+        good_regions = metalrec_lib.get_good_regions(ref_bps, rSeq, args.minPacBioLen, args.minCV)
+        #sys.stdout.write("good regions" + str(good_regions) + "\n")
+
+        myout = open(args.outputFile,'a') # append output to the output file
+        myout.write(rname) # write filtered subread's name in the output
+        if len(good_regions) > 0:
+            for region in good_regions:
+                myout.write("\t{}".format(str(region)))
+            # move sam and seq file to the good directory
+            shutil.move(samFile, args.outputDir)
+            shutil.move(seqFile, args.outputDir)
+        myout.write('\n')
+        myout.close()
+
+    else: # otherwise, look through all the folders in the input directory
+        if not os.path.exists(args.inputDir):
+            sys.stderr.write("input directory {} does not exist...\n".format(args.inputDir))
+        else:
+            seqDirs = glob.glob(args.inputDir + '/*') # find all the directories in the input dir, one for each filtered subread
+            for seqDir in seqDirs: # look at all directories
+                if os.path.exists(seqDir + '/bbmap.err'): # mapping is already done, now parse sam file in this case
+                    seqFile = glob.glob(seqDir + '/*.fasta')[0]
+                    samFile = glob.glob(seqDir + '/bbmap.sam')[0]
+
+                    rSeq = metalrec_lib.read_single_seq(seqFile)
+                    rname = 'unknown'
+                    with open(samFile, 'r') as mysam:
+                        for line in mysam:
+                            if line[0] == '@': # header line
+                                if line[1:3] == 'SQ': # reference sequence dictionary
+                                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
+                                    break
+                    ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV)
+                    good_regions = metalrec_lib.get_good_regions(ref_bps, rSeq, args.minPacBioLen, args.minCV)
+                    sys.stdout.write("good regions" + str(good_regions) + "\n")
+
+                    myout = open(args.outputFile,'a')
+                    myout.write(rname)
+                    if len(good_regions) > 0:
+                        for region in good_regions:
+                            myout.write("\t{}".format(str(region)))
+                        shutil.move(seqDir, args.outputDir)
+                    else:
+                        shutil.rmtree(seqDir)
+                    myout.write('\n')
+                    myout.close()
+    #print "\n==========================================================="
+    #start_time = time.time()
+    #print "total time :" + str(time.time() - start_time) +  " seconds"
+    #print "==========================================================="
 
 ##==============================================================
 ## call from command line (instead of interactively)
