@@ -89,9 +89,9 @@ def main(argv=None):
                     seq_dir = args.outputDir + '/' + legal_name
                     if not os.path.exists(seq_dir):
                         os.makedirs(seq_dir)
-                        sys.stdout.write("processing\n")
+                        sys.stdout.write("\t processing\n")
                     else:
-                        sys.stdout.write("already done\n")
+                        sys.stdout.write("\t already done\n")
                         continue
                     # write fasta file for this sequence
                     fasta_name = seq_dir + '/' + legal_name + '.fasta'
@@ -111,7 +111,7 @@ def main(argv=None):
                     bbmap.close()
                     os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                 else:
-                    sys.stdout.write("\t{}, too short\n".format(len(read_seq)))
+                    sys.stdout.write("\t{}\t too short\n".format(len(read_seq)))
                     
                 read_seq = ''
                 read_count += 1
