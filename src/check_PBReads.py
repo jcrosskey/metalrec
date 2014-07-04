@@ -69,6 +69,7 @@ def main(argv=None):
     read_count = 0
     skip_count = 0
     skip = False
+    read_name = ''
     with open(args.fastaFile,'r') as fsr:
         for line in fsr:
             if line[0] == '>':
@@ -81,7 +82,6 @@ def main(argv=None):
                 else:
                     skip = False
                 
-                read_name = line.split()[0][1:] # filtered subread name
                 sys.stdout.write("{}\t{}".format(read_count,read_name))
                 if len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
                     sys.stdout.write("\t{}".format(len(read_seq)))
@@ -115,6 +115,7 @@ def main(argv=None):
                     
                 read_seq = ''
                 read_count += 1
+                read_name = line.split()[0][1:] # filtered subread name
             
             elif not skip:
                 read_seq += line.strip('\n')
