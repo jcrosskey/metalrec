@@ -68,24 +68,31 @@ def main(argv=None):
     read_seq = ''
     read_count = 0
     skip_count = 0
+    skip = False
     with open(args.fastaFile,'r') as fsr:
         for line in fsr:
             if line[0] == '>':
                 if args.count!=-1 and read_count >= args.count:
                     break
                 if skip_count < args.skip: # skip certain number of reads
+                    skip = True
                     skip_count += 1
                     continue
+                else:
+                    skip = False
                 
                 read_name = line.split()[0][1:] # filtered subread name
+                sys.stdout.write("{}".format(read_name))
                 if len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
+                    sys.stdout.write("\t{}".format(len(read_seq)))
                     legal_name = re.sub('/','__',read_name)
                     seq_dir = args.outputDir + '/' + legal_name
                     if not os.path.exists(seq_dir):
                         os.makedirs(seq_dir)
+                        sys.stdout.write("processing\n")
                     else:
+                        sys.stdout.write("already done\n")
                         continue
-                    print seq_dir, legal_name
                     # write fasta file for this sequence
                     fasta_name = seq_dir + '/' + legal_name + '.fasta'
                     myfasta = open(fasta_name,'w')
@@ -103,11 +110,16 @@ def main(argv=None):
                     bbmap.write("echo Ending Time is $(date)\n")
                     bbmap.close()
                     os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
-                    read_count += 1
+                else:
+                    sys.stdout.write("\t{}, too short".format(len(read_seq)))
+                    
                 read_seq = ''
+                read_count += 1
             
-            else:
+            elif not skip:
                 read_seq += line.strip('\n')
+            else:
+                continue
 
 ##==============================================================
 ## call from command line (instead of interactively)
