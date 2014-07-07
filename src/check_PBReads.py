@@ -76,7 +76,7 @@ def main(argv=None):
     # scan the fasta file for PacBio subreads
     with open(args.fastaFile,'r') as fsr:
         for line in fsr:
-            if line[0] == '>':
+            if line[0] == '>' and read_name != '':
                 scan_count += 1 # scanned read count 
                 if args.count!=-1 and read_count >= args.count:
                     break
@@ -88,7 +88,7 @@ def main(argv=None):
                     skip = False
                 
                 if not skip:
-                    sys.stdout.write("{}\t{}\t{}".format(scan_count, read_count,read_name))
+                    sys.stdout.write("{}\t{}\t{}\t{}".format(scan_count,skip_count, read_count,read_name))
                     if read_name != '' and len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
                         sys.stdout.write("\t{}".format(len(read_seq)))
                         legal_name = re.sub('/','__',read_name)
@@ -99,6 +99,8 @@ def main(argv=None):
                         else:
                             sys.stdout.write("\t already done\n")
                             skip = True # if this read is already processed, skip it
+                            read_seq = ''
+                            read_name = line.split()[0][1:] # filtered subread name
                             continue
 
                         # write fasta file for this sequence
