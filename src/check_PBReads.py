@@ -62,17 +62,22 @@ def main(argv=None):
     pe270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_pe.fastq"
     se270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_se.fastq"
 
+    # make sure output directory exists
     if not os.path.exists(args.outputDir):
         os.makedirs(args.outputDir)
 
+    read_count = 0 # number of reads that are processed (not including skipped reads)
+    scan_count = 0 # number of reads that are scanned
+    skip_count = 0 # number of reads that are skipped
     read_seq = ''
-    read_count = 0
-    skip_count = 0
     skip = False
     read_name = ''
+
+    # scan the fasta file for PacBio subreads
     with open(args.fastaFile,'r') as fsr:
         for line in fsr:
             if line[0] == '>':
+                scan_count += 1 # scanned read count 
                 if args.count!=-1 and read_count >= args.count:
                     break
                 if skip_count < args.skip: # skip certain number of reads
@@ -82,44 +87,47 @@ def main(argv=None):
                 else:
                     skip = False
                 
-                sys.stdout.write("{}\t{}".format(read_count,read_name))
-                if len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
-                    sys.stdout.write("\t{}".format(len(read_seq)))
-                    legal_name = re.sub('/','__',read_name)
-                    seq_dir = args.outputDir + '/' + legal_name
-                    if not os.path.exists(seq_dir):
-                        os.makedirs(seq_dir)
-                        sys.stdout.write("\t processing\n")
-                    else:
-                        sys.stdout.write("\t already done\n")
-                        continue
-                    # write fasta file for this sequence
-                    fasta_name = seq_dir + '/' + legal_name + '.fasta'
-                    myfasta = open(fasta_name,'w')
-                    myfasta.write('>{}\n{}'.format(read_name,read_seq))
-                    myfasta.close()
+                if not skip:
+                    sys.stdout.write("{}\t{}\t{}".format(scan_count, read_count,read_name))
+                    if read_name != '' and len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
+                        sys.stdout.write("\t{}".format(len(read_seq)))
+                        legal_name = re.sub('/','__',read_name)
+                        seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
+                        if not os.path.exists(seq_dir):
+                            os.makedirs(seq_dir)
+                            sys.stdout.write("\t processing\n")
+                        else:
+                            sys.stdout.write("\t already done\n")
+                            skip = True # if this read is already processed, skip it
+                            continue
 
-                    # write bbmap script for this sequence
-                    bbmap_name = seq_dir + '/bbmap.sh'
-                    bbmap = open(bbmap_name,'w')
-                    bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn=16\n#PBS -q large\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
-                    bbmap.write("\ncd {}\n".format(seq_dir))
-                    bbmap.write("echo Starting Time is $(date)\n")
-                    bbmap.write("bbmapskimmer.sh build=1 ref={}\n".format(fasta_name))
-                    bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t -Xmx50g threads=16 trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format(pe800, se800))
-                    bbmap.write("echo Ending Time is $(date)\n")
-                    bbmap.close()
-                    os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
-                else:
-                    sys.stdout.write("\t{}\t too short\n".format(len(read_seq)))
-                    
-                read_seq = ''
-                read_count += 1
-                read_name = line.split()[0][1:] # filtered subread name
+                        # write fasta file for this sequence
+                        fasta_name = seq_dir + '/' + legal_name + '.fasta'
+                        myfasta = open(fasta_name,'w')
+                        myfasta.write('>{}\n{}'.format(read_name,read_seq))
+                        myfasta.close()
+
+                        # write bbmap script for this sequence
+                        bbmap_name = seq_dir + '/bbmap.sh'
+                        bbmap = open(bbmap_name,'w')
+                        bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn=16\n#PBS -q large\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
+                        bbmap.write("\ncd {}\n".format(seq_dir))
+                        bbmap.write("echo Starting Time is $(date)\n")
+                        bbmap.write("bbmapskimmer.sh build=1 ref={}\n".format(fasta_name))
+                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t -Xmx50g threads=16 trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format(pe800, se800))
+                        bbmap.write("echo Ending Time is $(date)\n")
+                        bbmap.close()
+                        #os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
+                    else:
+                        sys.stdout.write("\t{}\t too short\n".format(len(read_seq)))
+                        
+                    read_seq = ''
+                    read_count += 1
+                    read_name = line.split()[0][1:] # filtered subread name
             
             elif not skip:
                 read_seq += line.strip('\n')
-            else:
+            elif skip:
                 continue
 
 ##==============================================================
