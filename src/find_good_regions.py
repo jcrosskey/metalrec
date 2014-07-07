@@ -58,6 +58,8 @@ def main(argv=None):
     if args.samFile != '': # if there is sinlge sam file and sequence file in the input
         samFile = args.samFile
         seqFile = args.seqFile
+        root,ext = os.path.splitext(samFile)
+        newsamFile = root + '_red.sam'
         if args.inputDir != '':
             sys.stderr.write("cannot take single sam file and directory as input at the same time...\n")
             sys.exit(0)
@@ -76,12 +78,12 @@ def main(argv=None):
                     if line[1:3] == 'SQ': # reference sequence dictionary
                         rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                         break
-        ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV)
+        ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV,newsamFile)
         good_regions = metalrec_lib.get_good_regions(ref_bps, rSeq, args.minPacBioLen, args.minCV)
         #sys.stdout.write("good regions" + str(good_regions) + "\n")
 
         myout = open(args.outputFile,'a') # append output to the output file
-        myout.write(rname) # write filtered subread's name in the output
+        myout.write("{}\t{}".format(rname,len(rSeq))) # write filtered subread's name in the output
         if len(good_regions) > 0:
             for region in good_regions:
                 myout.write("\t{}".format(str(region)))
@@ -100,6 +102,8 @@ def main(argv=None):
                 if os.path.exists(seqDir + '/bbmap.err'): # mapping is already done, now parse sam file in this case
                     seqFile = glob.glob(seqDir + '/*.fasta')[0]
                     samFile = glob.glob(seqDir + '/bbmap.sam')[0]
+                    root,ext = os.path.splitext(samFile)
+                    newsamFile = root + '_red.sam'
 
                     rSeq = metalrec_lib.read_single_seq(seqFile)
                     rname = 'unknown'
@@ -109,12 +113,12 @@ def main(argv=None):
                                 if line[1:3] == 'SQ': # reference sequence dictionary
                                     rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                                     break
-                    ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV)
+                    ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV,newsamFile)
                     good_regions = metalrec_lib.get_good_regions(ref_bps, rSeq, args.minPacBioLen, args.minCV)
                     sys.stdout.write("good regions" + str(good_regions) + "\n")
 
                     myout = open(args.outputFile,'a')
-                    myout.write(rname)
+                    myout.write("{}\t{}".format(rname,len(rSeq))) # write filtered subread's name in the output
                     if len(good_regions) > 0:
                         for region in good_regions:
                             myout.write("\t{}".format(str(region)))

@@ -17,8 +17,8 @@ import metalrec_lib
 ## =================================================================
 ## argument parser
 ## =================================================================
-parser = argparse.ArgumentParser(description="parse sam file and get summary statistics",
-                                 prog = 'testDrive', #program name
+parser = argparse.ArgumentParser(description="Check the PacBio subreads and see if any of them has good regions",
+                                 prog = 'check_PBreads', #program name
                                  prefix_chars='-', # prefix for options
                                  fromfile_prefix_chars='@', # if options are read from file, '@args.txt'
                                  conflict_handler='resolve', # for handling conflict options
@@ -71,38 +71,46 @@ def main(argv=None):
     skip_count = 0 # number of reads that are skipped
     read_seq = ''
     skip = False
-    read_name = ''
 
     # scan the fasta file for PacBio subreads
-    with open(args.fastaFile,'r') as fsr:
-        for line in fsr:
-            if line[0] == '>' and read_name != '':
-                scan_count += 1 # scanned read count 
-                if args.count!=-1 and read_count >= args.count:
-                    break
-                if skip_count < args.skip: # skip certain number of reads
-                    skip = True
-                    skip_count += 1
-                    continue
-                else:
-                    skip = False
-                
-                if not skip:
-                    sys.stdout.write("{}\t{}\t{}\t{}".format(scan_count,skip_count, read_count,read_name))
-                    if read_name != '' and len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
-                        sys.stdout.write("\t{}".format(len(read_seq)))
-                        legal_name = re.sub('/','__',read_name)
-                        seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
-                        if not os.path.exists(seq_dir):
-                            os.makedirs(seq_dir)
-                            sys.stdout.write("\t processing\n")
-                        else:
-                            sys.stdout.write("\t already done\n")
-                            skip = True # if this read is already processed, skip it
-                            read_seq = ''
-                            read_name = line.split()[0][1:] # filtered subread name
-                            continue
+    fsr = open(args.fastaFile,'r')
+    line = fsr.readline()
+    nextline = ''
+    while line != '' and (args.count == -1 or read_count < args.count):
+        if line[0] == '>':
+            read_name = line.split()[0][1:] # get read name
+            read_seq = ''
+            scan_count += 1 # increase scanned read count
 
+            # check if enough reads are skipped
+            if skip_count < args.skip : # skip certain number of reads
+                skip = True
+                skip_count += 1
+                sys.stdout.write("{}\t{}\t{}\t{}\tskip\n".format(scan_count,skip_count, read_count,read_name))
+                nextline = fsr.readline().strip('\n')
+                while nextline[0] != '>':
+                    nextline = fsr.readline().strip('\n')
+                line = nextline
+                continue
+            else: # first read ('') or skipped enough reads
+                skip = False
+            
+            if not skip:
+                sys.stdout.write("{}\t{}\t{}\t{}".format(scan_count,skip_count, read_count,read_name))
+                legal_name = re.sub('/','__',read_name)
+                seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
+                # first check if this read is already done
+                if not os.path.exists(seq_dir): # if this read is not processed yet
+                    os.makedirs(seq_dir)
+                    read_count += 1 # increase processed read count 
+                    nextline = fsr.readline().strip('\n')
+                    while nextline != '' and nextline[0] != '>':
+                        read_seq += nextline
+                        nextline = fsr.readline().strip('\n')
+                    line = nextline
+                    sys.stdout.write("\t{}".format(len(read_seq)))
+                    if len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
+                        sys.stdout.write("\t processing\n")
                         # write fasta file for this sequence
                         fasta_name = seq_dir + '/' + legal_name + '.fasta'
                         myfasta = open(fasta_name,'w')
@@ -119,18 +127,20 @@ def main(argv=None):
                         bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t -Xmx50g threads=16 trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format(pe800, se800))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
-                        #os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
+                        os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                     else:
-                        sys.stdout.write("\t{}\t too short\n".format(len(read_seq)))
-                        
-                    read_seq = ''
-                    read_count += 1
-                    read_name = line.split()[0][1:] # filtered subread name
-            
-            elif not skip:
-                read_seq += line.strip('\n')
-            elif skip:
-                continue
+                        sys.stdout.write("\t too short\n")
+
+
+                else:
+                    sys.stdout.write("\t already done\n")
+                    nextline = fsr.readline().strip('\n')
+                    while nextline[0] != '>':
+                        nextline = fsr.readline().strip('\n')
+                    line = nextline
+                    #read_seq = ''
+                    #read_name = line.split()[0][1:] # filtered subread name
+                    #continue
 
 ##==============================================================
 ## call from command line (instead of interactively)
