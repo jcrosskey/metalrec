@@ -148,6 +148,12 @@ def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=
                     # redo global alignment using dynamic programming
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                     new_align = pick_align(realign_res) # pick the first mapping 
+                    #if myread.qname == 'HISEQ11:283:H97Y1ADXX:1:1108:1971:87341':
+                    #    #for i in realign_res:
+                    #    #    print format_alignment(*i)
+                    #    print "\n\n\n"
+                    #    print format_alignment(*new_align)
+                    #    print "\n\n\n"
                     cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
                     # update information in the sam record
                     fields[3] = str(ref_region_start + new_align[3]) # starting position
@@ -298,20 +304,6 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                 record = line.strip('\n')
                 fields = record.split('\t')
                 if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
-
-
-                    myread = samread.SamRead(record)
-                    # improve the alignment to the reference sequence by dynamic programming
-                    # original starting and ending positions on the reference sequence of the mapped region
-                    ref_region_start = max( myread.rstart - 5, 1)
-                    ref_region_end = min(myread.get_rend() + 5, rLen)
-                    # query sequence with clipped part trimmed
-                    trimmed_qseq = myread.get_trim_qseq()
-                    # redo global alignment using dynamic programming
-                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-                    new_align = pick_align(realign_res) # pick the first mapping 
-                    cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-
                     keepRec += 1
                     myread = samread.SamRead(record)
                     # improve the alignment to the reference sequence by dynamic programming
@@ -324,6 +316,13 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                     # redo global alignment using dynamic programming, indel penalty -0.9, mismatch penalty -1, opening and ending gaps at the query sequence has no penalty
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                     new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+                    #if myread.qname == 'HISEQ11:283:H97Y1ADXX:1:1108:1971:87341' and myread.is_read1():
+                    #    print len(realign_res)
+                    #    #for i in realign_res:
+                    #    #    print format_alignment(*i)
+                    #    print "\n\n\n"
+                    #    print format_alignment(*new_align)
+                    #    print "\n\n\n"
                     pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
 
                     # if simplified sam file is required, find the new CIGAR string and write the new record
@@ -402,8 +401,10 @@ def pick_align(align_list):
 
         if this_indel_pos < leftmost_indel_pos:
             leftmost_indel_pos = this_indel_pos
-            bestalign = align
-    return seqA, seqB, score, first_non_gap, last_non_gap # return the list of aligns whose indel positions are the leftmost
+            SeqA, SeqB, Score = seqA, seqB, score
+            First_non_gap = first_non_gap
+            Last_non_gap = last_non_gap
+    return SeqA, SeqB, Score, First_non_gap, Last_non_gap # return the list of aligns whose indel positions are the leftmost
 ## ======================================================================
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 

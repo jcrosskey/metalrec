@@ -88,8 +88,10 @@ def main(argv=None):
             for region in good_regions:
                 myout.write("\t{}".format(str(region)))
             # move sam and seq file to the good directory
-            shutil.move(samFile, args.outputDir)
-            shutil.move(seqFile, args.outputDir)
+            shutil.copy(samFile, args.outputDir)
+            os.remove(samFile)
+            shutil.copy(seqFile, args.outputDir)
+            os.remove(seqFile)
         myout.write('\n')
         myout.close()
 
@@ -122,9 +124,9 @@ def main(argv=None):
                     if len(good_regions) > 0:
                         for region in good_regions:
                             myout.write("\t{}".format(str(region)))
-                        shutil.move(seqDir, args.outputDir)
-                    else:
-                        shutil.rmtree(seqDir)
+                        shutil.copy(seqDir, args.outputDir)
+                        
+                    shutil.rmtree(seqDir)
                     myout.write('\n')
                     myout.close()
     #print "\n==========================================================="
