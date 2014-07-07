@@ -124,8 +124,7 @@ def main(argv=None):
                     if len(good_regions) > 0:
                         for region in good_regions:
                             myout.write("\t{}".format(str(region)))
-                        shutil.copy(seqDir, args.outputDir)
-                        
+                        shutil.copytree(seqDir, args.outputDir + '/' + os.path.basename(seqDir))
                     shutil.rmtree(seqDir)
                     myout.write('\n')
                     myout.close()
