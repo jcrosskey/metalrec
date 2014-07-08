@@ -563,7 +563,15 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
             poly_bps.append((pos, base_calls))
         elif len(base_calls) == 1:
             consensus_bps.append((pos, base_calls[0]))
-        # TODO: what if non of the base satisfies the condition?
+        # TODO: what if non of the base satisfies the condition? should we use information from PacBio read?
+        else: # no base has more than required number of coverage, what now?
+            base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] > 0 ]
+            # if they all agree (low CV region) then use the consensus base
+            if len(base_calls) == 1:
+                consensus_bps.append((pos, base_calls[0]))
+            # if they do not agree, pick the consensus base
+            else:
+                consensus_bps.append((pos, alphabet[ref_bps[pos].index(max(ref_bps[pos]))]))
 
         # check the insertion
         if pos in ref_ins_dict: 
@@ -574,8 +582,9 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
                     poly_ins.append(([pos,i], base_calls))
                 elif len(base_calls) == 1:
                     consensus_ins.append(([pos,i], base_calls[0]))
+                #else do not consider there is insertion at this position
 
-    return poly_bps, poly_ins, consensus_bps, consensus_ins
+    return poly_bps, poly_ins, consensus_bps, consensus_ins, cvs
 ## ======================================================================
 def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None ):
     ''' Extend the reference sequence, insert the insertion positions in the reference sequence, and return correspondence between old positions and their new positions in the extended sequence
@@ -594,9 +603,11 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
         begin = min([i[0] for i in consensus_bps + poly_bps])
         end = max([i[0] for i in consensus_bps + poly_bps])
         region = (begin,end+1)
-    #rseq = rseq[region[0]:region[1]] # only look at the specified region
+
     ins_pos = [ i[0][0] for i in poly_ins + consensus_ins ] # all the insertion positions, if there is more than 1 base inserted, the position will be repeated
     bp_pos = [i[0] for i in poly_bps + consensus_bps] # all the non-insertion positions
+
+    # distinct insertion positions (if there is more than 1 bp inserted, the insert position will appear more than once in ins_pos
     ins_pos_uniq = list(set(ins_pos))
     ins_pos_uniq.sort()
 
