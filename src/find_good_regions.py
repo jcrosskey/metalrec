@@ -128,11 +128,6 @@ def main(argv=None):
                     shutil.rmtree(seqDir)
                     myout.write('\n')
                     myout.close()
-    #print "\n==========================================================="
-    #start_time = time.time()
-    #print "total time :" + str(time.time() - start_time) +  " seconds"
-    #print "==========================================================="
-
 ##==============================================================
 ## call from command line (instead of interactively)
 ##==============================================================
