@@ -376,6 +376,42 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
     sys.stdout.write("discarded {} reads.\n".format(discardRec))
     return ref_bps, ref_ins_dict, readinfo
 ## ======================================================================
+def shift_to_left(align):
+    ''' Take the result from Bio.pairwise2.align.global**, shift the indels in the homopolymer to the leftmost positions.
+    
+        Input:  The result (align) is a list of tuples: (seqA, seqB, score, begin, end). seqA and seqB are strings showing the alignment between the sequences. score is the score of the alignment. begin and end are indexes into seqA and seqB that indicate the where the alignment occurs.
+                Consider one tuple in the list as input to this function.
+                Note: We'll consider that seqA is part of the reference sequence, and seqB is the short read sequence, and the global alignment is done, with no gap penalty at the ends for seqB, but gap penalty at the ends of seqA
+
+        Output: The alignment after shifting
+    '''
+    seqA, seqB, score, begin, end = align
+    # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+    first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+    last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+
+    ins_char = re.compile('-')
+
+    # insert positions in sequence A and B
+    insA = [m.start() for m in ins_char.finditer(seqA, first_non_gap, last_non_gap)]
+    insB = [m.start() for m in ins_char.finditer(seqB, first_non_gap, last_non_gap)]
+    insAB = insA + insB
+    insAB.sort()
+
+    for ins_pos in insAB:
+        if ins_pos in insA:
+            base = seqB[ins_pos] # base call corresponding to the insertion position
+            if seqA[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqA[:ins_pos]).start()
+                seqA = seqA[:l_base] + '-' + seqA[(l_base+1):ins_pos] + base + seqA[(ins_pos+1):]
+        else:
+            base = seqA[ins_pos] # base call corresponding to the insertion position
+            if seqB[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqB[:ins_pos]).start()
+                seqB = seqB[:l_base] + '-' + seqB[(l_base+1):ins_pos] + base + seqB[(ins_pos+1):]
+
+    return (seqA, seqB, score, begin, end)
+## ======================================================================
 def pick_align(align_list):
     ''' From a list of equivalent alignments between 2 sequences using dynamic progamming (Needleman-Wunch), pick the one whose indel positions are the most left
         Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
@@ -383,7 +419,6 @@ def pick_align(align_list):
     '''
     leftmost_indel_pos = (1000000,1000000)
     bestalign = ''
-    SeqA, SeqB, Score = '', '', 0
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in seqB
@@ -402,10 +437,12 @@ def pick_align(align_list):
 
         if this_indel_pos < leftmost_indel_pos:
             leftmost_indel_pos = this_indel_pos
-            SeqA, SeqB, Score = seqA, seqB, score
+            bestalign = (seqA, seqB, score, 0, len(seqA))
             First_non_gap = first_non_gap
             Last_non_gap = last_non_gap
-    return SeqA, SeqB, Score, First_non_gap, Last_non_gap # return the list of aligns whose indel positions are the leftmost
+    bestalign = shift_to_left(bestalign) # shift again to make sure the indels in the homopolymers are at the leftmost, this is not the case when number of best alignments is bigger than MAX_ALIGNMENTS in the pairwise2 module
+    #print format_alignment(*bestalign)
+    return bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap # return the list of aligns whose indel positions are the leftmost
 ## ======================================================================
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 
