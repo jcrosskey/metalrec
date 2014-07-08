@@ -30,6 +30,7 @@ parser = argparse.ArgumentParser(description="Check the PacBio subreads and see 
 parser.add_argument("-f","--fasta",help="input PacBio filtered subreads sequence file",dest='fastaFile',required=True)
 parser.add_argument("-c","--count",help="number of subreads to process",dest='count',default=-1, type=int)
 parser.add_argument("-k","--skip",help="number of subreads to skip",dest='skip',default=0, type=int)
+parser.add_argument("-q","--queue",help="queue to use for jobs",dest='queue',default='large')
 
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
@@ -120,7 +121,7 @@ def main(argv=None):
                         # write bbmap script for this sequence
                         bbmap_name = seq_dir + '/bbmap.sh'
                         bbmap = open(bbmap_name,'w')
-                        bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn=16\n#PBS -q large\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
+                        bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn=16\n#PBS -q {}\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(args.queue, seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
                         bbmap.write("bbmapskimmer.sh build=1 ref={}\n".format(fasta_name))
