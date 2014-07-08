@@ -381,8 +381,9 @@ def pick_align(align_list):
         Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
         Output: align - one of the tuple in the list (seqA, seqB, score, first_non_gap_pos, last_non_gap_pos), last two elements were begin and end originally
     '''
-    leftmost_indel_pos = (10000,10000)
+    leftmost_indel_pos = (1000000,1000000)
     bestalign = ''
+    SeqA, SeqB, Score = '', '', 0
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in seqB
