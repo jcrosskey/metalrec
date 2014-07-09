@@ -21,6 +21,14 @@ ref_fasta = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/
 import metalrec_lib
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(samfile, rseq, maxSubRate=0.1)
-good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=10)
+good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=1)
 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[0])
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq)
+poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
+type_array = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
+ref_array = metalrec_lib.make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array)
+a = read_info.keys()[1]
+array_a = metalrec_lib.make_read_array1d(a, bp_pos_dict, ins_pos_dict, type_array)
+array_a[:100].reshape(-1,5)
+where(array_a[4::5]==1)[0] # positions where there is a 'D'
+hstack((where(type_array==3)[0], where(type_array==1)[0])) # insertion positions

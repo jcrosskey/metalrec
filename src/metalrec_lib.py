@@ -4,10 +4,11 @@
 '''
 import re
 import sys
+from numpy import *
 import samread
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
-
+alphabet = 'ACGTD'
 ## ======================================================================
 def dict_to_string(dictionary):
     ''' Convert dictionary to a string, key value all concatenated. Dictionary is first sorted by keys '''
@@ -278,6 +279,7 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
+                readinfo - dictionary of read information, info_string => number of reads with this info string
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
     keepRec = 0
@@ -642,3 +644,88 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
         bp_pos_dict[mypos] = mypos + inserted_bases # old position => new position in the extended ref sequence
     return newSeq, bp_pos_dict, ins_pos_dict
 ## ======================================================================
+def update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict):
+    ''' Given the correspondence between the positions in the original sequence and the positions in the extended sequence, update the polymorphic and consensus information for both insertion and non-insertion positions.
+        Input:  poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict
+        Output: poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext
+    '''
+    poly_bps_ext = []
+    poly_ins_ext = []
+    consensus_bps_ext = []
+    consensus_ins_ext = []
+    for i in poly_bps:
+        poly_bps_ext.append( (bp_pos_dict[i[0]], i[1]) )
+    for i in poly_ins:
+        poly_ins_ext.append( (ins_pos_dict[i[0][0]] + i[0][1] , i[1]) )
+    for i in consensus_bps:
+        consensus_bps_ext.append( (bp_pos_dict[i[0]], i[1]) )
+    for i in consensus_ins:
+        consensus_ins_ext.append( (ins_pos_dict[i[0][0]] + i[0][1] , i[1]) )
+    return poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext
+## ======================================================================
+def make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext):
+    ''' Construct an array that indicates the type each position. 0: consensus non-insertion; 1: consensus insertion; 2: polymorphic non-insertion; 3: polymorphic insertion.
+        Input:  position information list (including poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext) for the extended sequence
+        Output: an array with 0,1,2,3 as entries and with length equal to the good region
+    '''
+    poly_bps_pos = array( [i[0] for i in poly_bps_ext] )
+    poly_ins_pos = array( [ i[0] for i in poly_ins_ext] )
+    consensus_bps_pos = array( [i[0] for i in consensus_bps_ext] )
+    consensus_ins_pos = array( [ i[0] for i in consensus_ins_ext] )
+    type_array = zeros(max(hstack((poly_bps_pos, poly_ins_pos, consensus_bps_pos, consensus_ins_pos))) + 1, dtype=int32)
+    type_array[consensus_ins_pos] = 1
+    type_array[poly_bps_pos] = 2
+    type_array[poly_ins_pos] = 3
+    return type_array
+## ======================================================================
+def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array):
+    ''' Construct array for the reference sequence, with consensus positions' entries filled in.
+        Input:  consensus information (consensus_bps_ext, consensus_ins_ext)
+                type_array - array including type of each position
+        Output: ref_array - array with size 5 times size of type_array, each position has 5 options (ACGTD)
+    '''
+    alphabet = 'ACGTD'
+    ref_array = zeros( len(type_array) * 5, dtype = int32 )
+    for i in where(type_array == 0)[0]:
+        base = [ j[1] for j in consensus_bps_ext if j[0] == i][0]
+        #print base,i
+        #print ref_array
+        ref_array[ i*5 + alphabet.index(base) ] = 1
+    for i in where(type_array == 1)[0]:
+        base = [ j[1] for j in consensus_ins_ext if j[0] == i][0]
+        ref_array[ i*5 + alphabet.index(base) ] = 1
+    return ref_array
+## ======================================================================
+def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array):
+    ''' Make 1d array for a particular read from its string (key of dictionary readinfo)
+        Input:  read_string - read string (key of dictionary readinfo)
+                bp_pos_dict, ins_pos_dict - correspondence between positions from original to extended ref sequence
+                length - length of the reference sequence ( good region )
+        Output: read_array1d - 1d array for this particular read string
+    '''
+    read_array1d = zeros( len(type_array) * 5, dtype=int32 )
+    bpstring = read_string.split(":")[0]
+    insstring = read_string.split(":")[1]
+    if len(bpstring) > 0:
+        positions = map(int, re.findall('\d+',bpstring))
+        bases = re.findall('\D+',bpstring)
+        for i in xrange(len(positions)):
+            position = bp_pos_dict[positions[i]]
+            read_array1d[ position*5 + alphabet.index(bases[i]) ] = 1
+                
+    #if len(insstring) > 0:
+    positions = map(int, re.findall('\d+',insstring))
+    bases = re.findall('\D+',insstring)
+    for i in xrange(len(positions)):
+        position = ins_pos_dict[positions[i]]
+        for j in xrange(len(bases[i])):
+            ins_position = position + j
+            if type_array[ins_position] in [1,3]: # insertion position
+                read_array1d[ ins_position*5 + alphabet.index(bases[i][j]) ] = 1
+
+    # check if this read missed any insertion position
+    for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
+        if ins_pos not in positions: # if there is no insertion for this read at the insertion position, put a deletion
+            read_array1d[ins_pos * 5 + 4 ] = 1
+
+    return read_array1d
