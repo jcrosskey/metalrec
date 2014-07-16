@@ -704,36 +704,191 @@ def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array):
         ref_array[ i*5 + alphabet.index(base) ] = 1
     return ref_array
 ## ======================================================================
-def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array):
-    ''' Make 1d array for a particular read from its string (key of dictionary readinfo)
+def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
+    ''' Make 1d array for a particular read from its string (key of dictionary readinfo).
+        Incorporate the base calling from other reads at the same position.
+
         Input:  read_string - read string (key of dictionary readinfo)
                 bp_pos_dict, ins_pos_dict - correspondence between positions from original to extended ref sequence
                 length - length of the reference sequence ( good region )
+                poly_bps, poly_ins, consensus_bps, consensus_ins - base calling information for all the positions (non-extended sequence)
+
         Output: read_array1d - 1d array for this particular read string
     '''
-    read_array1d = zeros( len(type_array) * 5, dtype=int32 )
-    bpstring = read_string.split(":")[0]
-    insstring = read_string.split(":")[1]
+    read_array1d = zeros( len(type_array) * 5, dtype=int32 ) # initialization
+    bpstring = read_string.split(":")[0] # non-insertion information
+    insstring = read_string.split(":")[1] # insertion position's information
+
+    map_positions = array([bp_pos_dict[pos] for pos in map(int, re.findall('\d+',bpstring))]) # all positions
+    start_pos = min(map_positions)
+    end_pos = max(map_positions)
+    # get the base calling information for all the positions, with coordinates in the extended sequence
+    poly_bps, poly_ins, consensus_bps, consensus_ins = update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
+
+    # If this read covers some non-insertion positions, do the following:
     if len(bpstring) > 0:
-        positions = map(int, re.findall('\d+',bpstring))
-        bases = re.findall('\D+',bpstring)
+        positions = map(int, re.findall('\d+',bpstring)) # positions
+        bases = re.findall('\D+',bpstring) # base calling
         for i in xrange(len(positions)):
-            position = bp_pos_dict[positions[i]]
-            read_array1d[ position*5 + alphabet.index(bases[i]) ] = 1
-                
-    #if len(insstring) > 0:
+            position = bp_pos_dict[positions[i]] # position in the extended sequence
+            if type_array[position] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
+                c_bp = [l[1] for l in consensus_bps if l[0] == position][0]
+                read_array1d[ position*5 + alphabet.index(c_bp) ] = 1
+            if type_array[position] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
+                p_bps = [l[1] for l in poly_bps if l[0] == position][0]
+                if bases[i] in p_bps: # if read's call is one of the possible calls, do not change it
+                    read_array1d[ position*5 + alphabet.index(bases[i]) ] = 1
+                else: # if read's call is not among the possible calls, it's considered as an error, so it could be either of the possible calls
+                      # TODO: this is done in somewhat awkward way, try to fix this
+                    for p_bp in p_bps:
+                        read_array1d[ position*5 + alphabet.index(p_bp) ] = 1
+                        
+    # If this read covers some insertion positions, do the following:            
     positions = map(int, re.findall('\d+',insstring))
     bases = re.findall('\D+',insstring)
-    for i in xrange(len(positions)):
-        position = ins_pos_dict[positions[i]]
-        for j in xrange(len(bases[i])):
-            ins_position = position + j
-            if type_array[ins_position] in [1,3]: # insertion position
-                read_array1d[ ins_position*5 + alphabet.index(bases[i][j]) ] = 1
+    for i in xrange(len(positions)): # for each base inserted at this position (there might be more than 1 base inserted)
+        if positions[i] in ins_pos_dict: # if this position is decided to be an insertion position in the extended sequence, proceed. Otherwise, it's treated as an error
+            position = ins_pos_dict[positions[i]]
+            for j in xrange(len(bases[i])):
+                ins_position = position + j
+                if type_array[ins_position] == 1: # consensus insertion position
+                    c_bp = [l[1] for l in consensus_ins if l[0] == ins_position][0]
+                    read_array1d[ ins_position*5 + alphabet.index(c_bp) ] = 1
+
+                if type_array[ins_position] == 3: # polymorphic insertion position
+                    p_bps = [l[1] for l in poly_ins if l[0] == ins_position][0]
+                    if bases[i][j] in p_bps:
+                        read_array1d[ ins_position*5 + alphabet.index(bases[i][j]) ] = 1
+                    else:
+                        for p_bp in p_bps:
+                            read_array1d[ position*5 + alphabet.index(p_bp) ] = 1
 
     # check if this read missed any insertion position
     for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
-        if ins_pos not in positions: # if there is no insertion for this read at the insertion position, put a deletion
+        if ins_pos >= start_pos and ins_pos <= end_pos and (ins_pos not in positions): # if there is no insertion for this read at the insertion position, put a deletion
             read_array1d[ins_pos * 5 + 4 ] = 1
 
     return read_array1d
+## ======================================================================
+def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
+    ''' Make 2d array for all reads from readinfo dictionary, dim1 of the array is equal to the length of the dictionary
+        Input:  readinfo - dictionary (read string => count of the same read string)
+                bp_pos_dict, ... - same as function make_read_array1d's input for each read string
+        Output: read_array - 2d array that include all reads' base call information
+                read_counts - 1d array that stores the counts of reads corresponding to each row of read_array
+    '''
+    read_array = zeros( (len(readinfo), len(type_array)*5), dtype = int32 ) # initialize the 2d array to return
+    read_counts = zeros( len(readinfo), dtype = int32)
+    i = 0
+    for read_string in readinfo:
+        read_array[i,:] = make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
+        read_counts[i] = readinfo[read_string]
+        i += 1
+    return read_array, read_counts
+
+## ======================================================================
+def is_compatible(array1, array2):
+    ''' Find out if the base calls of 2 reads at a certain position are compatible or not, given the 0-1 vectors representing the base calls. For now, the length of the vectors is the same (5 for ACGTD).
+        Input:  array1, array2 - length 5 vectors, each corresponds to the base call of a read at one position
+        Output: boolean value - true if they are compatible, false if not
+    '''
+    same_call_pos = where(bitwise_and( array1, array2) == 1)[0]
+    if len(same_call_pos) > 0:
+        return True
+    else:
+        return False
+## ======================================================================
+def are_reads_compatible(read_array1d1, read_array1d2):
+    ''' Find if two reads are compatible, given their 1d array with 0 and 1 entries.
+        Input:  read_array1d1, read_array1d2 - 0-1 vectors for 2 reads
+        Output: boolean value - true if they are compatible, false if not
+    '''
+    r1 = read_array1d1.reshape(-1,5) # change the vector to 2-d arrays
+    r2 = read_array1d2.reshape(-1,5)
+    overlap_pos = intersect1d( where(r1==1)[0], where(r2==1)[0] ) # find the overlap positions of the 2 reads
+    # if 2 reads do not overlap then they are compatible
+    if len(overlap_pos) == 0:
+        return True
+    else: # otherwise, check position by position and see if any is not compatible
+        for pos in overlap_pos:
+            if not is_compatible(r1[pos,:], r2[pos,:]): # if non-compatible position is found, return False immediately and quit function
+                return False
+    return True
+## ======================================================================
+def compatible_mat(read_array):
+    ''' Construct (upper triangular) compatibility matrix for pairwise compatibility of the reads whose info is stored in the read_array.
+        Input:  read_array- 2d array from all the reads 
+        Output: Cmat - compatibility array for all the reads in the 2d array
+    '''
+    nread = read_array.shape[0]
+    Cmat = zeros((nread, nread),dtype=int32)
+    for i in xrange(nread):
+        for j in xrange(i+1, nread):
+            if are_reads_compatible(read_array[i],read_array[j]):
+                Cmat[i,j] = 1
+    return array(Cmat)
+## ======================================================================
+def is_read_compatible(ref_array, read_array1d):
+    ''' Given a reference array and an array for a read, determine if they are compatible or not.
+        Input:  ref_array - vector of 0-1 for base calls on the reference sequence
+                read_array1d - 1d array from one read
+        Output: True if read is compatible, False otherwise
+    '''
+    r = read_array1d.reshape(-1,5)
+    cov_pos = unique( where( r==1 )[0] ) # positions covered by this read
+    if dot(ref_array, read_array1d) == len(cov_pos):
+        return True
+    else:
+        return False
+## ======================================================================
+def get_compatible_reads(ref_array, read_array):
+    ''' Given a candidate reference sequence, find reads that are compatible with this candidate
+        Input:  ref_array - vector of 0-1 for base calls on the reference sequence
+                read_array - 2d array from all the reads
+        Output: compatible_ind - array of indices for compatible reads, corresponding to the read_array
+    '''
+    compatible_ind = []
+    for i in xrange(read_array.shape[0]): # check every read
+        if is_read_compatible(ref_array, read_array[i,:]):
+            compatible_ind.append(i)
+    return array(compatible_ind)
+## ======================================================================
+def gap_pos(ref_array, read_array, compatible_ind):
+    ''' Given a reference array and indices (of array) of compatible reads, find the gap positions, i.e. positions that are not covered by any read
+        Input:  ref_array - vector of 0-1 for base calls on the reference sequence
+                read_array - 2d array from all the reads
+                compatible_ind - indices of compatible reads, corresponding to the read_array
+        Output: gap_vec - vector with positions that have no coverage from the reads
+    '''
+    read_array = read_array[compatible_ind,:]
+    base_pos = where( ref_array == 1)[0] # coordinates corresponding to the bases called by the reference
+    base_cov = read_array[ : , base_pos].reshape(-1,len(base_pos))
+    base_cov = base_cov.sum(axis=0) # pick the compatible rows and the correct columns, sum over the columns
+    return where(base_cov == 0)[0]
+## ======================================================================
+def get_consensus_from_array(read_array):
+    ''' get initial starting point for the greedy algorithm, i.e., the consensus sequence found from the read array.
+        Input:  read_array - 2d array from all the reads
+        Output: ref_consensus - consensus 0-1 array for the reference
+    '''
+    pos_sum = read_array.sum(axis=0) # take the column sum
+    pos_sum_array = pos_sum.reshape(-1,5) # convert to 2d array, with 5 columns
+    pos_max = argmax(pos_sum_array, axis=1) # find the index of the base with maximum coverage
+    consensus_array = zeros(pos_sum_array.shape,dtype = int32) # initialize the consensus_array to all 0
+    consensus_array[ arange(pos_sum_array.shape[0]), pos_max ] = 1 # fill the consensus base coordinates with 1
+    return consensus_array.flatten() # flatten 2d array to 1d array
+## ======================================================================
+def max_gap_start(gaps):
+    ''' find the start position of the widest gap
+        Input:  gaps - gap positions (after a ref seq candidate is proposed and compatible reads are extracted)
+        Output: Mgap_start - start position of the widest gap
+    '''
+    adjac = gaps[1:] - gaps[:-1] # difference between a position in the gap vec and the previous position, if the difference is 1, then it's consecutive gap
+    gap_starts = where(adjac != 1)[0] # positions where new gap starts
+    gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)
+    gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap
+    max_gap_ind = argmax(gap_lens) # index of the widest gap
+    #print gap_starts
+    #print gaps[ gap_starts + 1]
+    gap_start_ind = concatenate( ( array([gaps[0]]), gaps[ gap_starts + 1] ))
+    return gap_start_ind[max_gap_ind]
