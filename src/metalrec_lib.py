@@ -878,10 +878,10 @@ def get_consensus_from_array(read_array):
     consensus_array[ arange(pos_sum_array.shape[0]), pos_max ] = 1 # fill the consensus base coordinates with 1
     return consensus_array.flatten() # flatten 2d array to 1d array
 ## ======================================================================
-def max_gap_start(gaps):
-    ''' find the start position of the widest gap
+def max_gap(gaps):
+    ''' Find the start position of the widest gap. Note: This position itself might not be a polymorphic position to change base.
         Input:  gaps - gap positions (after a ref seq candidate is proposed and compatible reads are extracted)
-        Output: Mgap_start - start position of the widest gap
+        Output: (start position of the widest gap, end position of the widest gap) - tuple
     '''
     adjac = gaps[1:] - gaps[:-1] # difference between a position in the gap vec and the previous position, if the difference is 1, then it's consecutive gap
     gap_starts = where(adjac != 1)[0] # positions where new gap starts
@@ -891,4 +891,8 @@ def max_gap_start(gaps):
     #print gap_starts
     #print gaps[ gap_starts + 1]
     gap_start_ind = concatenate( ( array([gaps[0]]), gaps[ gap_starts + 1] ))
-    return gap_start_ind[max_gap_ind]
+    return gap_start_ind[max_gap_ind], gap_start_ind[max_gap_ind] + max(gap_lens)
+## ======================================================================
+#TODO: Find a polymorphic position in the widest gap and try to fill it with a read that was not called in the previous round. How should we go and pick the first gap-filling read?
+## ======================================================================
+def fill_gap(ref_array, Mgap, 
