@@ -878,21 +878,32 @@ def get_consensus_from_array(read_array):
     consensus_array[ arange(pos_sum_array.shape[0]), pos_max ] = 1 # fill the consensus base coordinates with 1
     return consensus_array.flatten() # flatten 2d array to 1d array
 ## ======================================================================
-def max_gap(gaps):
+def get_gaps(gaps):
     ''' Find the start position of the widest gap. Note: This position itself might not be a polymorphic position to change base.
+        TODO: find all gaps instead of just the widest one?
         Input:  gaps - gap positions (after a ref seq candidate is proposed and compatible reads are extracted)
-        Output: (start position of the widest gap, end position of the widest gap) - tuple
+        Output: (gap_lens, gap_start_ind, gap_end_ind), tuple of 3 arrays:
+                gap_lens - lengths of the gaps
+                gap_start_ind - starting positions of the gaps
+                gap_end_ind - ending positions of the gaps (including in the gap)
+                arrays are arranged by increasing index of the gaps from the left end of the ref seq
     '''
     adjac = gaps[1:] - gaps[:-1] # difference between a position in the gap vec and the previous position, if the difference is 1, then it's consecutive gap
     gap_starts = where(adjac != 1)[0] # positions where new gap starts
-    gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)
-    gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap
-    max_gap_ind = argmax(gap_lens) # index of the widest gap
-    #print gap_starts
-    #print gaps[ gap_starts + 1]
-    gap_start_ind = concatenate( ( array([gaps[0]]), gaps[ gap_starts + 1] ))
-    return gap_start_ind[max_gap_ind], gap_start_ind[max_gap_ind] + max(gap_lens)
+    gap_start_ind = concatenate( ( array([gaps[0]]), gaps[ gap_starts + 1] )) # starting indices of all the consecutive gaps
+    gap_end_ind = concatenate( ( gaps[ gap_starts ], array([gaps[-1]])))
+    gap_lens = gap_end_ind - gap_start_ind + 1
+    return gap_lens, gap_start_ind, gap_end_ind
 ## ======================================================================
 #TODO: Find a polymorphic position in the widest gap and try to fill it with a read that was not called in the previous round. How should we go and pick the first gap-filling read?
 ## ======================================================================
-def fill_gap(ref_array, Mgap, 
+def fill_gap(ref_array, Mgap, read_array, compatible_ind):
+    ''' Given the previous attempt's result (including proposed ref seq, the resulting widest gap positions, its compatible reads) and the read_array, try to find a non-compatible read that can fill the widest gap as well as possible.
+        Input:  ref_array - proposed ref seq in the previous attempt
+                Mgap - (start, end) positions of the widest resulting gap
+                read_array - array with read information
+                compatible_ind - indices of reads compatible with ref_array
+        Output:
+    '''
+    noncompatible_ind = array( [ i for i in arange(read_array.shape[0]) if i not in compatible_ind ] ) # indices of the noncompatible reads (complements of the compatible indices)
+
