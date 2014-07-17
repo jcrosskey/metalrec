@@ -785,7 +785,6 @@ def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps, p
         read_counts[i] = readinfo[read_string]
         i += 1
     return read_array, read_counts
-
 ## ======================================================================
 def is_compatible(array1, array2):
     ''' Find out if the base calls of 2 reads at a certain position are compatible or not, given the 0-1 vectors representing the base calls. For now, the length of the vectors is the same (5 for ACGTD).
@@ -827,6 +826,12 @@ def compatible_mat(read_array):
             if are_reads_compatible(read_array[i],read_array[j]):
                 Cmat[i,j] = 1
     return array(Cmat)
+## ======================================================================
+def cov_bps(read_array1d):
+    ''' Find number of bases covered by an array '''
+    r = read_array1d.reshape(-1,5)
+    cov_pos = unique( where( r==1 )[0] ) # positions covered by this read
+    return len(cov_pos)
 ## ======================================================================
 def is_read_compatible(ref_array, read_array1d):
     ''' Given a reference array and an array for a read, determine if they are compatible or not.
@@ -880,10 +885,8 @@ def get_consensus_from_array(read_array):
 ## ======================================================================
 def get_gaps(gaps):
     ''' Find the start position of the widest gap. Note: This position itself might not be a polymorphic position to change base.
-        TODO: find all gaps instead of just the widest one?
-        Input:  gaps - gap positions (after a ref seq candidate is proposed and compatible reads are extracted)
-        Output: (gap_lens, gap_start_ind, gap_end_ind), tuple of 3 arrays:
-                gap_lens - lengths of the gaps
+        Input:  gaps - gap positions (after a ref seq candidate is proposed and compatible reads are extracted, output from function gap_pos)
+        Output: (gap_start_ind, gap_end_ind), tuple of 2 arrays:
                 gap_start_ind - starting positions of the gaps
                 gap_end_ind - ending positions of the gaps (including in the gap)
                 arrays are arranged by increasing index of the gaps from the left end of the ref seq
@@ -892,18 +895,70 @@ def get_gaps(gaps):
     gap_starts = where(adjac != 1)[0] # positions where new gap starts
     gap_start_ind = concatenate( ( array([gaps[0]]), gaps[ gap_starts + 1] )) # starting indices of all the consecutive gaps
     gap_end_ind = concatenate( ( gaps[ gap_starts ], array([gaps[-1]])))
-    gap_lens = gap_end_ind - gap_start_ind + 1
-    return gap_lens, gap_start_ind, gap_end_ind
+    return gap_start_ind, gap_end_ind
+## ======================================================================
+def get_reads_for_gap(read_array, gap, skip_reads=[]):
+    ''' Given a gap (start, end), find reads that cover any base in the gap region and number of bases covered by them.
+        Input:  read_array - array of read information
+                gap - (start_pos, end_pos) of the gap trying to cover
+                skip_reads - indices of reads to exclude (the ones that were selected from previous round for example)
+        Output: reads_ind - indices of reads that cover at least 1 bp in the gap region
+                reads_cov - corresponding numbers of bps covered by all the reads in reads_ind
+    '''
+    if len(skip_reads) > 0:
+        keep_reads = array( [ i for i in arange(read_array.shape[0]) if i not in skip_reads ] ) # indices of the reads that are kept (not skipped)
+        read_array = read_array[keep_reads,:] # slicing the read_array
+    else:
+        keep_reads = arange(read_array.shape[0])
+
+    gap_start = gap[0]
+    gap_end = gap[1] + 1
+    read_array = read_array[:, gap_start*5:gap_end*5 ] # only look at the particular positions
+    coverages = apply_along_axis(cov_bps, axis=1, arr=read_array) # apply function cov_bps to find the coverage of all the other reads
+    reads_ind = keep_reads[ where(coverages!=0)[0] ] # indices of reads that have nonzero coverage in this region
+    reads_cov = coverages[ where(coverages!=0)[0] ] # their corresponding coverage
+    return reads_ind, reads_cov # return both the indices and the corresponding coverage of the specified region
+## ======================================================================
+def get_new_ref(ref_array, read_ind, read_array):
+    ''' from the previous ref_array, and the newly added read_array1d to fill the gap, find a new ref_array
+        Input:  read_ind - read based on which the new ref_array is determined
+                ref_array, read_array - as usual
+        Output:
+    '''
+    ref1 = ref_array.copy()
+    r_array= read_array[read_ind].reshape(-1,5) # convert the read's information to a 2d array with 5 columns
+    #print r_array
+    cov_pos = unique( where( r_array == 1) [0] ) # find the positions covered by this read
+    #print cov_pos
+    # check each position: TODO now it's done with a loop, maybe should modify to a better way later TODO
+    for pos in cov_pos:
+        read = r_array[pos,]
+        ref = ref1[pos*5:(pos+1)*5]
+        if not are_reads_compatible(read, ref): # if the length 5 vectors are not compatible with each other
+            sys.stdout.write("At pos {} ref call {} changes to".format(pos, str(ref))) # print message about base changing in the new ref
+            ref1[pos*5:(pos+1)*5] = 0
+            read_calls = where(read == 1)[0]
+            #print read_calls
+            if len(read_calls) == 1: # only 1 call
+                ref1[pos*5 + read_calls] = 1
+            else: # if there are more than 1 option, pick the one with more read support
+                print "more than 1 options!!"
+                pos_sum = read_array[ :, (pos*5 + read_calls)].sum(axis=0) # find the column sum for those calls
+                pos_max = argmax(pos_sum)
+                ref1[pos*5 + pos_max] = 1
+            sys.stdout.write(" {}\n".format(str(ref1[pos*5:(pos+1)*5])))
+    return ref1
 ## ======================================================================
 #TODO: Find a polymorphic position in the widest gap and try to fill it with a read that was not called in the previous round. How should we go and pick the first gap-filling read?
 ## ======================================================================
-def fill_gap(ref_array, Mgap, read_array, compatible_ind):
+def fill_gap(ref_array, Mgap, read_array, compatible_ind, gap=None):
     ''' Given the previous attempt's result (including proposed ref seq, the resulting widest gap positions, its compatible reads) and the read_array, try to find a non-compatible read that can fill the widest gap as well as possible.
         Input:  ref_array - proposed ref seq in the previous attempt
                 Mgap - (start, end) positions of the widest resulting gap
                 read_array - array with read information
                 compatible_ind - indices of reads compatible with ref_array
+                gap - gap to try to fill, by default, trying to fill in the widest gap
         Output:
     '''
     noncompatible_ind = array( [ i for i in arange(read_array.shape[0]) if i not in compatible_ind ] ) # indices of the noncompatible reads (complements of the compatible indices)
-
+    

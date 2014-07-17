@@ -33,3 +33,36 @@ array_b = metalrec_lib.make_read_array1d(read_info.keys()[0], bp_pos_dict, ins_p
 aa = array_a.reshape(-1,5)
 where(array_a[4::5]==1)[0] # positions where there is a 'D'
 hstack((where(type_array==3)[0], where(type_array==1)[0])) # insertion positions
+
+adjac = gaps[1:] - gaps[:-1] # difference between a position in the gap vec and the previous position, if the difference is 1, then it's consecutive gap
+gap_starts = where(adjac != 1)[0] # positions where new gap starts
+gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)
+gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap
+max_gap_ind = argmax(gap_lens) # index of the widest gap
+
+ref0 = metalrec_lib.get_consensus_from_array(read_array)
+Cvec0 = metalrec_lib.get_compatible_reads(ref0, read_array)
+gap_pos0 = metalrec_lib.gap_pos(ref0, read_array, Cvec0)
+gap_start_ind0, gap_end_ind0 = metalrec_lib.get_gaps(gap_pos0)
+metalrec_lib.get_reads_for_gap(read_array, (gap_start_ind0[0], gap_end_ind0[0]), skip_reads=Cvec0) # reads to fill the gap
+
+ref1 = metalrec_lib.get_new_ref(ref0, 10, read_array) # get a new ref
+Cvec1 = metalrec_lib.get_compatible_reads(ref1, read_array)
+gap_pos1 = metalrec_lib.gap_pos(ref1, read_array, Cvec1)
+gap_start_ind1, gap_end_ind1 = metalrec_lib.get_gaps(gap_pos1)
+metalrec_lib.get_reads_for_gap(read_array, (gap_start_ind1[0], gap_end_ind1[0]), skip_reads=Cvec1) # reads to fill the gap
+
+ref2 = metalrec_lib.get_new_ref(ref0, 319, read_array) # get a new ref
+Cvec2 = metalrec_lib.get_compatible_reads(ref2, read_array)
+gap_pos2 = metalrec_lib.gap_pos(ref2, read_array, Cvec2)
+gap_start_ind2, gap_end_ind2 = metalrec_lib.get_gaps(gap_pos2)
+metalrec_lib.get_reads_for_gap(read_array, (gap_start_ind2[0], gap_end_ind2[0]), skip_reads=Cvec2) # reads to fill the gap
+
+
+# check for the position in the existing PacBio sequence
+for k, z in bp_pos_dict.items():
+    if z == 251:
+        print k
+        break
+
+
