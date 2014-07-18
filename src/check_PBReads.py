@@ -30,8 +30,15 @@ parser = argparse.ArgumentParser(description="Check the PacBio subreads and see 
 parser.add_argument("-f","--fasta",help="input PacBio filtered subreads sequence file",dest='fastaFile',required=True)
 parser.add_argument("-c","--count",help="number of subreads to process",dest='count',default=-1, type=int)
 parser.add_argument("-k","--skip",help="number of subreads to skip",dest='skip',default=0, type=int)
+parser.add_argument("-e","--last",help="index of the last subread to look at",dest='last',default=0, type=int)
 parser.add_argument("-q","--queue",help="queue to use for jobs",dest='queue',default='large')
+parser.add_argument("-p","--threads",help="number of threads to use every align job",dest='threads',default=4,type=int) # number of threads to use
+parser.add_argument("-m","--memory",help="memory to request",dest='memory',default='10g') # 
 
+## output directory
+parser.add_argument("-d","--outdir",help="output directory",dest='outputDir',default='./output/')
+
+## options
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
@@ -43,8 +50,6 @@ parser.add_argument("--minPacBioLen",help="minimum contiguous well covered regio
 parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
 parser.add_argument("--polyR",help="minimum proportion of read support for a base to be considered",dest='minPercent',default=0.01, type=float)
 
-## output directory
-parser.add_argument("-d","--outdir",help="output directory",dest='outputDir',default='./output/')
 #parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
 
 ## =================================================================
@@ -77,7 +82,7 @@ def main(argv=None):
     fsr = open(args.fastaFile,'r')
     line = fsr.readline()
     nextline = ''
-    while line != '' and (args.count == -1 or read_count < args.count):
+    while line != '' and (args.count == -1 or read_count < args.count) and (scan_count < args.last or args.last == 0):
         if line[0] == '>':
             read_name = line.split()[0][1:] # get read name
             read_seq = ''
@@ -101,8 +106,9 @@ def main(argv=None):
                 legal_name = re.sub('/','__',read_name)
                 seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
                 # first check if this read is already done
-                if not os.path.exists(seq_dir): # if this read is not processed yet
-                    os.makedirs(seq_dir)
+                if not os.path.exists(seq_dir+'/bbmap.err'): # if this read is not processed yet
+                    if not os.path.exists(seq_dir):
+                        os.makedirs(seq_dir)
                     read_count += 1 # increase processed read count 
                     nextline = fsr.readline().strip('\n')
                     while nextline != '' and nextline[0] != '>':
@@ -121,18 +127,16 @@ def main(argv=None):
                         # write bbmap script for this sequence
                         bbmap_name = seq_dir + '/bbmap.sh'
                         bbmap = open(bbmap_name,'w')
-                        bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn=16\n#PBS -q {}\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(args.queue, seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
+                        bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn={}\n#PBS -q {}\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(str(args.threads), args.queue, seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
-                        bbmap.write("bbmapskimmer.sh build=1 ref={}\n".format(fasta_name))
-                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t -Xmx50g threads=16 trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format(pe800, se800))
+                        bbmap.write("bbmapskimmer.sh build=1 ref={}\n\n".format(fasta_name))
+                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format('-Xmx'+args.memory, str(args.threads), pe800, se800))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
                         os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                     else:
                         sys.stdout.write("\t too short\n")
-
-
                 else:
                     sys.stdout.write("\t already done\n")
                     nextline = fsr.readline().strip('\n')
