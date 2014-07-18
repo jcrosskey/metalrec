@@ -26,7 +26,9 @@ poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_po
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq)
 poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
 type_array = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
-ref_array = metalrec_lib.make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array)
+#ref_array = metalrec_lib.make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array)
+read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
+
 a = read_info.keys()[1]
 array_a = metalrec_lib.make_read_array1d(a, bp_pos_dict, ins_pos_dict, type_array,poly_bps, poly_ins, consensus_bps, consensus_ins)
 array_b = metalrec_lib.make_read_array1d(read_info.keys()[0], bp_pos_dict, ins_pos_dict, type_array,poly_bps, poly_ins, consensus_bps, consensus_ins)
@@ -44,7 +46,7 @@ ref0 = metalrec_lib.get_consensus_from_array(read_array)
 Cvec0 = metalrec_lib.get_compatible_reads(ref0, read_array)
 gap_pos0 = metalrec_lib.gap_pos(ref0, read_array, Cvec0)
 gap_start_ind0, gap_end_ind0 = metalrec_lib.get_gaps(gap_pos0)
-metalrec_lib.get_reads_for_gap(read_array, (gap_start_ind0[0], gap_end_ind0[0]), skip_reads=Cvec0) # reads to fill the gap
+reads_ind, reads_cov = metalrec_lib.get_reads_for_gap(read_array, (gap_start_ind0[0], gap_end_ind0[0]), skip_reads=Cvec0) # reads to fill the gap, and how many bases they can fill
 
 ref1 = metalrec_lib.get_new_ref(ref0, 10, read_array) # get a new ref
 Cvec1 = metalrec_lib.get_compatible_reads(ref1, read_array)
