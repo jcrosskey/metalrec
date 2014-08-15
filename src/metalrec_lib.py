@@ -86,7 +86,6 @@ def read_single_seq(fastaFile):
     with open(fastaFile,'r') as fasta:
         seq = fasta.read().split('\n',1)[-1]
     seq = re.sub('\n','',seq)
-    #print seq
     return seq
 ## ======================================================================
 def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
@@ -140,6 +139,7 @@ def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=
                 fields = record.split('\t')
                 if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
                     myread = samread.SamRead(record)
+
                     # improve the alignment to the reference sequence by dynamic programming
                     # original starting and ending positions on the reference sequence of the mapped region
                     ref_region_start = max( myread.rstart - 5, 1)
@@ -149,12 +149,15 @@ def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=
                     # redo global alignment using dynamic programming
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                     new_align = pick_align(realign_res) # pick the first mapping 
+
+                    # For DEBUG
                     #if myread.qname == 'HISEQ11:283:H97Y1ADXX:1:1108:1971:87341':
                     #    #for i in realign_res:
                     #    #    print format_alignment(*i)
                     #    print "\n\n\n"
                     #    print format_alignment(*new_align)
                     #    print "\n\n\n"
+
                     cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
                     # update information in the sam record
                     fields[3] = str(ref_region_start + new_align[3]) # starting position
@@ -956,26 +959,26 @@ def get_new_ref(ref_array, read_ind, read_array):
 #TODO: Find a polymorphic position in the widest gap and try to fill it with a read that was not called in the previous round. How should we go and pick the first gap-filling read?
 ## ======================================================================
 def greedy_fill_gap(read_array, ref0=None):
-    ''' Try to fill the widest gap resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
+    ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
         Input:  read_array - array including read information
                 ref0 - ref_array to start with
-        Output: (ref1, Min_gap) - (new improved ref1, total number of gap positions)
+        Output: (ref1, Min_gap) - (new improved ref1, total number of gap positions/length)
     '''
     if ref0 is None:
         ref0 = get_consensus_from_array(read_array) # start with consensus sequence, summarized from all the reads
-    #gap_pos = arange(read_array.shape[1]/5, dtype=int32) # gap positions, initialize to all positions
+
     best_ref = ref0
 
     Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
     Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
-    totally_filled = False # whether a gap is totally filled by current step
-    #reads_ind = arange(read_array.shape[0])
+    totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
 
     gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
     gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
-    Min_gap = sum(gap_lens) # current smallest gap size
+    Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
     Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
     Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
+
     sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
     reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
     #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
@@ -1009,14 +1012,13 @@ def greedy_fill_gap(read_array, ref0=None):
         # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
         if (len(gap_lens) - len(gap_lens1) >= 1) and gap_start_ind[Mgap_ind] in setdiff1d(gap_start_ind, gap_start_ind1):
             totally_filled = True
-        #remaining_reads = setdiff1d(reads_ind, Cvec1) # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check
-        #print remaining_reads
-        remaining_inds = [] # trying to find there indices in the array reads_ind
+
+        remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
         for r in reads_ind:
-            if r not in Cvec1:
+            if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
                 remaining_inds.append(where(reads_ind == r)[0][0])
         remaining_inds = array(remaining_inds)
-        #print remaining_inds
+        #print remaining_inds # DEBUG
         # update the list of remaining reads' information
         reads_ind = reads_ind[remaining_inds]
         reads_cov = reads_cov[remaining_inds]
