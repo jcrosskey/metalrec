@@ -28,17 +28,20 @@ parser = argparse.ArgumentParser(description="Check the PacBio subreads and see 
 
 ## input files and directories
 parser.add_argument("-f","--fasta",help="input PacBio filtered subreads sequence file",dest='fastaFile',required=True)
+## output directory
+parser.add_argument("-d","--outdir",help="output directory",dest='outputDir',default='./output/')
+
+## options to control how many sequences to process
 parser.add_argument("-c","--count",help="number of subreads to process",dest='count',default=-1, type=int)
 parser.add_argument("-k","--skip",help="number of subreads to skip",dest='skip',default=0, type=int)
 parser.add_argument("-e","--last",help="index of the last subread to look at",dest='last',default=0, type=int)
+
+## options for job queueing
 parser.add_argument("-q","--queue",help="queue to use for jobs",dest='queue',default='large')
 parser.add_argument("-p","--threads",help="number of threads to use every align job",dest='threads',default=4,type=int) # number of threads to use
 parser.add_argument("-m","--memory",help="memory to request",dest='memory',default='10g') # 
 
-## output directory
-parser.add_argument("-d","--outdir",help="output directory",dest='outputDir',default='./output/')
-
-## options
+## setting thresholds
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
