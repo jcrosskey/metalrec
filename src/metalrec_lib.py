@@ -280,7 +280,7 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                 minPacBioLen - contiguous region length threshold to be a good region
                 minCV - minimum coverage depth for a position to be considered as part of a good region
                 outsam - output processed sam file name
-                reads_mode - 's' for treating as single end read, and 'p' for treating as paired end reads and consider (properly paired and both mapped) paired end reads as 1 read when geting the readinfo. Also consider the position between the paired end reads as covered by 1 read even if there is no real base call available from the pair of reads
+                reads_mode -  's' for treating as single end read, and 'p' for treating as paired end reads and consider (properly paired and both mapped) paired end reads as 1 read when geting the readinfo. Also consider the position between the paired end reads as covered by 1 read even if there is no real base call available from the pair of reads TODO
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.

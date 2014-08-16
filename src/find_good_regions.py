@@ -59,10 +59,13 @@ def main(argv=None):
         samFile = args.samFile
         seqFile = args.seqFile
         root,ext = os.path.splitext(samFile)
-        newsamFile = root + '_red.sam'
+        newsamFile = root + '_red.sam' # reduced sam file, with only good reads included
+
+        # now check if other input directories are specified, if so, print message and warn that only the single file can be processed
         if args.inputDir != '':
-            sys.stderr.write("cannot take single sam file and directory as input at the same time...\n")
+            sys.stderr.write("cannot take single sam file and directory as input at the same time... please omit the directories and try again\n")
             sys.exit(0)
+        # check if the input files exist
         if not os.path.exists(samFile):
             sys.stderr.write("input sam file {} does not exist...\n".format(samFile))
             sys.exit(0)
@@ -70,12 +73,12 @@ def main(argv=None):
             sys.stderr.write("input sequence file {} does not exist...\n".format(seqFile))
             sys.exit(0)
 
-        rSeq = metalrec_lib.read_single_seq(seqFile)
+        rSeq = metalrec_lib.read_single_seq(seqFile) # get the reference sequence 
         rname = 'unknown'
         with open(samFile, 'r') as mysam:
             for line in mysam:
                 if line[0] == '@': # header line
-                    if line[1:3] == 'SQ': # reference sequence dictionary
+                    if line[1:3] == 'SQ': # Get the reference sequence name
                         rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                         break
         ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam(samFile, rSeq, args.maxSub, args.maxIns, args.maxDel, args.maxSubRate, args.maxInsRate, args.maxDelRate,args.minPacBioLen, args.minCV,newsamFile)
@@ -98,6 +101,7 @@ def main(argv=None):
     else: # otherwise, look through all the folders in the input directory
         if not os.path.exists(args.inputDir):
             sys.stderr.write("input directory {} does not exist...\n".format(args.inputDir))
+            sys.exit(0)
         else:
             seqDirs = glob.glob(args.inputDir + '/*') # find all the directories in the input dir, one for each filtered subread
             for seqDir in seqDirs: # look at all directories
