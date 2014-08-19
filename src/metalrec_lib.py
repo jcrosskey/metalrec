@@ -382,13 +382,14 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                     #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
                     #    return ref_bps, ref_ins_dict
                 else:
-                    print myread.qname
+                    #print myread.qname
                     discardRec += 1
     
     if outsam != '':
         newsam.close()
     sys.stdout.write("discarded {} reads.\n".format(discardRec))
     return ref_bps, ref_ins_dict, readinfo
+## ======================================================================
 def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2, minPacBioLen=1000, minCV=10,outsam='',reads_mode='p'):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
 
@@ -413,68 +414,112 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
     if outsam != '':
         newsam = open(outsam,'w')
     
-    with open(samFile, 'r') as mysam:
-        line = mysam.readline()
-        while 1: # start while loop to read all lines in the file
-            #line = mysam.readline()
-            if not line: # if at the end of the file, break out of the loop
-                break
-            else: # otherwise, process the information in the file
-                lineNum += 1 
-                #####################################
-                # header line
-                if line[0] == '@': 
-                    if outsam != '':
-                        newsam.write(line) # if new reduced sam file is required, write the header lines into the new sam file
-                    if line[1:3] == 'SQ': # reference sequence dictionary
-                        rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
-                        rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
-                        sys.stdout.write("reference sequence {} has length {}. \n".format(rname, rLen))
-                        if rLen < minPacBioLen:
-                            sys.stdout.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
-                            return 0 
-                        ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
-                        ref_ins_dict = dict() # global insertion dictionary for the reference sequence
-                        readinfo = dict() # dictionary storing read information (base call for the mapped read)
-                #####################################
-                # mapping record lines
-                # Make sure that the paired end reads have the same name. TODO: check the names before proceed TODO
+    mysam =  open(samFile, 'r')
+    line = mysam.readline()
+    is_pair = False
+    while 1: # start while loop to read all lines in the file
+        if not line: # if at the end of the file, break out of the loop
+            print "File read complete"
+            break
+        else: # otherwise, process the information in the file
+            lineNum += 1 
+            #####################################
+            # header line
+            if line[0] == '@': 
+                if outsam != '':
+                    newsam.write(line) # if new reduced sam file is required, write the header lines into the new sam file
+                if line[1:3] == 'SQ': # reference sequence dictionary
+                    rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
+                    rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
+                    sys.stdout.write("reference sequence {} has length {}. \n".format(rname, rLen))
+                    if rLen < minPacBioLen:
+                        sys.stdout.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
+                        return 0 
+                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
+                    ref_ins_dict = dict() # global insertion dictionary for the reference sequence
+                    readinfo = dict() # dictionary storing read information (base call for the mapped read)
+                line = mysam.readline()
+            #####################################
+            # mapping record lines
+            # Make sure that the paired end reads have the same name. 
+            else:
+                read_string = ''
+                # First read of the pair, assuming mate reads are recorded together in the sam file
+                record_r1 = line.strip('\n')
+                name_r1 = record_r1.split('\t')[0]
+                # Try to see if next read is the Second read of the pair
+                next_line = mysam.readline()
+                if next_line == '':
+                    is_pair = False
                 else:
-                    read_string = ''
-                    # First read of the pair, assuming mate reads are recorded together in the sam file
-                    record_r1 = line.strip('\n')
-                    # Second read of the pair
-                    next_line = mysam.readline()
-                    if next_line == '':
-                        sys.stdout.write("sam file does not have even number of records.\n")
-                        break
-                    else:
-                        lineNum += 1
+                    lineNum += 1
                     record_r2 = next_line.strip('\n')
+                    name_r2 = record_r2.split('\t')[0]
+                    if name_r1 == name_r2:
+                        is_pair = True
+                    else:
+                        is_pair = False
+
+                # if r1 is mapped well
+                if not is_record_bad(record_r1, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r1 passes the threshold
+                    keepRec += 1 # number of kept records increases by 1
 
                     myread_r1 = samread.SamRead(record_r1)
-                    myread_r2 = samread.SamRead(record_r2)
+                    # re-map the read to the PacBio read
+                    ref_region_start = max( myread_r1.rstart - 5, 1)
+                    ref_region_end = min(myread_r1.get_rend() + 5, rLen)
+                    trimmed_qseq = myread_r1.get_trim_qseq()
+                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+                    new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+                    pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
 
-                    # if r1 is mapped
-                    if not myread_r1.is_unmapped(): 
-                        if not is_record_bad(record_r1, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r1 passes the threshold
+                    # update corresponding base call frequencies for the reference (non-insertion positions)
+                    for pos in pos_dict: # all the matching/mismatching/deletion positions
+                        ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 
+                    # Insertion positions dictionary.
+                    for ins in ins_dict: # all the insertion positions
+                        ins_chars = ins_dict[ins]
+                        if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                            ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
+                        elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
+                            ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
+                        for i in xrange(len(ins_chars)):
+                            ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
+
+                    # write the new mapping to the new/reduced sam file
+                    fields = record_r1.split('\t')
+                    # if simplified sam file is required, find the new CIGAR string and write the new record
+                    if outsam!= '':
+                        cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+                        # update information in the sam record
+                        fields[3] = str(ref_region_start + new_align[3]) # starting position
+                        fields[5] = cigarstring # cigar string
+                        fields[9] = trimmed_qseq # trimmed query sequence
+                        # write updated record in the new file
+                        line = '\t'.join(fields) + '\n'
+                        newsam.write(line)
+
+                    # update the read_string
+                    read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+
+                    if is_pair: # if the next read is paired with the current read
+                        # now check if the mate is also mapped well on to the PacBio read
+                        if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
+                            pairs += 1 # both reads from the pair passed the threshold and kept in the recuded sam file
+                            myread_r2 = samread.SamRead(record_r2)
+                            print pairs, myread_r1.qname, myread_r2.qname # verbose output
                             keepRec += 1 # number of kept records increases by 1
 
-                            ref_region_start = max( myread_r1.rstart - 5, 1)
-                            ref_region_end = min(myread_r1.get_rend() + 5, rLen)
-                            # query sequence with clipped part trimmed
-                            trimmed_qseq = myread_r1.get_trim_qseq()
-                            # redo global alignment using dynamic programming, indel penalty -0.9, mismatch penalty -1, opening and ending gaps at the query sequence has no penalty
+                            ref_region_start = max( myread_r2.rstart - 5, 1)
+                            ref_region_end = min(myread_r2.get_rend() + 5, rLen)
+                            trimmed_qseq = myread_r2.get_trim_qseq()
                             realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                             new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
                             pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
+
                             for pos in pos_dict: # all the matching/mismatching/deletion positions
                                 ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
-                            # Insertion positions dictionary. Every position where insertion happens has a dictionary, with position mapped to list of length 4 lists
-                            # In this list, every base pair has its list, if only 1 char is inserted, then the list has length 1
-                            # For example, {3:[[0,10,0,9]]} means there is only 1 bp insertion for all the reads, 10 inserted 'C' and 9 inserted 'T'
-                            #              {3:[[0,10,0,9], [1,10,0,0]] means there are 2bps insertion, for the second char, 1 read inserted 'A', 10 reads inserted 'C'
                             for ins in ins_dict: # all the insertion positions
                                 ins_chars = ins_dict[ins]
                                 if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
@@ -482,11 +527,39 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                 elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
                                     ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
                                 for i in xrange(len(ins_chars)):
-                                    #print ins_chars, ref_ins_dict[ins]
                                     ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
-                                    #print ref_ins_dict[ins]
 
-                            fields = record_r1.split('\t')
+                            fields = record_r2.split('\t')
+                            # if simplified sam file is required, find the new CIGAR string and write the new record
+                            if outsam!= '':
+                                cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+                                fields[3] = str(ref_region_start + new_align[3]) # starting position
+                                fields[5] = cigarstring # cigar string
+                                fields[9] = trimmed_qseq # trimmed query sequence
+                                line = '\t'.join(fields) + '\n'
+                                newsam.write(line)
+                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
+                            read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                        else:
+                            #print myread_r2.qname
+                            discardRec += 1
+                # if r1 didn't pass the good read threshold, process mate instead
+                else:
+                    #print myread_r1.qname
+                    discardRec += 1
+                    if is_pair:
+                        if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
+                            keepRec += 1 # number of kept records increases by 1
+
+                            myread_r2 = samread.SamRead(record_r2)
+                            ref_region_start = max(myread_r2.rstart - 5, 1)
+                            ref_region_end = min(myread_r2.get_rend() + 5, rLen)
+                            trimmed_qseq = myread_r2.get_trim_qseq()
+                            realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+                            new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+                            pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
+
+                            fields = record_r2.split('\t')
                             # if simplified sam file is required, find the new CIGAR string and write the new record
                             if outsam!= '':
                                 cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
@@ -497,131 +570,43 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                 # write updated record in the new file
                                 line = '\t'.join(fields) + '\n'
                                 newsam.write(line)
+                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
                             read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
 
-                            if not myread_r2.is_unmapped():
-                                if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
-                                    pairs += 1 # both reads from the pair passed the threshold and kept in the recuded sam file
-                                    print pairs, myread_r1.qname # verbose output
-                                    keepRec += 1 # number of kept records increases by 1
+                            for pos in pos_dict: # all the matching/mismatching/deletion positions
+                                ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
-                                    ref_region_start = max( myread_r2.rstart - 5, 1)
-                                    ref_region_end = min(myread_r2.get_rend() + 5, rLen)
-                                    trimmed_qseq = myread_r2.get_trim_qseq()
-                                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-                                    new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-                                    pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
-
-                                    for pos in pos_dict: # all the matching/mismatching/deletion positions
-                                        ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
-
-                                    # Insertion positions dictionary. Every position where insertion happens has a dictionary, with position mapped to list of length 4 lists
-                                    # In this list, every base pair has its list, if only 1 char is inserted, then the list has length 1
-                                    # For example, {3:[[0,10,0,9]]} means there is only 1 bp insertion for all the reads, 10 inserted 'C' and 9 inserted 'T'
-                                    #              {3:[[0,10,0,9], [1,10,0,0]] means there are 2bps insertion, for the second char, 1 read inserted 'A', 10 reads inserted 'C'
-                                    for ins in ins_dict: # all the insertion positions
-                                        ins_chars = ins_dict[ins]
-                                        if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
-                                            ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
-                                        elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
-                                            ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
-                                        for i in xrange(len(ins_chars)):
-                                            #print ins_chars, ref_ins_dict[ins]
-                                            ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
-                                            #print ref_ins_dict[ins]
-
-                                    fields = record_r2.split('\t')
-                                    # if simplified sam file is required, find the new CIGAR string and write the new record
-                                    if outsam!= '':
-                                        cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-                                        # update information in the sam record
-                                        fields[3] = str(ref_region_start + new_align[3]) # starting position
-                                        fields[5] = cigarstring # cigar string
-                                        fields[9] = trimmed_qseq # trimmed query sequence
-                                        # write updated record in the new file
-                                        line = '\t'.join(fields) + '\n'
-                                        newsam.write(line)
-                                    # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
-                                    read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-                                else:
-                                    #print myread_r2.qname
-                                    discardRec += 1
-                            else: 
-                                #print myread_r2.qname
-                                discardRec += 1
-                        else:
-                            #print myread_r1.qname
-                            discardRec += 1
-
-                    # if r1 is not mapped or it's mapped but didn't pass the good read threshold, process mate instead
-                    else:
-                        #print myread_r2.qname
-                        discardRec += 1
-                        if not myread_r2.is_unmapped():
-                            if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
-                                keepRec += 1 # number of kept records increases by 1
-
-                                ref_region_start = max(myread_r2.rstart - 5, 1)
-                                ref_region_end = min(myread_r2.get_rend() + 5, rLen)
-                                trimmed_qseq = myread_r2.get_trim_qseq()
-                                realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-                                new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-                                pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
-
-                                fields = record_r2.split('\t')
-                                # if simplified sam file is required, find the new CIGAR string and write the new record
-                                if outsam!= '':
-                                    cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-                                    # update information in the sam record
-                                    fields[3] = str(ref_region_start + new_align[3]) # starting position
-                                    fields[5] = cigarstring # cigar string
-                                    fields[9] = trimmed_qseq # trimmed query sequence
-                                    # write updated record in the new file
-                                    line = '\t'.join(fields) + '\n'
-                                    newsam.write(line)
-                                # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
-                                read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-
-                                for pos in pos_dict: # all the matching/mismatching/deletion positions
-                                    ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
-
-                                # Insertion positions dictionary. Every position where insertion happens has a dictionary, with position mapped to list of length 4 lists
-                                # In this list, every base pair has its list, if only 1 char is inserted, then the list has length 1
-                                # For example, {3:[[0,10,0,9]]} means there is only 1 bp insertion for all the reads, 10 inserted 'C' and 9 inserted 'T'
-                                #              {3:[[0,10,0,9], [1,10,0,0]] means there are 2bps insertion, for the second char, 1 read inserted 'A', 10 reads inserted 'C'
-                                for ins in ins_dict: # all the insertion positions
-                                    ins_chars = ins_dict[ins]
-                                    if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
-                                        ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
-                                    elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
-                                        ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
-                                    for i in xrange(len(ins_chars)):
-                                        #print ins_chars, ref_ins_dict[ins]
-                                        ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
-                                        #print ref_ins_dict[ins]
-                            else:
-                                #print myread_r2.qname
-                                discardRec += 1
+                            for ins in ins_dict: # all the insertion positions
+                                ins_chars = ins_dict[ins]
+                                if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                                    ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
+                                elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
+                                    ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
+                                for i in xrange(len(ins_chars)):
+                                    ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
                         else:
                             #print myread_r2.qname
                             discardRec += 1
 
+                # update string dictionary for the read information
+                if read_string != '' and  read_string in readinfo:
+                    readinfo[read_string] += 1
+                elif read_string != '':
+                    readinfo[read_string] = 1
 
-                    # update string dictionary for the read information
-                    if read_string in readinfo:
-                        readinfo[read_string] += 1
-                    else:
-                        readinfo[read_string] = 1
+                if is_pair:
+                    line = mysam.readline()
+                else:
+                    line = next_line
+            if keepRec > 0 and keepRec % 1000 == 0:
+                sys.stdout.write('  processed {} good records\n'.format(keepRec))
+            # TODO: use only 5000 reads, for testing purpose, remove this for real analysis
+            #if keepRec % 5000 == 0:
+            #    print lineNum
+            #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
+            #    return ref_bps, ref_ins_dict
+    mysam.close()
 
-                if keepRec > 0 and keepRec % 1000 == 0:
-                    sys.stdout.write('  processed {} good records\n'.format(keepRec))
-                # TODO: use only 5000 reads, for testing purpose, remove this for real analysis
-                #if keepRec % 5000 == 0:
-                #    print lineNum
-                #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
-                #    return ref_bps, ref_ins_dict
-                line = mysam.readline()
-    
     if outsam != '':
         newsam.close()
     sys.stdout.write("discarded {} reads.\n".format(discardRec))
@@ -946,6 +931,21 @@ def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array):
         base = [ j[1] for j in consensus_ins_ext if j[0] == i][0]
         ref_array[ i*5 + alphabet.index(base) ] = 1
     return ref_array
+## ======================================================================
+def simplify_read_string(read_string):
+    ''' Simplify read_string. Goal is to take care of the special case where two paired end reads overlap. Some overlapping positions could agree, while some could disagree.
+        Simplify the string so that it can be used to construct array for this paired-end (stitching) read correctly.
+        Input:  read_string - read_string that saves base call information from a read, or a pair of reads (both well mapped)
+        Output: new_read_string - simplified read_string
+    '''
+
+    bpstring = read_string.split(":")[0] # non-insertion information
+    insstring = read_string.split(":")[1] # insertion position's information
+
+    map_positions = array([bp_pos_dict[pos] for pos in map(int, re.findall('\d+',bpstring))]) # all positions
+    start_pos = min(map_positions)
+    end_pos = max(map_positions)
+    
 ## ======================================================================
 def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
     ''' Make 1d array for a particular read from its string (key of dictionary readinfo).

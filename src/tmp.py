@@ -20,7 +20,18 @@ samfile = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m1
 ref_fasta = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430.fasta"
 import metalrec_lib
 rseq = metalrec_lib.read_single_seq(ref_fasta)
+# process sam file and save the read info, considering each read as single end read
 ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(samfile, rseq, maxSubRate=0.1,outsam='a.sam')
+# process sam file and save the read info, considering pair-end reads
+ref_bps_p, ref_ins_dict_p, read_info_p = metalrec_lib.read_and_process_sam_pair(samfile, rseq, maxSubRate=0.1,outsam='a_p.sam')
+
+# key for the pair of mates with ID HISEQ11:283:H97Y1ADXX:2:2205:12196:34085 in read_info_p
+for key in read_info_p:
+    if key[:15] == '42G43C44A45A46C':
+        print key, '\n'
+        a = key
+a = a.split(':') # separate the non-insertion and insertion positions
+
 good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=1)
 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[0])
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq)
