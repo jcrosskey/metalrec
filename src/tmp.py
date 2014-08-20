@@ -30,6 +30,8 @@ for key in read_info_p:
     if key[:15] == '42G43C44A45A46C':
         print key, '\n'
         a = key
+
+
 a = a.split(':') # separate the non-insertion and insertion positions
 
 good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=1)
