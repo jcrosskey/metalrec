@@ -500,7 +500,10 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                         newsam.write(line)
 
                     # update the read_string
-                    read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                    if read_string != '':
+                        read_string = read_string.split(':')[0] + dict_to_string(pos_dict) + ':' + read_string.split(':')[1] + dict_to_string(ins_dict)
+                    else:
+                        read_string = dict_to_string(pos_dict) + ':' + dict_to_string(ins_dict)
 
                     if is_pair: # if the next read is paired with the current read
                         # now check if the mate is also mapped well on to the PacBio read
@@ -539,7 +542,10 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                 line = '\t'.join(fields) + '\n'
                                 newsam.write(line)
                             # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
-                            read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                            if read_string != '':
+                                read_string = read_string.split(':')[0] + dict_to_string(pos_dict) + ':' + read_string.split(':')[1] + dict_to_string(ins_dict)
+                            else:
+                                read_string = dict_to_string(pos_dict) + ':' + dict_to_string(ins_dict)
                         else:
                             #print myread_r2.qname
                             discardRec += 1
@@ -560,19 +566,6 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                             pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
 
                             fields = record_r2.split('\t')
-                            # if simplified sam file is required, find the new CIGAR string and write the new record
-                            if outsam!= '':
-                                cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-                                # update information in the sam record
-                                fields[3] = str(ref_region_start + new_align[3]) # starting position
-                                fields[5] = cigarstring # cigar string
-                                fields[9] = trimmed_qseq # trimmed query sequence
-                                # write updated record in the new file
-                                line = '\t'.join(fields) + '\n'
-                                newsam.write(line)
-                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
-                            read_string = read_string + dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-
                             for pos in pos_dict: # all the matching/mismatching/deletion positions
                                 ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
@@ -584,6 +577,23 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                     ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
                                 for i in xrange(len(ins_chars)):
                                     ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
+
+                            # if simplified sam file is required, find the new CIGAR string and write the new record
+                            if outsam!= '':
+                                cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+                                # update information in the sam record
+                                fields[3] = str(ref_region_start + new_align[3]) # starting position
+                                fields[5] = cigarstring # cigar string
+                                fields[9] = trimmed_qseq # trimmed query sequence
+                                # write updated record in the new file
+                                line = '\t'.join(fields) + '\n'
+                                newsam.write(line)
+                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
+                            if read_string != '':
+                                read_string = read_string.split(':')[0] + dict_to_string(pos_dict) + ':' + read_string.split(':')[1] + dict_to_string(ins_dict)
+                            else:
+                                read_string = dict_to_string(pos_dict) + ':' + dict_to_string(ins_dict)
+
                         else:
                             #print myread_r2.qname
                             discardRec += 1
@@ -932,20 +942,24 @@ def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array):
         ref_array[ i*5 + alphabet.index(base) ] = 1
     return ref_array
 ## ======================================================================
-def simplify_read_string(read_string):
-    ''' Simplify read_string. Goal is to take care of the special case where two paired end reads overlap. Some overlapping positions could agree, while some could disagree.
-        Simplify the string so that it can be used to construct array for this paired-end (stitching) read correctly.
-        Input:  read_string - read_string that saves base call information from a read, or a pair of reads (both well mapped)
-        Output: new_read_string - simplified read_string
+def array_to_seq(seq_array):
+    ''' Convert 0-1 1d array back to nucleotide sequence.
+        Input:  seq_array - 1d array with 0 and 1 as entries. length has to be multiple of 5, there can only be one 1 every 5 positions from start
+        Output: seq - corresponding DNA sequence
     '''
-
-    bpstring = read_string.split(":")[0] # non-insertion information
-    insstring = read_string.split(":")[1] # insertion position's information
-
-    map_positions = array([bp_pos_dict[pos] for pos in map(int, re.findall('\d+',bpstring))]) # all positions
-    start_pos = min(map_positions)
-    end_pos = max(map_positions)
-    
+    if len(seq_array) % 5 != 0: # array length has to be a multiple of 5
+        sys.exit("length of the array is not a multiple of 5!! \n")
+    else:
+        seqLen = len(seq_array) / 5 # sequence length
+        seq_array = seq_array.reshape(-1,5) # reshape to an array with 5 columns
+        seq = ["x"] * seqLen # initialize the sequence to return, as a list
+        for i in xrange(5): # for each base (ACGTD) look for their positions
+            positions = where(seq_array[:,i] == 1)[0]
+            seq = [ alphabet[i] if x in positions else seq[x] for x in xrange(seqLen) ] # update the sequence with the specified base call
+        seq = ''.join(seq) # join list to a string
+        seq = re.sub('D','',seq) # remove the deletion positions from sequence
+        return seq
+        
 ## ======================================================================
 def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
     ''' Make 1d array for a particular read from its string (key of dictionary readinfo).
@@ -1258,10 +1272,14 @@ def greedy_fill_gap(read_array, ref0=None):
             if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
                 remaining_inds.append(where(reads_ind == r)[0][0])
         remaining_inds = array(remaining_inds)
-        #print remaining_inds # DEBUG
+        print remaining_inds # DEBUG
         # update the list of remaining reads' information
-        reads_ind = reads_ind[remaining_inds]
-        reads_cov = reads_cov[remaining_inds]
+        if len(remaining_inds) > 0 :
+            reads_ind = reads_ind[remaining_inds]
+            reads_cov = reads_cov[remaining_inds]
+        else:
+            reads_ind = []
+            reads_cov = []
         #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
     return best_ref, Min_gap
 
@@ -1275,6 +1293,7 @@ def fill_gap(read_array):
     gaps = ref0[1]
     Mingap = gaps
     while gaps > 0:
+        print "ref0:", ref0
         ref1 = greedy_fill_gap(read_array, ref0[0])
         gaps = ref1[1]
         if gaps < Mingap:
