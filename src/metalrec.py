@@ -56,7 +56,7 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    print '\n',args.seqFile
+    # check input and output file settings
     if not os.path.exists(args.seqFile):
         sys.exit("input PacBio sequence file does not exist!\n")
     if not os.path.exists(args.samFile):
@@ -90,15 +90,15 @@ def main(argv=None):
             # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
             read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            ref_new, gap = metalrec_lib.fill_gap(read_array)
+            ref_new, gap = metalrec_lib.fill_gap(read_array, seq_file = args.oSeqFile)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new,long_seq=args.verbose)
+            #ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             if args.verbose:
-
+                pass # need to fill in this part later TODO
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], gap, ref_new_short))
+            #refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], gap, ref_new_short))
         refOut.close()
 ##==============================================================
 ## call from command line (instead of interactively)

@@ -285,7 +285,7 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
-                readinfo - dictionary of read information, info_string => number of reads with this info string
+                readinfo - dictionary of read information, info_string => list of names of reads whose mapped segment corresponds to this info_string
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
     keepRec = 0
@@ -322,12 +322,12 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                 myread = samread.SamRead(record)
                 if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
                     keepRec += 1
+                    if myread.is_paired():
+                        print_name = myread.qname + ('/1' if myread.is_read1() else '/2')
+                    else:
+                        print_name = myread.qname
+
                     if outFastaFile != '':
-                        if myread.is_paired():
-                            print_name = myread.qname + ('/1' if myread.is_read1() else '/2')
-                        else:
-                            print_name = myread.qname
-                            
                         if not myread.is_reverse():
                             outFasta.write('>{}\n{}\n'.format(print_name, myread.qSeq))
                         else:
@@ -366,9 +366,9 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                     # update string dictionary for the read information
                     read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
                     if read_string in readinfo:
-                        readinfo[read_string] += 1
+                        readinfo[read_string].append(print_name)
                     else:
-                        readinfo[read_string] = 1
+                        readinfo[read_string] = [print_name]
 
                     for pos in pos_dict: # all the matching/mismatching/deletion positions
                         ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
@@ -419,7 +419,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
-                readinfo - dictionary of read information, info_string => number of reads with this info string
+                readinfo - dictionary of read information, info_string => list of names of reads whose mapped segment corresponds to this info_string
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
     keepRec = 0
@@ -483,12 +483,12 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     keepRec += 1 # number of kept records increases by 1
 
                     myread_r1 = samread.SamRead(record_r1)
+                    if myread_r1.is_paired():
+                        print_name = myread_r1.qname + ('/1' if myread_r1.is_read1() else '/2')
+                    else:
+                        print_name = myread_r1.qname
+                        
                     if outFastaFile != '':
-                        if myread_r1.is_paired():
-                            print_name = myread_r1.qname + ('/1' if myread_r1.is_read1() else '/2')
-                        else:
-                            print_name = myread_r1.qname
-                            
                         if not myread_r1.is_reverse():
                             outFasta.write('>{}\n{}\n'.format(print_name, myread_r1.qSeq))
                         else:
@@ -540,12 +540,12 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                             myread_r2 = samread.SamRead(record_r2)
                             #print pairs, myread_r1.qname, myread_r2.qname # verbose output
                             keepRec += 1 # number of kept records increases by 1
+                            if myread_r2.is_paired():
+                                print_name = myread_r2.qname + ('/1' if myread_r2.is_read1() else '/2')
+                            else:
+                                print_name = myread_r2.qname
+                                
                             if outFastaFile != '':
-                                if myread_r2.is_paired():
-                                    print_name = myread_r2.qname + ('/1' if myread_r2.is_read1() else '/2')
-                                else:
-                                    print_name = myread_r2.qname
-                                    
                                 if not myread_r2.is_reverse():
                                     outFasta.write('>{}\n{}\n'.format(print_name, myread_r2.qSeq))
                                 else:
@@ -594,14 +594,14 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     if is_pair:
                         if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
                             keepRec += 1 # number of kept records increases by 1
-
                             myread_r2 = samread.SamRead(record_r2)
+                            # printed name of this read, with /1 appended if it's the first read of the pair, otherwise append /2
+                            if myread_r2.is_paired():
+                                print_name = myread_r2.qname + ('/1' if myread_r2.is_read1() else '/2')
+                            else:
+                                print_name = myread_r2.qname
+
                             if outFastaFile != '':
-                                if myread_r2.is_paired():
-                                    print_name = myread_r2.qname + ('/1' if myread_r2.is_read1() else '/2')
-                                else:
-                                    print_name = myread_r2.qname
-                                    
                                 if not myread_r2.is_reverse():
                                     outFasta.write('>{}\n{}\n'.format(print_name, myread_r2.qSeq))
                                 else:
@@ -649,9 +649,15 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
 
                 # update string dictionary for the read information
                 if read_string != '' and  read_string in readinfo:
-                    readinfo[read_string] += 1
+                    if is_pair:
+                        readinfo[read_string].append(print_name[:-2]) # pair-end reads are both properly mapped, trim the name
+                    else:
+                        readinfo[read_string].append(print_name) # only one is properly mapped, do not trim the name
                 elif read_string != '':
-                    readinfo[read_string] = 1
+                    if is_pair:
+                        readinfo[read_string] = [print_name[:-2]]
+                    else:
+                        readinfo[read_string] = [print_name]
 
                 if is_pair:
                     line = mysam.readline()
@@ -885,7 +891,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.01
 
     return poly_bps, poly_ins, consensus_bps, consensus_ins, cvs
 ## ======================================================================
-def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None ):
+def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None, print_width = 100):
     ''' Extend the reference sequence, insert the insertion positions in the reference sequence, and return correspondence between old positions and their new positions in the extended sequence
         
         Input:  poly_bps, poly_ins, consensus_bps, consensus_ins - output from previous function (get_poly_pos)
@@ -902,6 +908,9 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
         begin = min([i[0] for i in consensus_bps + poly_bps])
         end = max([i[0] for i in consensus_bps + poly_bps])
         region = (begin,end+1)
+    else:
+        begin = region[0]
+        end = region[1]
 
     ins_pos = [ i[0][0] for i in poly_ins + consensus_ins ] # all the insertion positions, if there is more than 1 base inserted, the position will be repeated
     bp_pos = [i[0] for i in poly_bps + consensus_bps] # all the non-insertion positions
@@ -918,16 +927,27 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
 
     inserted_bases = 0
     current_pos = region[0]
-    newSeq = ''
+    newSeq = '' # new sequence with consensus base call positions updated
+    oldSeq = '' # old sequence with just dashes for insertions
+    matching_string = '' # matching string to print between two sequences for better visualization
     for ins in ins_pos_uniq:
         for mypos in xrange(current_pos, ins):
             if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage
                 newSeq += rseq[mypos]
+                oldSeq += rseq[mypos]
+                matching_string += '|'
             else:
                 newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # if there is consensus
+                oldSeq += rseq[mypos]
+                if newSeq[-1] == oldSeq[-1]:
+                    matching_string += '|'
+                else:
+                    matching_string += ' '
             bp_pos_dict[mypos] = mypos + inserted_bases # old position => new position in the extended ref sequence
         # now look at the insertion position
         newSeq += '-' * ins_pos.count(ins)
+        oldSeq += '-' * ins_pos.count(ins)
+        matching_string += ' ' * ins_pos.count(ins)
         ins_pos_dict[ins] = ins + inserted_bases
         inserted_bases += ins_pos.count(ins) # update number of inserted bases
         current_pos = ins
@@ -936,9 +956,24 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
     for mypos in xrange(current_pos, region[1]):
         if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage
             newSeq += rseq[mypos]
+            newSeq += rseq[mypos]
+            matching_string += '|'
         else:
             newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # if there is consensus
+            oldSeq += rseq[mypos]
+            if newSeq[-1] == oldSeq[-1]:
+                matching_string += '|'
+            else:
+                matching_string += ' '
         bp_pos_dict[mypos] = mypos + inserted_bases # old position => new position in the extended ref sequence
+
+    # print the alignment between the original sequence and the newly proposed sequence
+    # for the two different sequences, print the coordinates on each row, for both of them.
+    for i in xrange(len(newSeq) / print_width + 1):
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(begin + i*print_width, re.sub('D','-',newSeq[i*print_width:(i+1)*print_width]), min(begin+(i+1)*print_width,len(newSeq)) ))
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(' ', matching_string[i*print_width:(i+1)*print_width],' ' ))
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n\n'.format(begin + i*print_width - oldSeq[:i*print_width].count('-'), oldSeq[i*print_width:(i+1)*print_width], min(begin+(i+1)*print_width - oldSeq[:(i+1)*print_width].count('-'),len(oldSeq)-oldSeq.count('-'))))
+
     return newSeq, bp_pos_dict, ins_pos_dict
 ## ======================================================================
 def update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict):
@@ -1011,7 +1046,28 @@ def array_to_seq(seq_array):
         seq_short = re.sub('D','',seq) # remove the deletion positions from sequence
         seq_long = re.sub('D','-',seq)
         return seq_short, seq_long
-        
+## ======================================================================
+def print_seqs(seq1, seq2, print_width = 100):
+    ''' Print two sequences next to each other, indicate the part that has changed with lower case DNA letters.
+        Input:  seq1, seq2 - two sequences to print/compare/display
+                print_width - number of nucleotides to print each line
+        Output: standard output of the two sequences next to each other
+    '''
+    if len(seq1) != len(seq2):
+        sys.exit("Input sequences do not have same length! \n")
+    matching_string = ''
+    for i in xrange(len(seq1)):
+        if seq1[i].upper() == seq2[i].upper():
+            matching_string += '|'
+        else:
+            matching_string += 'X'
+            #seq1 = seq1[:i] + seq1[i].lower() + seq1[i+1:]
+            #seq2 = seq2[:i] + seq2[i].lower() + seq2[i+1:]
+
+    for i in xrange(len(seq1) / print_width + 1):
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(i*print_width, seq1[i*print_width:(i+1)*print_width], min((i+1)*print_width,len(seq1) )))
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(' ', matching_string[i*print_width:(i+1)*print_width],' ' ))
+        sys.stdout.write('{:>5}\t{}\t{:<5}\n\n'.format(' ', seq2[i*print_width:(i+1)*print_width], ' '))
 ## ======================================================================
 def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
     ''' Make 1d array for a particular read from its string (key of dictionary readinfo).
@@ -1089,9 +1145,9 @@ def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps, p
     read_array = zeros( (len(readinfo), len(type_array)*5), dtype = int32 ) # initialize the 2d array to return
     read_counts = zeros( len(readinfo), dtype = int32)
     i = 0
-    for read_string in readinfo:
+    for read_string in sorted(readinfo): # the rows in the array are ordered by the corresponding read_string
         read_array[i,:] = make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
-        read_counts[i] = readinfo[read_string]
+        read_counts[i] = len(readinfo[read_string])
         i += 1
     return read_array, read_counts
 ## ======================================================================
@@ -1166,6 +1222,14 @@ def get_compatible_reads(ref_array, read_array):
         if is_read_compatible(ref_array, read_array[i,:]):
             compatible_ind.append(i)
     return array(compatible_ind)
+## ======================================================================
+def get_seq_name(readinfo, compatible_ind):
+    ''' Find the names of reads that are compatible with a given PacBio sequence, given the readinfo dictionary and the compatible array row indices.
+        Input:  readinfo - dictionary with read information read_string => list of read names that have this read_string
+                compatible_ind - row indices of the array compatible with the PacBio sequence
+        Output: seq_name_list - list of names of reads corresponding to the compatible_ind
+    '''
+
 ## ======================================================================
 def gap_pos(ref_array, read_array, compatible_ind):
     ''' Given a reference array and indices (of array) of compatible reads, find the gap positions, i.e. positions that are not covered by any read
@@ -1267,91 +1331,138 @@ def get_new_ref(ref_array, read_ind, read_array):
 def greedy_fill_gap(read_array, ref0=None):
     ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
         Input:  read_array - array including read information
-                ref0 - ref_array to start with
+                ref0 - ref_array to start with, if not specified, call the consensus sequence instead
         Output: (ref1, Min_gap) - (new improved ref1, total number of gap positions/length)
     '''
+    # if no sequence to start with, only call the consensus sequence, do not try to fill the gap
     if ref0 is None:
+        sys.stdout.write("Initial sequence not specified, use the read array to find consensus sequence and its gaps instead. \n")
         ref0 = get_consensus_from_array(read_array) # start with consensus sequence, summarized from all the reads
 
-    best_ref = ref0
+        Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
+        Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
 
-    Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
-    Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
-    totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
+        # starting sequence in string format for the
+        seq0 = array_to_seq(ref0)[-1]
+        for i in Gap_pos:
+            seq0 = seq0[:i] + seq0[i].lower() + seq0[i+1 :] 
 
-    gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
-    gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
-    Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
-    Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
-    Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
+        gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
+        gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
+        Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
+        Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
+        Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
 
-    sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
-    reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
-    #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
+        sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+        return (ref0, Min_gap)
+        #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
 
     # stop condition:
     # 1. No more gap in the ref seq
     # 2. A gap is totally filled (ready to move on to the next gap)
     # 3. No more gap filling reads to try
-    while len(Gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
-        # sort the read indices and the fill lengths in descending order of the fill length
-        ind_sort = argsort(reads_cov)[::-1] 
-        reads_ind = reads_ind[ind_sort]
-        reads_cov = reads_cov[ind_sort]
-        #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
-        #print len(reads_ind)
-        # get a new ref, according to the highest ranked read
-        ref1 = get_new_ref(ref0, reads_ind[0], read_array) 
+    else:
+        ref0 = ref0[0]
+        Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
+        Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
 
-        Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
-        gap_pos1 = gap_pos(ref1, read_array, Cvec1) # positions not covered by the compatible reads (gap positions)
-        if len(gap_pos1) == 0:
-            Min_gap = 0
-            best_ref = ref1
-            break
-        gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
-        gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
-        if sum(gap_lens1) < Min_gap:
-            Min_gap = sum(gap_lens1) # update current best gap size and the corresponding ref_array
-            best_ref = ref1
+        # starting sequence in string format for the
+        seq0 = array_to_seq(ref0)[-1]
+        for i in Gap_pos:
+            seq0 = seq0[:i] + seq0[i].lower() + seq0[i+1 :] 
 
-        # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
-        if (len(gap_lens) - len(gap_lens1) >= 1) and gap_start_ind[Mgap_ind] in setdiff1d(gap_start_ind, gap_start_ind1):
-            totally_filled = True
+        gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
+        gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
+        Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
+        Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
+        Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
 
-        remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
-        for r in reads_ind:
-            if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
-                remaining_inds.append(where(reads_ind == r)[0][0])
-        remaining_inds = array(remaining_inds)
-        #print remaining_inds # DEBUG
-        # update the list of remaining reads' information
-        if len(remaining_inds) > 0 :
-            reads_ind = reads_ind[remaining_inds]
-            reads_cov = reads_cov[remaining_inds]
-        else:
-            reads_ind = []
-            reads_cov = []
-        #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
-    sys.stdout.write("\n")
+        reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
+        sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+        totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
+        best_ref = ref0
+        best_gap_pos = Gap_pos
+        while len(Gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
+            # sort the read indices and the fill lengths in descending order of the fill length
+            ind_sort = argsort(reads_cov)[::-1] 
+            reads_ind = reads_ind[ind_sort]
+            reads_cov = reads_cov[ind_sort]
+            #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+            #print len(reads_ind)
+            # get a new ref, according to the highest ranked read
+            ref1 = get_new_ref(ref0, reads_ind[0], read_array) 
+
+            Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
+            gap_pos1 = gap_pos(ref1, read_array, Cvec1) # positions not covered by the compatible reads (gap positions)
+            if len(gap_pos1) == 0:
+                Min_gap = 0
+                best_ref = ref1
+                break
+            gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
+            gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
+            if sum(gap_lens1) < Min_gap:
+                Min_gap = sum(gap_lens1) # update current best gap size and the corresponding ref_array
+                best_ref = ref1
+                best_gap_pos = gap_pos1
+
+            # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
+            if (len(gap_lens) - len(gap_lens1) >= 1) and gap_start_ind[Mgap_ind] in setdiff1d(gap_start_ind, gap_start_ind1):
+                totally_filled = True
+
+            remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
+            for r in reads_ind:
+                if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
+                    remaining_inds.append(where(reads_ind == r)[0][0])
+            remaining_inds = array(remaining_inds)
+            #print remaining_inds # DEBUG
+            # update the list of remaining reads' information
+            if len(remaining_inds) > 0 :
+                reads_ind = reads_ind[remaining_inds]
+                reads_cov = reads_cov[remaining_inds]
+            else:
+                reads_ind = []
+                reads_cov = []
+            #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+        seq1 = array_to_seq(best_ref)[-1]
+        for i in best_gap_pos:
+            seq1 = seq1[:i] + seq1[i].lower() + seq1[i+1 :] 
+        sys.stdout.write('\n')
+        print_seqs(seq0, seq1) # show the difference between the starting sequence and the ending sequence after gap filling
+    #sys.stdout.write("\n")
     return best_ref, Min_gap
 ## ======================================================================
-def fill_gap(read_array):
+def fill_gap(read_array, seq_file = ''):
     ''' Starting from the read_array, try to fill the gaps step by step until the result cannot be improved.
+        Optionally, one can choose to output the PacBio sequence with smaller and smaller gaps in a file.
+
         Input:  read_array - array with read information
+                seq_file - file to store the PacBio sequence produced by the function each step
         Output: (best_ref, Mingap) - (best ref_array so far, number of gap from this ref_array)
+                seq_file - if specified, step-by-step PacBio sequences
     '''
-    ref0 = greedy_fill_gap(read_array)
-    gaps = ref0[1]
-    Mingap = gaps
-    while gaps > 0:
+    ref0 = greedy_fill_gap(read_array) # start with consensus sequence, summarized from all the reads
+    iter_number = 1
+    Mingap = ref0[1]
+
+    if seq_file != '':
+        seqOut = open(seq_file, 'w')
+
+    while Mingap > 0:
+        if seq_file != '':
+            ref0_seq = array_to_seq(ref0[0])[0]
+            seqOut.write('>{} gap length: {}\n{}\n'.format(iter_number,  Mingap, ref0_seq))
         #print "ref0:", ref0
-        ref1 = greedy_fill_gap(read_array, ref0[0])
+        ref1 = greedy_fill_gap(read_array, ref0)
         gaps = ref1[1]
         if gaps < Mingap:
             Mingap = gaps
             ref0 = ref1
+            iter_number += 1
         else:
             print "not improving any more :("
             break
+
+    if seq_file != '':
+        seqOut.close()
+
     return ref0

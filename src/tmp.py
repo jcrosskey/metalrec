@@ -79,5 +79,3 @@ for k, z in bp_pos_dict.items():
     if z == 251:
         print k
         break
-
-
