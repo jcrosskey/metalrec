@@ -3,13 +3,13 @@
 ''' Collection of functions used in MetaLREC project
 '''
 import re
-import sys
+import sys, os
 from numpy import *
 import samread
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
 alphabet = 'ACGTD'
-revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1])
+revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
 ## ======================================================================
 def dict_to_string(dictionary):
     ''' Convert dictionary to a string, key value all concatenated. Dictionary is first sorted by keys '''
@@ -78,6 +78,43 @@ def md(MD_tag):
         else: # substitution
             sub_len += len(string)
     return {'match_len':match_len, 'del_len':del_len, 'sub_len':sub_len}
+## ======================================================================
+def read_fasta(fasta_file,trim=True,reverse=False):
+    ''' Read .fasta file, and return dictionary object: seqID => Seq
+        Input:
+        1. fasta_file: input fasta file
+        2. trim: trim ID at first space
+        3. reverse: if true, seq => ID, instead of ID => seq
+        Output
+        1. dictionary object
+        '''
+    fasta = open(fasta_file,'r')
+    ## all the contigs in a list
+    contigs = fasta.read().split('\n>')
+    fasta.close()
+    
+    contigs[0] = contigs[0][1:] # trim '>' for the first contig
+    # input contigs info: contigID => sequence for this contig
+    input_info = dict()
+    for contig in contigs:
+        if trim:
+            contigID = contig.split()[0] # ID of this contig
+        else:
+            contigID = contig.split("\n",1)[0] # full header
+        contigSeq = contig.split("\n",1)[1] # its corresponding sequence
+        contigSeq = re.sub("\r","",contigSeq) # remove windows style EOF
+
+        if reverse: # contigSeq => contigID
+            # what if two proteins have the same sequences??
+            # store the corresponding IDs in a list
+            contigSeq = re.sub("\n","",contigSeq) # remove unix style EOF
+            if input_info.has_key(contigSeq):
+                input_info[contigSeq].append(contigID)
+            else:
+                input_info[contigSeq] = [contigID]
+        else:
+            input_info[contigID] = contigSeq # link them together in the dictionary
+    return input_info
 ## ======================================================================
 def read_single_seq(fastaFile):
     ''' Read a single sequence from fasta file.
@@ -414,7 +451,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                 maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate are used to filter out badly mapped reads
                 minPacBioLen - contiguous region length threshold to be a good region
                 minCV - minimum coverage depth for a position to be considered as part of a good region
-                outsam - output processed sam file name
+                outsam - output processed sam file name (discard reads that fail to pass the threshold, shuffle and clean up alignments)
                 outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
@@ -422,22 +459,28 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                 readinfo - dictionary of read information, info_string => list of names of reads whose mapped segment corresponds to this info_string
     '''
     alphabet = 'ACGTD' # all the possible base pairs at a position
-    keepRec = 0
+    keepRec = 0 # number of records kept and discarded
     discardRec = 0
-    pairs = 0
-    singles = 0
+    pairs = 0 # number of properly mapped pairs
+    singles = 0 # number of reads that are mapped properly but not their mates
     lineNum = 0
     if outsam != '':
+        odir = os.path.dirname(os.path.abspath(outsam)) # make sure the directory for the output sam file exists
+        if not os.path.exists(odir): # if not, create the directory
+            os.makedirs(odir)
         newsam = open(outsam,'w')
     if outFastaFile != '':
+        odir = os.path.dirname(os.path.abspath(outFastaFile)) # make sure the directory for the output fasta file exists
+        if not os.path.exists(odir): # if not, create the directory
+            os.makedirs(odir)
         outFasta = open(outFastaFile, 'w')
     
-    mysam =  open(samFile, 'r')
+    mysam =  open(samFile, 'r') # input sam file object
     line = mysam.readline()
     is_pair = False
     while 1: # start while loop to read all lines in the file
         if not line: # if at the end of the file, break out of the loop
-            print "File read complete"
+            sys.stdout.write("File read complete.\n")
             break
         else: # otherwise, process the information in the file
             lineNum += 1 
@@ -453,16 +496,16 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     if rLen < minPacBioLen:
                         sys.stdout.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
                         return 0 
-                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
+                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to every position on the reference sequence 'ACGTD' counts
                     ref_ins_dict = dict() # global insertion dictionary for the reference sequence
                     readinfo = dict() # dictionary storing read information (base call for the mapped read)
-                line = mysam.readline()
+                line = mysam.readline() # continue reading next line
             #####################################
             # mapping record lines
             # Make sure that the paired end reads have the same name. 
             else:
                 read_string = ''
-                # First read of the pair, assuming mate reads are recorded together in the sam file
+                # First read of the pair, assuming mate reads are recorded next to each other in the sam file
                 record_r1 = line.strip('\n')
                 name_r1 = record_r1.split('\t')[0]
                 # Try to see if next read is the Second read of the pair
@@ -473,13 +516,13 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     lineNum += 1
                     record_r2 = next_line.strip('\n')
                     name_r2 = record_r2.split('\t')[0]
-                    if name_r1 == name_r2:
+                    if name_r1 == name_r2: # if their names match, then they are mates of each other's
                         is_pair = True
                     else:
                         is_pair = False
 
                 # if r1 is mapped well
-                if not is_record_bad(record_r1, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r1 passes the threshold
+                if not is_record_bad(record_r1, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate):
                     keepRec += 1 # number of kept records increases by 1
 
                     myread_r1 = samread.SamRead(record_r1)
@@ -500,6 +543,10 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                     new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
                     pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
+                    # DEBUG
+                    #if len(ins_dict) > 0:
+                    #    print print_name
+                    #    print format_alignment(*new_align)
 
                     # update corresponding base call frequencies for the reference (non-insertion positions)
                     for pos in pos_dict: # all the matching/mismatching/deletion positions
@@ -519,6 +566,8 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     # if simplified sam file is required, find the new CIGAR string and write the new record
                     if outsam!= '':
                         cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+                        #if len(ins_dict) > 0 :
+                        #    print cigarstring, first_non_gap,myread_r1.rstart
                         # update information in the sam record
                         fields[3] = str(ref_region_start + new_align[3]) # starting position
                         fields[5] = cigarstring # cigar string
@@ -1005,9 +1054,12 @@ def make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins
     consensus_bps_pos = array( [i[0] for i in consensus_bps_ext] )
     consensus_ins_pos = array( [ i[0] for i in consensus_ins_ext] )
     type_array = zeros(max(hstack((poly_bps_pos, poly_ins_pos, consensus_bps_pos, consensus_ins_pos))) + 1, dtype=int32)
-    type_array[consensus_ins_pos] = 1
-    type_array[poly_bps_pos] = 2
-    type_array[poly_ins_pos] = 3
+    if len(consensus_ins_pos) > 0:
+        type_array[consensus_ins_pos] = 1
+    if len(poly_bps_pos) > 0:
+        type_array[poly_bps_pos] = 2
+    if len(poly_ins_pos) > 0:
+        type_array[poly_ins_pos] = 3
     return type_array
 ## ======================================================================
 def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array):
@@ -1084,56 +1136,63 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
     bpstring = read_string.split(":")[0] # non-insertion information
     insstring = read_string.split(":")[1] # insertion position's information
 
-    map_positions = array([bp_pos_dict[pos] for pos in map(int, re.findall('\d+',bpstring))]) # all positions
-    start_pos = min(map_positions)
-    end_pos = max(map_positions)
-    # get the base calling information for all the positions, with coordinates in the extended sequence
-    poly_bps, poly_ins, consensus_bps, consensus_ins = update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
+    # all the positions of a read that lay in the specified region (covered by the dicts)
+    map_positions = []
+    for pos in map(int, re.findall('\d+',bpstring)):
+        if pos in bp_pos_dict:
+            map_positions.append(bp_pos_dict[pos])
+    if len(map_positions) == 0:
+        return read_array1d
+    else:
+        start_pos = min(map_positions)
+        end_pos = max(map_positions)
+        # get the base calling information for all the positions, with coordinates in the extended sequence
+        poly_bps, poly_ins, consensus_bps, consensus_ins = update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
 
-    # If this read covers some non-insertion positions, do the following:
-    if len(bpstring) > 0:
-        positions = map(int, re.findall('\d+',bpstring)) # positions
-        bases = re.findall('\D+',bpstring) # base calling
-        for i in xrange(len(positions)):
-            position = bp_pos_dict[positions[i]] # position in the extended sequence
-            if type_array[position] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
-                c_bp = [l[1] for l in consensus_bps if l[0] == position][0]
-                read_array1d[ position*5 + alphabet.index(c_bp) ] = 1
-            if type_array[position] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
-                p_bps = [l[1] for l in poly_bps if l[0] == position][0]
-                if bases[i] in p_bps: # if read's call is one of the possible calls, do not change it
-                    read_array1d[ position*5 + alphabet.index(bases[i]) ] = 1
-                else: # if read's call is not among the possible calls, it's considered as an error, so it could be either of the possible calls
-                      # TODO: this is done in somewhat awkward way, try to fix this
-                    for p_bp in p_bps:
-                        read_array1d[ position*5 + alphabet.index(p_bp) ] = 1
-                        
-    # If this read covers some insertion positions, do the following:            
-    positions = map(int, re.findall('\d+',insstring))
-    bases = re.findall('\D+',insstring)
-    for i in xrange(len(positions)): # for each base inserted at this position (there might be more than 1 base inserted)
-        if positions[i] in ins_pos_dict: # if this position is decided to be an insertion position in the extended sequence, proceed. Otherwise, it's treated as an error
-            position = ins_pos_dict[positions[i]]
-            for j in xrange(len(bases[i])):
-                ins_position = position + j
-                if type_array[ins_position] == 1: # consensus insertion position
-                    c_bp = [l[1] for l in consensus_ins if l[0] == ins_position][0]
-                    read_array1d[ ins_position*5 + alphabet.index(c_bp) ] = 1
-
-                if type_array[ins_position] == 3: # polymorphic insertion position
-                    p_bps = [l[1] for l in poly_ins if l[0] == ins_position][0]
-                    if bases[i][j] in p_bps:
-                        read_array1d[ ins_position*5 + alphabet.index(bases[i][j]) ] = 1
-                    else:
+        # If this read covers some non-insertion positions, do the following:
+        if len(bpstring) > 0:
+            positions = map(int, re.findall('\d+',bpstring)) # positions
+            bases = re.findall('\D+',bpstring) # base calling
+            for i in xrange(len(positions)):
+                position = bp_pos_dict[positions[i]] # position in the extended sequence
+                if type_array[position] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
+                    c_bp = [l[1] for l in consensus_bps if l[0] == position][0]
+                    read_array1d[ position*5 + alphabet.index(c_bp) ] = 1
+                if type_array[position] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
+                    p_bps = [l[1] for l in poly_bps if l[0] == position][0]
+                    if bases[i] in p_bps: # if read's call is one of the possible calls, do not change it
+                        read_array1d[ position*5 + alphabet.index(bases[i]) ] = 1
+                    else: # if read's call is not among the possible calls, it's considered as an error, so it could be either of the possible calls
+                          # TODO: this is done in somewhat awkward way, try to fix this
                         for p_bp in p_bps:
                             read_array1d[ position*5 + alphabet.index(p_bp) ] = 1
+                            
+        # If this read covers some insertion positions, do the following:            
+        positions = map(int, re.findall('\d+',insstring))
+        bases = re.findall('\D+',insstring)
+        for i in xrange(len(positions)): # for each base inserted at this position (there might be more than 1 base inserted)
+            if positions[i] in ins_pos_dict: # if this position is decided to be an insertion position in the extended sequence, proceed. Otherwise, it's treated as an error
+                position = ins_pos_dict[positions[i]]
+                for j in xrange(len(bases[i])):
+                    ins_position = position + j
+                    if type_array[ins_position] == 1: # consensus insertion position
+                        c_bp = [l[1] for l in consensus_ins if l[0] == ins_position][0]
+                        read_array1d[ ins_position*5 + alphabet.index(c_bp) ] = 1
 
-    # check if this read missed any insertion position
-    for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
-        if ins_pos >= start_pos and ins_pos <= end_pos and (ins_pos not in positions): # if there is no insertion for this read at the insertion position, put a deletion
-            read_array1d[ins_pos * 5 + 4 ] = 1
+                    if type_array[ins_position] == 3: # polymorphic insertion position
+                        p_bps = [l[1] for l in poly_ins if l[0] == ins_position][0]
+                        if bases[i][j] in p_bps:
+                            read_array1d[ ins_position*5 + alphabet.index(bases[i][j]) ] = 1
+                        else:
+                            for p_bp in p_bps:
+                                read_array1d[ position*5 + alphabet.index(p_bp) ] = 1
 
-    return read_array1d
+        # check if this read missed any insertion position
+        for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
+            if ins_pos >= start_pos and ins_pos <= end_pos and (ins_pos not in positions): # if there is no insertion for this read at the insertion position, put a deletion
+                read_array1d[ins_pos * 5 + 4 ] = 1
+
+        return read_array1d
 ## ======================================================================
 def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins):
     ''' Make 2d array for all reads from readinfo dictionary, dim1 of the array is equal to the length of the dictionary
@@ -1223,13 +1282,17 @@ def get_compatible_reads(ref_array, read_array):
             compatible_ind.append(i)
     return array(compatible_ind)
 ## ======================================================================
-def get_seq_name(readinfo, compatible_ind):
+def get_reads_name(readinfo, compatible_ind):
     ''' Find the names of reads that are compatible with a given PacBio sequence, given the readinfo dictionary and the compatible array row indices.
         Input:  readinfo - dictionary with read information read_string => list of read names that have this read_string
                 compatible_ind - row indices of the array compatible with the PacBio sequence
-        Output: seq_name_list - list of names of reads corresponding to the compatible_ind
+        Output: reads_name_list - list of names of reads corresponding to the compatible_ind
     '''
-
+    reads_name_list = [] # initialize an empty list
+    info_keys = sorted(readinfo.keys()) # sort the keys of readinfo
+    for ind in compatible_ind:
+        reads_name_list += readinfo[ info_keys[ind] ]
+    return reads_name_list
 ## ======================================================================
 def gap_pos(ref_array, read_array, compatible_ind):
     ''' Given a reference array and indices (of array) of compatible reads, find the gap positions, i.e. positions that are not covered by any read
@@ -1326,13 +1389,34 @@ def get_new_ref(ref_array, read_ind, read_array):
             # sys.stdout.write(" {}\n".format(str(ref1[pos*5:(pos+1)*5]))) # for DEBUG
     return ref1
 ## ======================================================================
-#TODO: Find a polymorphic position in the widest gap and try to fill it with a read that was not called in the previous round. How should we go and pick the first gap-filling read?
+def write_compatible_reads(readsFasta, readinfo, compatible_ind, outDir):
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+    reads_names = get_reads_name(readinfo, compatible_ind)
+    reads_out = open(outDir + "/reads.fasta", 'w')
+    for name in reads_names:
+        if '/' in name: # only one read of the pair was properly mapped
+            reads_out.write('>{}\n{}\n'.format(name, readsFasta[name]))
+        else: # both reads were properly mapped
+            name1 = name + '/1'
+            name2 = name + '/2'
+            if name1 in readsFasta:
+                reads_out.write('>{}\n{}\n'.format(name1, readsFasta[name1]))
+            if name2 in readsFasta:
+                reads_out.write('>{}\n{}\n'.format(name2, readsFasta[name2]))
+
+    reads_out.close()
+
 ## ======================================================================
-def greedy_fill_gap(read_array, ref0=None):
+def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
     ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
+        If in DEBUG mode, write the newly proposed sequence and its compatible reads to files in a directory
         Input:  read_array - array including read information
                 ref0 - ref_array to start with, if not specified, call the consensus sequence instead
+                readsFasta - dictionary between read name and its sequence
+                readinfo - dictionary between read_string and its corresponding read names
         Output: (ref1, Min_gap) - (new improved ref1, total number of gap positions/length)
+                files that include new PacBio sequence and its compatible reads (fasta)
     '''
     # if no sequence to start with, only call the consensus sequence, do not try to fill the gap
     if ref0 is None:
@@ -1340,6 +1424,7 @@ def greedy_fill_gap(read_array, ref0=None):
         ref0 = get_consensus_from_array(read_array) # start with consensus sequence, summarized from all the reads
 
         Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
+
         Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
 
         # starting sequence in string format for the
@@ -1354,7 +1439,7 @@ def greedy_fill_gap(read_array, ref0=None):
         Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
 
         sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
-        return (ref0, Min_gap)
+        return ref0, Min_gap, Cvec
         #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
 
     # stop condition:
@@ -1382,6 +1467,7 @@ def greedy_fill_gap(read_array, ref0=None):
         totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
         best_ref = ref0
         best_gap_pos = Gap_pos
+        Cvec1 = Cvec
         while len(Gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
             # sort the read indices and the fill lengths in descending order of the fill length
             ind_sort = argsort(reads_cov)[::-1] 
@@ -1423,46 +1509,65 @@ def greedy_fill_gap(read_array, ref0=None):
                 reads_ind = []
                 reads_cov = []
             #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+
         seq1 = array_to_seq(best_ref)[-1]
         for i in best_gap_pos:
             seq1 = seq1[:i] + seq1[i].lower() + seq1[i+1 :] 
         sys.stdout.write('\n')
         print_seqs(seq0, seq1) # show the difference between the starting sequence and the ending sequence after gap filling
     #sys.stdout.write("\n")
-    return best_ref, Min_gap
+    return best_ref, Min_gap, Cvec1
 ## ======================================================================
-def fill_gap(read_array, seq_file = ''):
+def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None):
     ''' Starting from the read_array, try to fill the gaps step by step until the result cannot be improved.
         Optionally, one can choose to output the PacBio sequence with smaller and smaller gaps in a file.
 
         Input:  read_array - array with read information
-                seq_file - file to store the PacBio sequence produced by the function each step
-        Output: (best_ref, Mingap) - (best ref_array so far, number of gap from this ref_array)
-                seq_file - if specified, step-by-step PacBio sequences
+                outFastaFile - fasta file with all the reads originally mapped the PacBio sequence (needed for debug)
+                #seq_file - file to store the PacBio sequence produced by the function each step
+        Output: (best_ref, Mingap, Cvec) - (best ref_array so far, number of gap from this ref_array, compatible reads' indices)
+                outDir - if specified, directory to save all the intermediate files
+                #seq_file - if specified, step-by-step PacBio sequences
     '''
     ref0 = greedy_fill_gap(read_array) # start with consensus sequence, summarized from all the reads
     iter_number = 1
     Mingap = ref0[1]
+    print_tmp_files = False
 
-    if seq_file != '':
-        seqOut = open(seq_file, 'w')
-
-    while Mingap > 0:
-        if seq_file != '':
-            ref0_seq = array_to_seq(ref0[0])[0]
-            seqOut.write('>{} gap length: {}\n{}\n'.format(iter_number,  Mingap, ref0_seq))
-        #print "ref0:", ref0
-        ref1 = greedy_fill_gap(read_array, ref0)
-        gaps = ref1[1]
-        if gaps < Mingap:
-            Mingap = gaps
-            ref0 = ref1
-            iter_number += 1
+    if __debug__:
+        sys.stdout.write("DEBUG mode, write intermediate PacBio sequences and their compatible reads in files.\n")
+        if outFastaFile is None:
+            sys.stdout.write("Fasta file with mapped reads to Original PacBio sequence is not specified.\n")
+        elif readinfo is None:
+            sys.stdout.write("readinfo dictionary is not specified.\n")
         else:
-            print "not improving any more :("
+            print_tmp_files = True
+            if outDir is None:
+                outDir = "./tmp/"
+            readsFasta = read_fasta(outFastaFile)
+
+    while True:
+        if print_tmp_files:
+            ref0_seq = array_to_seq(ref0[0])[0]
+            cur_dir = outDir + str(iter_number)
+            if not os.path.exists(cur_dir):
+                os.makedirs(cur_dir)
+            seqOut = open(cur_dir + '/seq.fasta','w')
+            seqOut.write('>{} gap length: {} compatible reads: {}\n{}\n'.format(iter_number,  Mingap, len(ref0[-1]), ref0_seq))
+            seqOut.close()
+            write_compatible_reads(readsFasta, readinfo, ref0[-1], cur_dir + '/' )
+        #print "ref0:", ref0
+        if Mingap > 0:
+            ref1 = greedy_fill_gap(read_array, ref0)
+            gaps = ref1[1]
+            if gaps < Mingap:
+                Mingap = gaps
+                ref0 = ref1
+                iter_number += 1
+            else:
+                print "not improving any more :("
+                break
+        else:
             break
 
-    if seq_file != '':
-        seqOut.close()
-
-    return ref0
+    return ref0[0], ref0[1]

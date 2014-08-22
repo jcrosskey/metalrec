@@ -32,6 +32,7 @@ parser.add_argument("-o","--out",help="output corrected PacBio sequence file",de
 parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = '') # optional, for visualization
 #parser.add_argument("-os","--outSam",help="alignment of same Illumina sequences to the corrected PacBio read",dest='outSam',required=True)
 parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=True)
+parser.add_argument("-od","--outDir",help="directory for the intermediate files",dest='outDir',default = None)
 
 # options
 parser.add_argument("-m",help="read mode, s(ingle) or p(air)",dest='rMode',default='p',choices=['s','p'])
@@ -74,6 +75,7 @@ def main(argv=None):
         ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInsRate=args.maxInsRate, maxDelRate=args.maxDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsam=args.redSam, outFastaFile=args.outFasta)
 
     good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=args.minPacBioLen, minCV=args.minCV) # find good regions for the PacBio read
+    print good_regions
     if len(good_regions) == 0 :
         sys.exit("PacBio read does not have good region covered by the Illumina reads")
     else: # examine good regions one by one
@@ -90,15 +92,15 @@ def main(argv=None):
             # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
             read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            ref_new, gap = metalrec_lib.fill_gap(read_array, seq_file = args.oSeqFile)
+            ref_new, gap = metalrec_lib.fill_gap(read_array, args.outFasta, args.outDir, read_info)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            #ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
+            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             if args.verbose:
                 pass # need to fill in this part later TODO
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            #refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], gap, ref_new_short))
+            refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], gap, ref_new_short))
         refOut.close()
 ##==============================================================
 ## call from command line (instead of interactively)

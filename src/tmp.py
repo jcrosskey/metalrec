@@ -18,12 +18,15 @@ for i in a:
 #ref_fasta = "/Users/cjg/Work/PacBio/Data/MockCommunity/PacBio/RoI_90_single/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__151312__ccs.fasta"
 samfile = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430/a.sam"
 ref_fasta = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430.fasta"
+
+samfile = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54542__11111_12832/bbmap.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/Results/Wetlands/subreads_with_good_regions/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54542__11111_12832/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54542__11111_12832.fasta"
 import metalrec_lib
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 # process sam file and save the read info, considering each read as single end read
-ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(samfile, rseq, maxSubRate=0.1,outsam='a.sam')
+ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(samfile, rseq, maxSubRate=0.1,outsam='/Users/cjg/Desktop/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54542__11111_12832/a.sam')
 # process sam file and save the read info, considering pair-end reads
-ref_bps_p, ref_ins_dict_p, read_info_p = metalrec_lib.read_and_process_sam_pair(samfile, rseq, maxSubRate=0.1,outsam='a_p.sam')
+ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_pair(samfile, rseq, maxSubRate=0.1,outsam='/Users/cjg/Desktop/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54542__11111_12832/a_p.sam')
 
 # key for the pair of mates with ID HISEQ11:283:H97Y1ADXX:2:2205:12196:34085 in read_info_p
 for key in read_info_p:
