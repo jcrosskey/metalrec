@@ -64,6 +64,7 @@ def main(argv=None):
         bbmap.write("echo Starting Time is $(date)\n")
         bbmap.write("bbmapskimmer.sh build=1 ref={}\n\n".format(PacBio_seq))
         bbmap.write("bbmapskimmer.sh outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=f  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t in={} out=bbmap.sam append\n".format('-Xmx'+args.memory, str(args.threads), seq_dir + '/reads.fasta'))
+        bbmap.write("python /chongle/shared/software/metalrec/src/clean_sam.py -i bbmap.sam -i1 seq.fasta --maxSub 10 --maxIns 10 --maxDel 10 --subRate 1 --insRate 1 --delRate 1 -o realign.sam\n")
         bbmap.write("echo Ending Time is $(date)\n")
         bbmap.close()
         #os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
