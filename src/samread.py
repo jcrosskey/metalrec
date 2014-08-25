@@ -3,6 +3,7 @@
 import metalrec_lib
 import re
 import sys
+revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
 ''' Class SamRead '''
 
 class SamRead:
@@ -27,6 +28,7 @@ class SamRead:
                                          # The leftmost segment has a plus sign and the rightmost has a minus sign.
                                          # In other words, it's the insert size
         self.qSeq = fields[9] # segment sequence
+        self.mate = None
 
     def get_tags(self):
         tags = dict() # other tags available
@@ -86,14 +88,6 @@ class SamRead:
 
     # get nucleotide, base by base
     def get_bases(self):
-        ''' from CIGAR string, query segment (in alignment record), and starting position (1-based) on the ref sequence, return position wise base call from the read.
-            Assuming that cigar_string is available, doesn't matter if it's sam 1.3 format or 1.4 format
-            
-            Input: cigar_string, query aligned segment, and the 1-based starting mapping position on the reference sequence
-            
-            Output: (pos_dict, ins_dict), tuple of 2 dictionaries, one for the non-insertion positions, and one for the insertion positions.
-                    When there is a deletion from the reference sequence, the base called will be "D"
-        '''
         cigar_string = self.cigarstring
         qseq = self.qSeq
         start_pos = self.rstart
@@ -112,3 +106,68 @@ class SamRead:
         else:
             return self.qSeq
 
+    # get the trimmed original read sequence
+    def get_read_seq(self):
+        read_seq = get_trim_qseq(self)
+        if is_reverse(self):
+            return revcompl(read_seq)
+        else:
+            return read_seq
+
+    # generate the alignment record for the read, also considering its mate in this function
+    # record will be written if a read is mapped well, or at least one of the read of a pair is well mapped
+    def generate_sam_record(self):
+        # [0] qname stays the same
+
+        # [1] new flag: mapped/unmapped status might change
+        if not is_unmapped(self) and is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2): # read was originally mapped but didn't pass the threshold
+            self.flag += 0x4 # change its own "unmapped" flag
+            if self.mate is not None:
+                self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
+                self.cigarstring = '*'
+        if not mate_is_unmapped(self) and is_record_bad(self.mate, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2): # mate was originally mapped but didn't pass the threshold
+            self.mate.flag += 0x8 # if mate record is bad, mark its mate as unmapped
+            if self.mate is not None:
+                self.flag += 0x4 # if mate record is bad, mark its mate as unmapped
+                self.mate.cigarstring = '*'
+        self.fields[1] = str(self.flag)
+        if self.mate is not None:
+            self.mate.fields[1] = str(self.mate.flag)
+
+        # [2] rname stays the same
+
+        # [3] pos: 1-based leftmost mapping POSition might change after re-mapping 
+        self.fields[3] = self.rstart
+        if self.mate is not None:
+            self.mate.fields[3] = self.mate.rstart
+
+        # [4] MAPQ stays the same
+
+        # [5] CIGAR string might have changed after re-mapping to PacBio sequence
+        self.fields[5] = self.cigarstring
+        if self.mate is not None:
+            self.mate.fields[5] = self.mate.cigarstring
+
+        # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
+
+        # [7] PNEXT Position of the mate/next read: might change because of re-mapping
+        self.fields[7] = self.mate.rstart
+        if self.mate is not None:
+            self.mate.fields[7] = self.rstart
+
+        # [8] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
+        self.fields[8] = get_read_seq(self)
+        if self.mate is not None:
+            self.mate.fields[8] = get_read_seq(self.mate)
+
+        # [9] QUAL stays the same
+
+        ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
+        ## Two lines if read has a mate, no matter if they are mapped or not
+        if not is_unmapped(self) or (self.mate is not None and not mate_is_unmapped(self))
+            record = '\t'.join(self.fields)
+            if self.mate is not None:
+                record += '\n' + '\t'.join(self.mate.fields)
+        else:
+            record = ''
+        return record
