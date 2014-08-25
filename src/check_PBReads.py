@@ -37,9 +37,9 @@ parser.add_argument("-k","--skip",help="number of subreads to skip",dest='skip',
 parser.add_argument("-e","--last",help="index of the last subread to look at",dest='last',default=0, type=int)
 
 ## options for job queueing
-parser.add_argument("-q","--queue",help="queue to use for jobs",dest='queue',default='large')
-parser.add_argument("-p","--threads",help="number of threads to use every align job",dest='threads',default=4,type=int) # number of threads to use
-parser.add_argument("-m","--memory",help="memory to request",dest='memory',default='10g') # 
+parser.add_argument("-q","--queue",help="queue to use for jobs",dest='queue',default='large') # queue to use
+parser.add_argument("-p","--threads",help="number of threads to use every align job",dest='threads',default=2,type=int) # number of threads to use
+parser.add_argument("-m","--memory",help="memory to request",dest='memory',default='8g') # memory to use
 
 ## setting thresholds
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
