@@ -140,9 +140,17 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxI
     '''
     fields = alignRecord.split("\t") # split by tabs
     cigarstring = fields[5] # CIGAR string
-    if cigarstring == '*': # if cigar string is not available, treat as bad (no longer check the bitwise flag to make sure it's really not mapped)
+    try:
+        flag = int(fields[1])
+    except ValueError:
+        sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
         return True
-    else:
+
+    if flag & 0x4 == 0x4: # read is unmapped (most reliable place to tell if a read is unmapped)
+        return True
+    elif cigarstring == '*': # if cigar string is not available, treat as bad 
+        return True
+    else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
         # if consecutive sub or indels is longer than the threshold, treat as bad
         if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
@@ -380,13 +388,6 @@ def read_and_process_sam(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
                     # redo global alignment using dynamic programming, indel penalty -0.9, mismatch penalty -1, opening and ending gaps at the query sequence has no penalty
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
                     new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-                    #if myread.qname == 'HISEQ11:283:H97Y1ADXX:1:1108:1971:87341' and myread.is_read1():
-                    #    print len(realign_res)
-                    #    #for i in realign_res:
-                    #    #    print format_alignment(*i)
-                    #    print "\n\n\n"
-                    #    print format_alignment(*new_align)
-                    #    print "\n\n\n"
                     pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
 
                     # if simplified sam file is required, find the new CIGAR string and write the new record
@@ -451,10 +452,10 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                 maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate are used to filter out badly mapped reads
                 minPacBioLen - contiguous region length threshold to be a good region
                 minCV - minimum coverage depth for a position to be considered as part of a good region
-                outsam - output processed sam file name (discard reads that fail to pass the threshold, shuffle and clean up alignments)
-                outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold
+                outsam - output processed sam file name, optional (discard reads that fail to pass the threshold, shuffle and clean up alignments)
+                outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold, optional
 
-        Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
+        Output: ref_bps - list of lists, one for each position on the reference sequence (without padding, original positions in the PacBio sequence)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
                 readinfo - dictionary of read information, info_string => list of names of reads whose mapped segment corresponds to this info_string
     '''
@@ -464,6 +465,8 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
     pairs = 0 # number of properly mapped pairs
     singles = 0 # number of reads that are mapped properly but not their mates
     lineNum = 0
+
+    # checking and creating output files if specified
     if outsam != '':
         odir = os.path.dirname(os.path.abspath(outsam)) # make sure the directory for the output sam file exists
         if not os.path.exists(odir): # if not, create the directory
@@ -477,7 +480,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
     
     mysam =  open(samFile, 'r') # input sam file object
     line = mysam.readline()
-    is_pair = False
+    is_pair = False # indicates if two reads are a properly mapped pair
     while 1: # start while loop to read all lines in the file
         if not line: # if at the end of the file, break out of the loop
             sys.stdout.write("File read complete.\n")
@@ -502,7 +505,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                 line = mysam.readline() # continue reading next line
             #####################################
             # mapping record lines
-            # Make sure that the paired end reads have the same name. 
+            # Make sure that the paired end reads have the same name, instead arbitrarily considering two adjacent records to be a pair
             else:
                 read_string = ''
                 # First read of the pair, assuming mate reads are recorded next to each other in the sam file
@@ -527,7 +530,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
 
                     myread_r1 = samread.SamRead(record_r1)
                     if myread_r1.is_paired():
-                        print_name = myread_r1.qname + ('/1' if myread_r1.is_read1() else '/2')
+                        print_name = myread_r1.qname + ('/1' if myread_r1.is_read1() else '/2') #TODO: this might not be necessary ..
                     else:
                         print_name = myread_r1.qname
                         
@@ -541,17 +544,16 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     ref_region_end = min(myread_r1.get_rend() + 5, rLen)
                     trimmed_qseq = myread_r1.get_trim_qseq()
                     realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-                    new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+                    new_align = pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively,(seqA, seqB, score, first_non_gap_pos, last_non_gap_pos)
                     pos_dict, ins_dict = get_bases_from_align(new_align, ref_region_start + new_align[3])
                     # DEBUG
                     #if len(ins_dict) > 0:
                     #    print print_name
                     #    print format_alignment(*new_align)
 
-                    # update corresponding base call frequencies for the reference (non-insertion positions)
+                    # update corresponding base call frequencies for the reference 
                     for pos in pos_dict: # all the matching/mismatching/deletion positions
                         ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 
-                    # Insertion positions dictionary.
                     for ins in ins_dict: # all the insertion positions
                         ins_chars = ins_dict[ins]
                         if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
@@ -566,8 +568,6 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     # if simplified sam file is required, find the new CIGAR string and write the new record
                     if outsam!= '':
                         cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-                        #if len(ins_dict) > 0 :
-                        #    print cigarstring, first_non_gap,myread_r1.rstart
                         # update information in the sam record
                         fields[3] = str(ref_region_start + new_align[3]) # starting position
                         fields[5] = cigarstring # cigar string
@@ -628,20 +628,24 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                 fields[9] = trimmed_qseq # trimmed query sequence
                                 line = '\t'.join(fields) + '\n'
                                 newsam.write(line)
-                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
-                            if read_string != '':
+                            # it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
+                            # The conflict will be taken care of later when building the array for the reads
+                            if read_string != '': # non-insertion string and insertion string are separated by :
                                 read_string = read_string.split(':')[0] + dict_to_string(pos_dict) + ':' + read_string.split(':')[1] + dict_to_string(ins_dict)
                             else:
                                 read_string = dict_to_string(pos_dict) + ':' + dict_to_string(ins_dict)
                         else:
-                            #print myread_r2.qname
                             discardRec += 1
+                    else:
+                        singles += 1 # count of reads that does not belong to a properly mapped pair
+
                 # if r1 didn't pass the good read threshold, process mate instead
                 else:
                     #print myread_r1.qname
                     discardRec += 1
                     if is_pair:
                         if not is_record_bad(record_r2, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if r2 passes the threshold too
+                            singles += 1
                             keepRec += 1 # number of kept records increases by 1
                             myread_r2 = samread.SamRead(record_r2)
                             # printed name of this read, with /1 appended if it's the first read of the pair, otherwise append /2
@@ -686,7 +690,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                                 # write updated record in the new file
                                 line = '\t'.join(fields) + '\n'
                                 newsam.write(line)
-                            # TODO: it's possible that the two pair-end reads overlap in the mapping, read string need special care in this case
+
                             if read_string != '':
                                 read_string = read_string.split(':')[0] + dict_to_string(pos_dict) + ':' + read_string.split(':')[1] + dict_to_string(ins_dict)
                             else:
@@ -708,17 +712,12 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
                     else:
                         readinfo[read_string] = [print_name]
 
-                if is_pair:
+                if is_pair: # if the two reads form a pair, continue to read the next line
                     line = mysam.readline()
-                else:
+                else: # else need to process the second read separately
                     line = next_line
             if keepRec > 0 and keepRec % 1000 == 0:
                 sys.stdout.write('  processed {} good records\n'.format(keepRec))
-            # TODO: use only 5000 reads, for testing purpose, remove this for real analysis
-            #if keepRec % 5000 == 0:
-            #    print lineNum
-            #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
-            #    return ref_bps, ref_ins_dict
     mysam.close()
 
     if outsam != '':
@@ -727,6 +726,7 @@ def read_and_process_sam_pair(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubR
         outFasta.close()
     sys.stdout.write("discarded {} reads.\n".format(discardRec))
     sys.stdout.write("discovered {} pairs of paired-end reads.\n".format(pairs))
+    sys.stdout.write("discovered {} non-paired reads.\n".format(singles))
     sys.stdout.write("total number of lines is {}\n".format(lineNum))
     return ref_bps, ref_ins_dict, readinfo
 ## ======================================================================
