@@ -44,17 +44,17 @@ parser.add_argument("-p","--threads",help="number of threads to use every align 
 parser.add_argument("-m","--memory",help="memory to request",dest='memory',default='8g') # memory to use
 
 ## setting thresholds
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
-parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
-parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
-parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.020, type=float)
-parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
-parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
-parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
+#parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
+#parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
+#parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
+#parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.020, type=float)
+#parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
+#parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
+#parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
 parser.add_argument("--minPacBioLen",help="minimum length of PacBio read to be aligned",dest='minPacBioLen',default=1000, type=int)
-parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=1000, type=int)
-parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
-parser.add_argument("--polyR",help="minimum proportion of read support for a base to be considered",dest='minPercent',default=0.01, type=float)
+#parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=1000, type=int)
+#parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
+#parser.add_argument("--polyR",help="minimum proportion of read support for a base to be considered",dest='minPercent',default=0.01, type=float)
 
 #parser.add_argument("-o","--out",help="output file",dest='outputFile',required=True)
 
