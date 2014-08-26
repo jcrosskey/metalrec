@@ -82,3 +82,26 @@ for k, z in bp_pos_dict.items():
     if z == 251:
         print k
         break
+
+## test of newly added functions in samread class ##
+import samread
+
+maxSub=3
+maxIns=3
+maxDel=3
+maxSubRate=0.02
+maxInsRate=0.2 
+maxDelRate=0.2
+
+samfile = "/chongle/shared/software/metalrec/test/bbmap.sam"
+ref_fasta = "/chongle/shared/software/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__68487__10900_11932.fasta"
+rseq = metalrec_lib.read_single_seq(ref_fasta)
+
+samIn = open(samfile,'r')
+for i in xrange(3):
+    a = samIn.readline()
+
+
+a = samIn.readline()
+r1 = samread.SamRead(a) # SamRead object
+samIn.close()

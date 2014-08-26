@@ -3,6 +3,8 @@
 import metalrec_lib
 import re
 import sys
+from Bio import pairwise2 # pairwise alignment using dynamic programming
+from Bio.pairwise2 import format_alignment
 revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
 ''' Class SamRead '''
 
@@ -95,37 +97,40 @@ class SamRead:
     
     # trim the query sequence to only keep the aligned part, get rid of the clipped sequence at the two ends
     # only soft clipped part is present in the qseq, not the hard clipped sequence
-    def get_trim_qseq(self):
+    def trim_qseq(self):
         if 'S' in self.cigarstring:
             cigar_list = re.findall('\D|\d+',self.cigarstring) # cigar string as a list of str (numbers and operations) 
             if cigar_list[1] == 'S':
-                qSeq = self.qSeq[int(cigar_list[0]):]
+                self.qSeq = self.qSeq[int(cigar_list[0]):]
+                del cigar_list[:2]
             if cigar_list[-1] == 'S':
-                qSeq = self.qSeq[:int(cigar_list[-2])]
-            return qSeq
-        else:
-            return self.qSeq
+                self.qSeq = self.qSeq[:int(cigar_list[-2])]
+                del cigar_list[-2:]
+            self.cigarstring = ''.join(cigar_list)
+        #    return self.cigarstring, self.qSeq
+        #else:
+        #    return self.cigarstring, self.qSeq
 
-    # get the trimmed original read sequence
+    # get the read segment
     def get_read_seq(self):
-        read_seq = get_trim_qseq(self)
-        if is_reverse(self):
+        read_seq = self.qSeq
+        if self.is_reverse():
             return revcompl(read_seq)
         else:
             return read_seq
 
     # generate the alignment record for the read, also considering its mate in this function
     # record will be written if a read is mapped well, or at least one of the read of a pair is well mapped
-    def generate_sam_record(self):
+    def generate_sam_record(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
         # [0] qname stays the same
 
         # [1] new flag: mapped/unmapped status might change
-        if not is_unmapped(self) and is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2): # read was originally mapped but didn't pass the threshold
+        if not self.is_unmapped() and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # read was originally mapped but didn't pass the threshold
             self.flag += 0x4 # change its own "unmapped" flag
             if self.mate is not None:
                 self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
                 self.cigarstring = '*'
-        if not mate_is_unmapped(self) and is_record_bad(self.mate, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2): # mate was originally mapped but didn't pass the threshold
+        if self.is_paired() and self.mate is not None and not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # mate was originally mapped but didn't pass the threshold
             self.mate.flag += 0x8 # if mate record is bad, mark its mate as unmapped
             if self.mate is not None:
                 self.flag += 0x4 # if mate record is bad, mark its mate as unmapped
@@ -151,23 +156,47 @@ class SamRead:
         # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
 
         # [7] PNEXT Position of the mate/next read: might change because of re-mapping
-        self.fields[7] = self.mate.rstart
+        if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # mate was originally mapped but didn't pass the threshold
+            self.fields[7] = self.mate.rstart
         if self.mate is not None:
             self.mate.fields[7] = self.rstart
 
-        # [8] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
-        self.fields[8] = get_read_seq(self)
+        # [8] TLEN stays the same
+
+        # [9] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
+        self.trim_qseq()
+        self.fields[5], self.fields[9] = self.cigarstring, self.qSeq
         if self.mate is not None:
-            self.mate.fields[8] = get_read_seq(self.mate)
+            self.mate.trim_qseq()
+            self.mate.fields[5], self.mate.fields[9] = self.mate.cigarstring, self.mate.qSeq
 
         # [9] QUAL stays the same
 
         ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
         ## Two lines if read has a mate, no matter if they are mapped or not
-        if not is_unmapped(self) or (self.mate is not None and not mate_is_unmapped(self)):
-            record = '\t'.join(self.fields)
+        if not self.is_unmapped() or (self.mate is not None and not self.mate_is_unmapped()):
+            record = '\t'.join(map(str,self.fields))
             if self.mate is not None:
                 record += '\n' + '\t'.join(self.mate.fields)
         else:
             record = ''
         return record
+
+    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
+    def re_align(self, rseq):
+        rLen = len(rseq)
+        ref_region_start = max( self.rstart - 5, 1)
+        ref_region_end = min(self.get_rend() + 5, rLen)
+        self.trim_qseq()
+
+        realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+        new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+        #print format_alignment(*new_align) # for DEBUG
+        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
+
+        cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+        # update information in the sam record
+        fields[3] = str(ref_region_start + new_align[3]) # starting position
+        fields[5] = cigarstring # cigar string
+        fields[9] = trimmed_qseq # trimmed query sequence
+        return pos_dict, ins_dict
