@@ -66,15 +66,8 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    # Illumina data
-    #pe800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_pe.fastq"
-    #se800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_se.fastq"
-    #pe400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_pe.fastq"
-    #se400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_se.fastq"
-    #pe270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_pe.fastq"
-    #se270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_se.fastq"
-    Illumina_in = ''
-    if args.peFiles is not None:
+    Illumina_in = '' # 'in=...' string part in bbmap.sh command
+    if args.peFiles is not None: # if there are PE reads data
         in1 = ''
         in2 = ''
         for i in xrange(len(args.peFiles)/2):
@@ -88,9 +81,9 @@ def main(argv=None):
             for i in xrange(len(args.seFiles)):
                 in1 += ',' + args.seFiles[i]
                 in2 += ',null'
-        Illumina_in = 'in1=' + in1 + ' in2= ' + in2
-        map_out = 'out=' + ','.join(['bbmap.sam'] * (len(args.peFiles)/2 + len(args.seFiles)))
-    else:
+        Illumina_in = 'in1=' + in1 + ' in2= ' + in2 # concatenate in1= and in2= together
+        map_out = 'out=' + ','.join(['bbmap.sam'] * (len(args.peFiles)/2 + len(args.seFiles))) # out= string in bbmap.sh
+    else: # if there are only SE reads data
         if args.seFiles is None:
             sys.exit("no input Illumina reads specified!")
         else:
@@ -98,11 +91,10 @@ def main(argv=None):
             Illumina_in = 'in=' + Illumina_in
         map_out = 'out=' + ','.join(['bbmap.sam'] *  len(args.seFiles))
 
-
     # make sure output directory exists
     if not os.path.exists(args.outputDir):
         os.makedirs(args.outputDir)
-    args.outputDir = os.path.abspath(args.outputDir)
+    args.outputDir = os.path.abspath(args.outputDir) # make sure the path is the full path
 
     read_count = 0 # number of reads that are processed (not including skipped reads)
     scan_count = 0 # number of reads that are scanned
@@ -138,7 +130,7 @@ def main(argv=None):
                 legal_name = re.sub('/','__',read_name)
                 seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
                 # first check if this read is already done
-                if not os.path.exists(seq_dir+'/bbmap.err'): # if this read is not processed yet
+                if not os.path.exists(seq_dir+'/bbmap.sam'): # if this read is not processed yet. criterion for already processed: bbmap.sam exists
                     read_count += 1 # increase processed read count 
                     nextline = fsr.readline().strip('\n')
                     while nextline != '' and nextline[0] != '>':
