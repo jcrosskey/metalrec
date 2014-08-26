@@ -154,7 +154,7 @@ def main(argv=None):
                         bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn={}\n#PBS -q {}\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(str(args.threads), args.queue, seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
-                        bbmap.write("bbmapskimmer.sh build=1 ref={} k=10\n\n".format(fasta_name))
+                        bbmap.write("bbmapskimmer.sh build=1 ref={} k=10 {}\n\n".format(fasta_name, '-Xmx'+args.memory))
                         bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
