@@ -28,6 +28,8 @@ parser = argparse.ArgumentParser(description="Check the PacBio subreads and see 
 
 ## input files and directories
 parser.add_argument("-f","--fasta",help="input PacBio filtered subreads sequence file",dest='fastaFile',required=True)
+parser.add_argument("-pe",help="paired end Illumina reads data set",dest='peFiles', nargs='+') # paired end reads files, in pair of separate files
+parser.add_argument("-se",help="paired end Illumina reads data set",dest='seFiles', nargs='+') # single end reads files. TODO: what about interleaved PE reads?
 ## output directory
 parser.add_argument("-d","--outdir",help="output directory",dest='outputDir',default='./output/')
 
@@ -48,8 +50,9 @@ parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',
 parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.020, type=float)
 parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
 parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
-parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=10, type=int)
-parser.add_argument("--minPacBioLen",help="minimum contiguous well covered region length",dest='minPacBioLen',default=1000, type=int)
+parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
+parser.add_argument("--minPacBioLen",help="minimum length of PacBio read to be aligned",dest='minPacBioLen',default=1000, type=int)
+parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=1000, type=int)
 parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
 parser.add_argument("--polyR",help="minimum proportion of read support for a base to be considered",dest='minPercent',default=0.01, type=float)
 
@@ -64,16 +67,42 @@ def main(argv=None):
         args = parser.parse_args()
 
     # Illumina data
-    pe800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_pe.fastq"
-    se800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_se.fastq"
-    pe400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_pe.fastq"
-    se400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_se.fastq"
-    pe270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_pe.fastq"
-    se270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_se.fastq"
+    #pe800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_pe.fastq"
+    #se800="/chongle/shared/database/03_PacBio/Wetlands/Illumina/800bp_se.fastq"
+    #pe400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_pe.fastq"
+    #se400="/chongle/shared/database/03_PacBio/Wetlands/Illumina/400bp_se.fastq"
+    #pe270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_pe.fastq"
+    #se270="/chongle/shared/database/03_PacBio/Wetlands/Illumina/270bp_se.fastq"
+    Illumina_in = ''
+    if args.peFiles is not None:
+        in1 = ''
+        in2 = ''
+        for i in xrange(len(args.peFiles)/2):
+            if i != 0:
+                in1 += args.peFiles[i*2]
+                in2 += args.peFiles[i*2 + 1]
+            else:
+                in1 += ',' + args.peFiles[i*2]
+                in2 += ',' + args.peFiles[i*2 + 1]
+        if args.seFiles is not None:
+            for i in xrange(len(args.seFiles)):
+                in1 += ',' + args.seFiles[i]
+                in2 += ',null'
+        Illumina_in = 'in1=' + in1 + ' in2= ' + in2
+        map_out = 'out=' + ','.join(['bbmap.sam'] * (len(args.peFiles)/2 + len(args.seFiles)))
+    else:
+        if args.seFiles is None:
+            sys.exit("no input Illumina reads specified!")
+        else:
+            Illumina_in = ','.join(args.seFiles)
+            Illumina_in = 'in=' + Illumina_in
+        map_out = 'out=' + ','.join(['bbmap.sam'] *  len(args.seFiles))
+
 
     # make sure output directory exists
     if not os.path.exists(args.outputDir):
         os.makedirs(args.outputDir)
+    args.outputDir = os.path.abspath(args.outputDir)
 
     read_count = 0 # number of reads that are processed (not including skipped reads)
     scan_count = 0 # number of reads that are scanned
@@ -133,8 +162,8 @@ def main(argv=None):
                         bbmap.write('#!/bin/bash\n\n#PBS -l walltime=10:00:00\n#PBS -l nodes=1:ppn={}\n#PBS -q {}\n#PBS -N bbmap\n#PBS -e {}\n#PBS -o {}\n'.format(str(args.threads), args.queue, seq_dir+'/bbmap.err',seq_dir+'/bbmap.out' ))
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
-                        bbmap.write("bbmapskimmer.sh build=1 ref={}\n\n".format(fasta_name))
-                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t in={},{} out=bbmap.sam,bbmap.sam append\n".format('-Xmx'+args.memory, str(args.threads), pe800, se800))
+                        bbmap.write("bbmapskimmer.sh build=1 ref={} k=10\n\n".format(fasta_name))
+                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
                         os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
