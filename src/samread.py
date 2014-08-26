@@ -164,7 +164,7 @@ class SamRead:
 
         ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
         ## Two lines if read has a mate, no matter if they are mapped or not
-        if not is_unmapped(self) or (self.mate is not None and not mate_is_unmapped(self))
+        if not is_unmapped(self) or (self.mate is not None and not mate_is_unmapped(self)):
             record = '\t'.join(self.fields)
             if self.mate is not None:
                 record += '\n' + '\t'.join(self.mate.fields)
