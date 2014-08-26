@@ -139,8 +139,6 @@ def main(argv=None):
                 seq_dir = args.outputDir + '/' + legal_name # directory for output of this subread
                 # first check if this read is already done
                 if not os.path.exists(seq_dir+'/bbmap.err'): # if this read is not processed yet
-                    if not os.path.exists(seq_dir):
-                        os.makedirs(seq_dir)
                     read_count += 1 # increase processed read count 
                     nextline = fsr.readline().strip('\n')
                     while nextline != '' and nextline[0] != '>':
@@ -149,6 +147,8 @@ def main(argv=None):
                     line = nextline
                     sys.stdout.write("\t{}".format(len(read_seq)))
                     if len(read_seq) >= args.minPacBioLen : # if sequence length passes length threshold, write the fasta file
+                        if not os.path.exists(seq_dir):
+                            os.makedirs(seq_dir)
                         sys.stdout.write("\t processing\n")
                         # write fasta file for this sequence
                         fasta_name = seq_dir + '/' + legal_name + '.fasta'
