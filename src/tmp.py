@@ -85,6 +85,7 @@ for k, z in bp_pos_dict.items():
 
 ## test of newly added functions in samread class ##
 import samread
+import metalrec_lib
 
 maxSub=3
 maxIns=3
@@ -93,15 +94,27 @@ maxSubRate=0.02
 maxInsRate=0.2 
 maxDelRate=0.2
 
-samfile = "/chongle/shared/software/metalrec/test/bbmap.sam"
-ref_fasta = "/chongle/shared/software/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__68487__10900_11932.fasta"
+samfile = "/Users/cjg/Work/PacBio/metalrec/test/bbmap.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__68487__10900_11932.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 samIn = open(samfile,'r')
 for i in xrange(3):
     a = samIn.readline()
 
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2115:2784:47256':
+    a = samIn.readline()
 
-a = samIn.readline()
+
 r1 = samread.SamRead(a) # SamRead object
 samIn.close()
+
+
+ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSubRate=0.1, outsamFile="/Users/cjg/Work/PacBio/metalrec/test/bbmap_red.sam", outFastaFile="/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta")
+poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[1])
+newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, print_width=70)
+poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
+type_array, ext_region = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
+consensus_array = metalrec_lib.make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array,ext_region)
+read_array1d = metalrec_lib.make_read_array1d(readinfo.keys()[0], bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext) 
+read_array, read_counts = metalrec_lib.make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)

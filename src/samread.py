@@ -84,9 +84,13 @@ class SamRead:
     def is_supplementary(self):
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
-    # check and see if this mapping is too noisy to be included
+    # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
     def is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
-        return metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
+        is_bad = metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
+        if is_bad and not self.is_unmapped():
+            self.flag += 0x4 # change its own "unmapped" flag
+            self.is_unmapped = True
+        return is_bad
 
     # get nucleotide, base by base
     def get_bases(self):
@@ -104,12 +108,9 @@ class SamRead:
                 self.qSeq = self.qSeq[int(cigar_list[0]):]
                 del cigar_list[:2]
             if cigar_list[-1] == 'S':
-                self.qSeq = self.qSeq[:int(cigar_list[-2])]
+                self.qSeq = self.qSeq[:-int(cigar_list[-2])]
                 del cigar_list[-2:]
             self.cigarstring = ''.join(cigar_list)
-        #    return self.cigarstring, self.qSeq
-        #else:
-        #    return self.cigarstring, self.qSeq
 
     # get the read segment
     def get_read_seq(self):
@@ -123,9 +124,8 @@ class SamRead:
     # record will be written if a read is mapped well, or at least one of the read of a pair is well mapped
     def generate_sam_record(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
         # [0] qname stays the same
-
         # [1] new flag: mapped/unmapped status might change
-        if not self.is_unmapped() and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # read was originally mapped but didn't pass the threshold
+        if not self.is_unmapped() and self.mate is not None and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # read was originally mapped but didn't pass the threshold
             self.flag += 0x4 # change its own "unmapped" flag
             if self.mate is not None:
                 self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
@@ -138,39 +138,33 @@ class SamRead:
         self.fields[1] = str(self.flag)
         if self.mate is not None:
             self.mate.fields[1] = str(self.mate.flag)
-
         # [2] rname stays the same
-
         # [3] pos: 1-based leftmost mapping POSition might change after re-mapping 
         self.fields[3] = self.rstart
         if self.mate is not None:
             self.mate.fields[3] = self.mate.rstart
-
         # [4] MAPQ stays the same
-
         # [5] CIGAR string might have changed after re-mapping to PacBio sequence
         self.fields[5] = self.cigarstring
         if self.mate is not None:
             self.mate.fields[5] = self.mate.cigarstring
-
         # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
-
         # [7] PNEXT Position of the mate/next read: might change because of re-mapping
         if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # mate was originally mapped but didn't pass the threshold
             self.fields[7] = self.mate.rstart
         if self.mate is not None:
             self.mate.fields[7] = self.rstart
-
-        # [8] TLEN stays the same
-
+        # [8] TLEN stays the same. signed observed Template LENgth.
+        # If all segments are mapped to the same reference, the unsigned observed template length equals the number of bases from the leftmost mapped base to the rightmost mapped base. 
+        # The leftmost segment has a plus sign and the rightmost has a minus sign. The sign of segments in the middle is undefined. It is set as 0 for single-segment template or when the information is unavailable. 
+        # TODO: this could have changed
         # [9] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
         self.trim_qseq()
         self.fields[5], self.fields[9] = self.cigarstring, self.qSeq
         if self.mate is not None:
             self.mate.trim_qseq()
             self.mate.fields[5], self.mate.fields[9] = self.mate.cigarstring, self.mate.qSeq
-
-        # [9] QUAL stays the same
+        # [10] QUAL stays the same
 
         ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
         ## Two lines if read has a mate, no matter if they are mapped or not
@@ -187,16 +181,15 @@ class SamRead:
         rLen = len(rseq)
         ref_region_start = max( self.rstart - 5, 1)
         ref_region_end = min(self.get_rend() + 5, rLen)
+        #print self.qSeq
         self.trim_qseq()
-
+        #print self.qSeq
         realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
         new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
         #print format_alignment(*new_align) # for DEBUG
         pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
 
-        cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
         # update information in the sam record
-        fields[3] = str(ref_region_start + new_align[3]) # starting position
-        fields[5] = cigarstring # cigar string
-        fields[9] = trimmed_qseq # trimmed query sequence
+        self.rstart = ref_region_start + new_align[3] # starting position
         return pos_dict, ins_dict
