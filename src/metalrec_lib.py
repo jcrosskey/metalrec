@@ -1015,7 +1015,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv)
         # At least 3 or 30% of the read support TODO
-        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads or ref_bps[pos][i] > cv * minPercent ]
+        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads or ref_bps[pos][i] > round(cv * minPercent) ]
         if len(base_calls) > 1:
             poly_bps.append((pos, base_calls))
         elif len(base_calls) == 1:
@@ -1035,7 +1035,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         if pos in ref_ins_dict: 
             for i in xrange(len(ref_ins_dict[pos])): # look at all the bases inserted at this position
                 pos_list = ref_ins_dict[pos][i]
-                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads or pos_list[j] >= cv * minPercent ]
+                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads or pos_list[j] >= round(cv * minPercent) ]
                 if len(base_calls) > 1:
                     poly_ins.append(([pos,i], base_calls))
                 elif len(base_calls) == 1:
@@ -1557,13 +1557,17 @@ def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
         for i in Gap_pos:
             seq0 = seq0[:i] + seq0[i].lower() + seq0[i+1 :] 
 
-        gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
-        gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
-        Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
-        Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
-        Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
+        if len(Gap_pos) > 0:
+            gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
+            gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
+            Min_gap = sum(gap_lens) # smallest gap size, initialize to the current gap size
+            Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
+            Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
+            sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+        else:
+            Min_gap = 0
+            sys.stdout.write("\n=== No gap.\n")
 
-        sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
         return ref0, Min_gap, Cvec
         #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
 
