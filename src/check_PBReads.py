@@ -155,10 +155,10 @@ def main(argv=None):
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
                         bbmap.write("bbmapskimmer.sh build=1 ref={} k=10 {}\n\n".format(fasta_name, '-Xmx'+args.memory))
-                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=10 keepnames=t k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
+                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f strictmaxindel=t keepnames=t k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
-                        time.sleep(2)
+                        time.sleep(1)
                         os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                     else:
                         sys.stdout.write("\t too short\n")
