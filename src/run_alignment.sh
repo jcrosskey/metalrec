@@ -14,7 +14,7 @@ echo Starting Time is $(date)
 total_seqs=`grep '^>' /chongle/shared/database/03_PacBio/MockCommunity/PacBio/filtered_subreads/filtered_subreads.fasta -c`
 
 ## starting index of the PacBio sequences
-seq_start=180000 # 0-based index of the PacBio sequence to align to
+seq_start=0 # 0-based index of the PacBio sequence to align to
 
 ## total number of chunks to split the alignments to
 num_chunks=$((($total_seqs - $seq_start) / 2000 ))
@@ -29,14 +29,15 @@ echo -e "\n"
 
 for i in `seq 0 $num_chunks`;
 do
-	running_jobs=`qstat -u cjg | grep R -c`
-	queueing_jobs=`qstat -u cjg | grep R -c`
-	total_jobs=$(($running_jobs + $queueing_jobs))
-	until [ $total_jobs -lt 500 ]; do
-		sleep 10m
-		running_jobs=`qstat -u cjg | grep R -c`
-		queueing_jobs=`qstat -u cjg | grep R -c`
-		total_jobs=$(($running_jobs + $queueing_jobs))
+	#running_jobs=`qstat -u cjg | grep R -c`
+	#queueing_jobs=`qstat -u cjg | grep Q -c`
+	total_jobs=`qstat -u cjg | grep 'R\|Q' -c`
+	until [ $total_jobs -lt 1000 ]; do
+		echo sleep 2m ...
+		sleep 2m
+		#running_jobs=`qstat -u cjg | grep R -c`
+		#queueing_jobs=`qstat -u cjg | grep Q -c`
+		total_jobs=`qstat -u cjg | grep 'R\|Q' -c`
 	done
 	echo chunk $i running
 	skip_seqs=$(($seq_start + $i * 2000))
