@@ -116,7 +116,7 @@ def main(argv=None):
             if skip_count < args.skip : # skip certain number of reads
                 skip = True
                 skip_count += 1
-                sys.stdout.write("{}\t{}\t{}\t{}\tskip\n".format(scan_count,skip_count, read_count,read_name))
+                #sys.stdout.write("{}\t{}\t{}\t{}\tskip\n".format(scan_count,skip_count, read_count,read_name))
                 nextline = fsr.readline().strip('\n')
                 while nextline[0] != '>':
                     nextline = fsr.readline().strip('\n')
@@ -155,9 +155,10 @@ def main(argv=None):
                         bbmap.write("\ncd {}\n".format(seq_dir))
                         bbmap.write("echo Starting Time is $(date)\n")
                         bbmap.write("bbmapskimmer.sh build=1 ref={} k=10 {}\n\n".format(fasta_name, '-Xmx'+args.memory))
-                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=3 keepnames=t  minid=0.70 k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
+                        bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f maxindel=5 maxindel2=50 strictmaxindel=t maxsublen=10 keepnames=t k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
+                        time.sleep(2)
                         os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                     else:
                         sys.stdout.write("\t too short\n")
