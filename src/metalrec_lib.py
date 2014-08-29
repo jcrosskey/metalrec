@@ -1337,8 +1337,9 @@ def is_compatible(array1, array2):
         Input:  array1, array2 - length 5 vectors, each corresponds to the base call of a read at one position
         Output: boolean value - true if they are compatible, false if not
     '''
-    same_call_pos = where(bitwise_and( array1, array2) == 1)[0]
-    if len(same_call_pos) > 0:
+    # only 5 entries each array in array1 and array2
+    same_call_pos = where(bitwise_and( array1, array2) == 1)[0] # find number of nucleotides that both reads call
+    if len(same_call_pos) > 0: # if they agree on at least 1 nucleotide, they are compatible, otherwise they are not
         return True
     else:
         return False
@@ -1365,19 +1366,22 @@ def compatible_mat(read_array):
         Input:  read_array- 2d array from all the reads 
         Output: Cmat - compatibility array for all the reads in the 2d array
     '''
-    nread = read_array.shape[0]
-    Cmat = zeros((nread, nread),dtype=int32)
+    nread = read_array.shape[0] # number of rows, which is number of the reads 
+    Cmat = zeros((nread, nread),dtype=int32) # initialize to be all 0 - incompatible
     for i in xrange(nread):
         for j in xrange(i+1, nread):
-            if are_reads_compatible(read_array[i],read_array[j]):
+            if are_reads_compatible(read_array[i],read_array[j]): # set the entry for compatible pairs to 1
                 Cmat[i,j] = 1
-    return array(Cmat)
+    return array(Cmat) # conver to array
 ## ======================================================================
 def cov_bps(read_array1d):
-    ''' Find number of bases covered by an array '''
-    r = read_array1d.reshape(-1,5)
-    cov_pos = unique( where( r==1 )[0] ) # positions covered by this read
-    return len(cov_pos)
+    ''' Find number of bases covered by an array 
+        Input: read_array1d - 1 dimensional array for a read
+        Output: len(cov_pos) - number of covered base pairs by this read
+    '''
+    r = read_array1d.reshape(-1,5) # convert to array with 5 columns
+    cov_pos = unique( where( r==1 )[0] ) # positions covered by this read, remove repeat when a read gives ambiguous base calls
+    return len(cov_pos) # number of base pairs covered by the given read (array)
 ## ======================================================================
 def is_read_compatible(ref_array, read_array1d):
     ''' Given a reference array and an array for a read, determine if they are compatible or not.
@@ -1387,7 +1391,7 @@ def is_read_compatible(ref_array, read_array1d):
     '''
     r = read_array1d.reshape(-1,5)
     cov_pos = unique( where( r==1 )[0] ) # positions covered by this read
-    if dot(ref_array, read_array1d) == len(cov_pos):
+    if dot(ref_array, read_array1d) == len(cov_pos): # there should only be one 1 for the length 5 vector of a base pair position
         return True
     else:
         return False
@@ -1400,9 +1404,9 @@ def get_compatible_reads(ref_array, read_array):
     '''
     compatible_ind = []
     for i in xrange(read_array.shape[0]): # check every read
-        if is_read_compatible(ref_array, read_array[i,:]):
+        if sum(read_array[i,:]) > 0 and is_read_compatible(ref_array, read_array[i,:]): # ignore reads that have all 0 vector
             compatible_ind.append(i)
-    return array(compatible_ind)
+    return array(compatible_ind, dtype=int16)
 ## ======================================================================
 def get_reads_name(readinfo, compatible_ind):
     ''' Find the names of reads that are compatible with a given PacBio sequence, given the readinfo dictionary and the compatible array row indices.
@@ -1410,11 +1414,14 @@ def get_reads_name(readinfo, compatible_ind):
                 compatible_ind - row indices of the array compatible with the PacBio sequence
         Output: reads_name_list - list of names of reads corresponding to the compatible_ind
     '''
-    reads_name_list = [] # initialize an empty list
-    info_keys = sorted(readinfo.keys()) # sort the keys of readinfo
-    for ind in compatible_ind:
-        reads_name_list += readinfo[ info_keys[ind] ]
-    return reads_name_list
+    if len(compatible_ind) == 0: # no compatible reads
+        return []
+    else:
+        reads_name_list = [] # initialize an empty list
+        info_keys = sorted(readinfo.keys()) # sort the keys of readinfo
+        for ind in compatible_ind:
+            reads_name_list += readinfo[ info_keys[ind] ]
+        return reads_name_list
 ## ======================================================================
 def gap_pos(ref_array, read_array, compatible_ind):
     ''' Given a reference array and indices (of array) of compatible reads, find the gap positions, i.e. positions that are not covered by any read
@@ -1423,11 +1430,14 @@ def gap_pos(ref_array, read_array, compatible_ind):
                 compatible_ind - indices of compatible reads, corresponding to the read_array
         Output: gap_vec - vector with positions that have no coverage from the reads
     '''
-    read_array = read_array[compatible_ind,:]
     base_pos = where( ref_array == 1)[0] # coordinates corresponding to the bases called by the reference
-    base_cov = read_array[ : , base_pos].reshape(-1,len(base_pos))
-    base_cov = base_cov.sum(axis=0) # pick the compatible rows and the correct columns, sum over the columns
-    return where(base_cov == 0)[0]
+    if len(compatible_ind) == 0: # no compatible reads, all positions are gap positions
+        return arange(ref_array.shape[0])
+    else:
+        read_array = read_array[compatible_ind,:]
+        base_cov = read_array[ : , base_pos].reshape(-1,len(base_pos))
+        base_cov = base_cov.sum(axis=0) # pick the compatible rows and the correct columns, sum over the columns
+        return where(base_cov == 0)[0]
 ## ======================================================================
 def get_consensus_from_array(read_array):
     ''' get initial starting point for the greedy algorithm, i.e., the consensus sequence found from the read array.
@@ -1485,13 +1495,11 @@ def get_new_ref(ref_array, read_ind, read_array):
     ''' from the previous ref_array, and the newly added read_array1d to fill the gap, find a new ref_array
         Input:  read_ind - read based on which the new ref_array is determined
                 ref_array, read_array - as usual
-        Output:
+        Output: ref1 - new ref_array with the newly added read incorporated
     '''
     ref1 = ref_array.copy()
     r_array= read_array[read_ind].reshape(-1,5) # convert the read's information to a 2d array with 5 columns
-    #print r_array
     cov_pos = unique( where( r_array == 1) [0] ) # find the positions covered by this read
-    #print cov_pos
     # check each position: TODO now it's done with a loop, maybe should modify to a better way later TODO
     for pos in cov_pos:
         read = r_array[pos,]
