@@ -31,11 +31,11 @@ parser.add_argument("-s","--sam",help="input sam file",dest='samFile',required=T
 parser.add_argument("-o","--out",help="output corrected PacBio sequence file",dest='oSeqFile',required=True)
 parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = '') # optional, for visualization
 #parser.add_argument("-os","--outSam",help="alignment of same Illumina sequences to the corrected PacBio read",dest='outSam',required=True)
-parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=True)
+parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=False, default='')
 parser.add_argument("-od","--outDir",help="directory for the intermediate files",dest='outDir',default = None)
 
 # options
-parser.add_argument("-m",help="read mode, s(ingle) or p(air)",dest='rMode',default='p',choices=['s','p'])
+#parser.add_argument("-m",help="read mode, s(ingle) or p(air)",dest='rMode',default='p',choices=['s','p'])
 parser.add_argument("-v","--verbose",help="verbose, more output",action='store_true',dest='verbose')
 
 ## setting thresholds
@@ -70,38 +70,41 @@ def main(argv=None):
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info, depending on the reading mode 
-    if args.rMode == 'p':
-        ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_pair(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInsRate=args.maxInsRate, maxDelRate=args.maxDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsam=args.redSam, outFastaFile=args.outFasta)
-    else:
-        ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInsRate=args.maxInsRate, maxDelRate=args.maxDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsam=args.redSam, outFastaFile=args.outFasta)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInsRate=args.maxInsRate, maxDelRate=args.maxDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsamFile=args.redSam, outFastaFile=args.outFasta)
 
-    good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=args.minPacBioLen, minCV=args.minCV) # find good regions for the PacBio read
-    print good_regions
+    good_regions, cov_bps = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
+    sys.stdout.write('number of bps covered by reads: {}\n'.format(cov_bps))
     if len(good_regions) == 0 :
-        sys.exit("PacBio read does not have good region covered by the Illumina reads")
+        sys.exit("PacBio read does not have any good region covered by the Illumina reads")
     else: # examine good regions one by one
-        refOut = open(args.oSeqFile, 'a')
+        refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
         for good_region_index in xrange(len(good_regions)):
             # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
-            poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index])
+            poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index], minReads=args.minReads, minPercent=args.minPercent)
             # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences
-            newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq)
+            newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=good_regions[good_region_index],print_width=70)
             # step 3 - update consensus and polymorphic positions according to the new positons in the extended sequence
             poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
             # step 4 - make array to indicate the type for each position on the extended PacBio sequence
-            type_array = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
+            type_array, coordinates = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
+            #start, end = coordinates # start and end of the PacBio sequence corresponding to the type_array
             # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
-            read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps, poly_ins, consensus_bps, consensus_ins)
+            read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            ref_new, gap = metalrec_lib.fill_gap(read_array, args.outFasta, args.outDir, read_info)
+            if args.outDir is not None:
+                region_outDir = args.outDir + '/' + str(good_region_index)
+            else:
+                args.outDir = './tmp/'
+                region_outDir = args.outDir + '/' + str(good_region_index)
+            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, region_outDir, read_info)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
+            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             if args.verbose:
                 pass # need to fill in this part later TODO
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], gap, ref_new_short))
+            refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], ref_new_short))
         refOut.close()
 ##==============================================================
 ## call from command line (instead of interactively)
