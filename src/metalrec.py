@@ -98,7 +98,7 @@ def main(argv=None):
                 region_outDir = args.outDir + '/' + str(good_region_index)
             ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, region_outDir, read_info)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
+            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0], args.verbose)
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             if args.verbose:
                 pass # need to fill in this part later TODO

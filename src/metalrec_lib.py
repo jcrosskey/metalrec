@@ -1274,6 +1274,9 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
             positions = map(int, re.findall('\d+',bpstring)) # positions
             bases = re.findall('\D+',bpstring) # base calling
             for i in xrange(len(positions)):
+                print i
+                print positions[i]
+                print bp_pos_dict[positions[i]]
                 position = bp_pos_dict[positions[i]] # position in the extended sequence
                 ## note: type_array's index starts with 0, instead of "start", so does read_array1d
                 if type_array[position - start] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
@@ -1541,13 +1544,11 @@ def write_compatible_reads(readsFasta, readinfo, compatible_ind, outDir):
     else:
         sys.stdout.write("compatible read list is empty, nothing to write.\n")
 ## ======================================================================
-def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
+def greedy_fill_gap(read_array, ref0=None, verbose=False):
     ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
         If in DEBUG mode, write the newly proposed sequence and its compatible reads to files in a directory
         Input:  read_array - array including read information
                 ref0 - ref_array to start with, if not specified, call the consensus sequence instead
-                readsFasta - dictionary between read name and its sequence
-                readinfo - dictionary between read_string and its corresponding read names
         Output: (ref1, tot_gap, Cvec) - (new improved ref1, corresponding sequence with nucleotides, total number of gap positions/length, compatible read index array)
                 files that include new PacBio sequence and its compatible reads (fasta)
     '''
@@ -1569,15 +1570,19 @@ def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
             tot_gap = sum(gap_lens) # total gap size
             Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
             Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
-            sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+            if verbose:
+                sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
         else:
             tot_gap = 0
-            sys.stdout.write("\n=== No gap.\n")
+            if verbose:
+                sys.stdout.write("\n=== No gap.\n")
 
         return ref0, tot_gap, Cvec
         #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
 
     # if a start sequence is provided, try to fill the gap introduced by this sequence with the following iterations
+    # First try to fill the widest gap there, if it cannot be filled unless by increasing more gaps, move on to the next widest gap.
+    # Stop whenever the total length of gaps decreases, or none of the gap could be filled at all.
     else:
         sys.stdout.write("Initial sequence specified, now try to fill the gap in this sequence. \n")
         ref0 = ref0[0]
@@ -1592,65 +1597,77 @@ def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
         gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
         gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
         # sort gaps by their lengths
-        ind_gap_sort = argsort(gap_lens)[::-1]
+        ind_gap_sort = argsort(gap_lens)[::-1] # sort in increasing order and then reverse the array
         gap_start_ind = gap_start_ind[ind_gap_sort]
         gap_end_ind = gap_end_ind[ind_gap_sort]
+        gap_lens = gap_lens[ind_gap_sort]
+        
+        if verbose:
+            for i in len(gap_lens):
+                sys.stdout.write("({}, {}): {}\n".format(gap_start_ind[i], gap_end_ind[i], gap_lens[i]))
 
         Min_tot_gap = sum(gap_lens) # smallest total gap size, initialize to the current total gap size
-        Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
-        Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
-        sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+        Mgap_ind = ind_gap_sort[0] # index of the maximum gap among all gaps
+        Mgap_len = gap_lens[0] # width of the maximum gap
+        if verbose:
+            sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
 
-        reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
-        # initialize the current best choice
-        totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
-        best_ref = ref0
-        best_gap_pos = Gap_pos
-        Cvec1 = Cvec
-        # start the iteration while loop
-        # Stop condition:
-        # 1. No more gap in the ref seq
-        # 2. A gap is totally filled (ready to move on to the next gap)
-        # 3. No more gap filling reads to try
-        while len(best_gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
-            # sort the reads by the length of the gaps they fill
-            ind_sort = argsort(reads_cov)[::-1] 
-            reads_ind = reads_ind[ind_sort]
-            reads_cov = reads_cov[ind_sort]
-            #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
-            ref1 = get_new_ref(ref0, reads_ind[0], read_array) # get a new ref, according to the highest ranked read
+        improved = False
+        gap_ind = 0
 
-            Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
-            gap_pos1 = gap_pos(ref1, read_array, Cvec1) # positions not covered by the compatible reads (gap positions)
-            if len(gap_pos1) == 0:
-                Min_tot_gap = 0
-                best_ref = ref1
-                break
-            gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
-            gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
-            if sum(gap_lens1) < Min_tot_gap:
-                Min_tot_gap = sum(gap_lens1) # update current best gap size and the corresponding ref_array
-                best_ref = ref1 # update the reference array
-                best_gap_pos = gap_pos1 # update the gap positions
+        while not improved and gap_ind < (len(gap_lens) - 1): # until gap length improved, or all the gaps have been investigated
+            reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[gap_ind], gap_end_ind[gap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
+            # initialize the current best choice
+            totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
+            best_ref = ref0
+            best_gap_pos = Gap_pos
+            Cvec1 = Cvec
+            # start the iteration while loop
+            # Stop condition:
+            # 1. No more gap in the ref seq
+            # 2. A gap is totally filled (ready to move on to the next gap)
+            # 3. No more gap filling reads to try
+            while len(best_gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
+                # sort the reads by the length of the gaps they fill
+                ind_sort = argsort(reads_cov)[::-1] 
+                reads_ind = reads_ind[ind_sort]
+                reads_cov = reads_cov[ind_sort]
+                #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+                ref1 = get_new_ref(ref0, reads_ind[0], read_array) # get a new ref, according to the highest ranked read
 
-            # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
-            if (len(gap_lens) - len(gap_lens1) >= 1) and gap_start_ind[Mgap_ind] in setdiff1d(gap_start_ind, gap_start_ind1):
-                totally_filled = True
+                Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
+                gap_pos1 = gap_pos(ref1, read_array, Cvec1) # positions not covered by the compatible reads (gap positions)
+                if len(gap_pos1) == 0:
+                    Min_tot_gap = 0
+                    best_ref = ref1
+                    break
+                gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
+                gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
+                if sum(gap_lens1) < Min_tot_gap:
+                    improved = True
+                    Min_tot_gap = sum(gap_lens1) # update current best gap size and the corresponding ref_array
+                    best_ref = ref1 # update the reference array
+                    best_gap_pos = gap_pos1 # update the gap positions
 
-            remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
-            for r in reads_ind:
-                if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
-                    remaining_inds.append(where(reads_ind == r)[0][0])
-            remaining_inds = array(remaining_inds)
-            #print remaining_inds # DEBUG
-            # update the list of remaining reads' information
-            if len(remaining_inds) > 0 :
-                reads_ind = reads_ind[remaining_inds]
-                reads_cov = reads_cov[remaining_inds]
-            else:
-                reads_ind = []
-                reads_cov = []
-            #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+                # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
+                if (len(gap_lens) - len(gap_lens1) >= 1) and gap_start_ind[gap_ind] in setdiff1d(gap_start_ind, gap_start_ind1):
+                    totally_filled = True
+
+                remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
+                for r in reads_ind:
+                    if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
+                        remaining_inds.append(where(reads_ind == r)[0][0])
+                remaining_inds = array(remaining_inds)
+                #print remaining_inds # DEBUG
+                # update the list of remaining reads' information
+                if len(remaining_inds) > 0 :
+                    reads_ind = reads_ind[remaining_inds]
+                    reads_cov = reads_cov[remaining_inds]
+                else:
+                    reads_ind = []
+                    reads_cov = []
+                #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+            gap_ind += 1
 
         seq1 = array_to_seq(best_ref)[-1] # gap position will be written in lower case instead of upper case
         for i in best_gap_pos:
@@ -1660,7 +1677,7 @@ def greedy_fill_gap(read_array, ref0=None, readsFasta=None, readinfo=None):
     #sys.stdout.write("\n")
         return best_ref, Min_tot_gap, Cvec1
 ## ======================================================================
-def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None):
+def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=False):
     ''' Starting from the read_array, try to fill the gaps step by step until the result cannot be improved.
         Optionally, one can choose to output the PacBio sequence with smaller and smaller gaps in a file.
 
@@ -1672,7 +1689,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None):
                 #seq_file - if specified, step-by-step PacBio sequences
     '''
     # ref0 = (best_ref,  Min_tot_gap, Cvec1)
-    ref0 = greedy_fill_gap(read_array) # start with consensus sequence, summarized from all the reads
+    ref0 = greedy_fill_gap(read_array, verbose=verbose) # start with consensus sequence, summarized from all the reads
     iter_number = 1
     Mingap = ref0[1]
     print_tmp_files = False
@@ -1703,7 +1720,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None):
             write_compatible_reads(readsFasta, readinfo, ref0[-1], cur_dir + '/' )
         #print "ref0:", ref0
         if Mingap > 0:
-            ref1 = greedy_fill_gap(read_array, ref0)
+            ref1 = greedy_fill_gap(read_array, ref0, verbose=verbose)
             gaps = ref1[1]
             if gaps < Mingap:
                 Mingap = gaps
