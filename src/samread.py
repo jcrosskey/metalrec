@@ -181,15 +181,20 @@ class SamRead:
         rLen = len(rseq)
         ref_region_start = max( self.rstart - 5, 1)
         ref_region_end = min(self.get_rend() + 5, rLen)
-        #print self.qSeq
         self.trim_qseq()
-        #print self.qSeq
         realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
         new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+        align_start = new_align[3] # starting position of the alignment for the new extended alignment
         #print format_alignment(*new_align) # for DEBUG
-        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
+        new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        while new_align1 != new_align:
+            #print "realign"
+            new_align = new_align1
+            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        #print format_alignment(*new_align) # for DEBUG
+        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
 
-        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
+        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
         # update information in the sam record
-        self.rstart = ref_region_start + new_align[3] # starting position
+        self.rstart = ref_region_start + align_start # starting position
         return pos_dict, ins_dict

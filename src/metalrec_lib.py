@@ -344,11 +344,11 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
         if outsamFile == '':
             outsamFile = samFile_base + '.red.sam'
             sys.stdout.write("write new alignment in sam file {}.\n".format(outsamFile))
-            newsam = open(outsamFile,'w')
-        if outFastaFile != '':
+        if outFastaFile == '':
             outFastaFile = samFile_base + '.goodreads.fasta'
             sys.stdout.write("write aligned sequences in fasta file {}.\n".format(outFastaFile))
-            outFasta = open(outFastaFile, 'w')
+        newsam = open(outsamFile,'w')
+        outFasta = open(outFastaFile, 'w')
 
     with open(samFile, 'r') as mysam:
         for line in mysam:
@@ -361,10 +361,10 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                 if line[1:3] == 'SQ': # reference sequence dictionary
                     rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                     rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
-                    sys.stdout.write("sequence name: {} \nlength: {}. \n".format(rname, rLen))
+                    sys.stdout.write("sequence name: {} \nlength: {}\n".format(rname, rLen))
                     if rLen < minPacBioLen:
                         if verbose:
-                            sys.stdout.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
+                            sys.stderr.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
                         return 0 
                     ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
                     ref_ins_dict = dict() # global insertion dictionary for the reference sequence
@@ -443,18 +443,102 @@ def shift_to_left(align):
     for ins_pos in insAB:
         if ins_pos in insA:
             base = seqB[ins_pos] # base call corresponding to the insertion position
-            if seqA[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
-                l_base = re.search(base+'+$', seqA[:ins_pos]).start()
+            look_pos = ins_pos
+            while seqA[ look_pos - 1] == '-': # look for the base call to the left, ignore the insertions since they don't matter
+                look_pos -= 1
+            if seqA[ look_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqA[:look_pos]).start()
                 seqA = seqA[:l_base] + '-' + seqA[(l_base+1):ins_pos] + base + seqA[(ins_pos+1):]
         else:
             base = seqA[ins_pos] # base call corresponding to the insertion position
-            if seqB[ ins_pos - 1 ] == base: # if the base to the left is the same, shift it
-                l_base = re.search(base+'+$', seqB[:ins_pos]).start()
+            look_pos = ins_pos
+            while seqB[ look_pos - 1] == '-':
+                look_pos -= 1
+            if seqB[ look_pos - 1 ] == base: # if the base to the left is the same, shift it
+                l_base = re.search(base+'+$', seqB[:look_pos]).start()
                 seqB = seqB[:l_base] + '-' + seqB[(l_base+1):ins_pos] + base + seqB[(ins_pos+1):]
 
     return (seqA, seqB, score, begin, end)
 ## ======================================================================
-def pick_align(align_list):
+def shift_to_left_chop(align, matchLen=4):
+    ''' Take the result from Bio.pairwise2.align.global**, shift the indels in the homopolymer to the leftmost positions.
+    
+        Input:  The result (align) is a list of tuples: (seqA, seqB, score, begin, end). seqA and seqB are strings showing the alignment between the sequences. score is the score of the alignment. begin and end are indexes into seqA and seqB that indicate the where the alignment occurs.
+                Consider one tuple in the list as input to this function.
+                Note: We'll consider that seqA is part of the reference sequence, and seqB is the short read sequence, and the global alignment is done, with no gap penalty at the ends for seqB, but gap penalty at the ends of seqA
+
+        Output: The alignment after shifting
+    '''
+    seqA, seqB, score, begin, end = align
+    # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+    first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+    last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+
+    ins_char = re.compile('-')
+
+    mapping_type_array = zeros(len(seqA),dtype=int8)
+    for i in xrange(len(seqA)):
+        if seqA[i] == '-' and seqB[i] != '_':
+            mapping_type_array[i] = 1 # insertion into seqA
+        elif seqB[i] == '-' and seqA[i] != '_':
+            mapping_type_array[i] = 2 # insertion into seqA
+        elif seqA[i] != seqB[i]:
+            mapping_type_array[i] = 3 # mismatch
+
+    match_pos = where(mapping_type_array == 0)[0]
+    matching_start, matching_end = get_gaps(match_pos)
+    matching_lens = matching_end - matching_start
+    long_match_ind = where(matching_lens > matchLen)[0]
+    long_start = matching_start[long_match_ind]
+    long_end = matching_end[long_match_ind]
+    shift_align = None
+    if long_start[0] != 0:
+        seq1 = seqA[:long_start[0]]
+        seq2 = seqB[:long_start[0]]
+        if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
+            seq1 = re.sub('-','',seq1)
+            seq2 = re.sub('-','',seq2)
+            myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
+            shift_align = [item for item in pick_align(myalign, False)][:3]
+        else:
+            shift_align = [seq1, seq2, -0.9*len(seq1)]
+
+    for i in xrange(len(long_match_ind)-1):
+        seq1 = seqA[long_start[i] : long_start[i+1]]
+        seq2 = seqB[long_start[i] : long_start[i+1]]
+        if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
+            seq1 = re.sub('-','',seq1)
+            seq2 = re.sub('-','',seq2)
+            myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
+            myalign = [item for item in pick_align(myalign, False)]
+        else:
+            myalign = [seq1, seq2, -0.9*len(seq1), 0, len(seq1)]
+        if shift_align is None:
+            shift_align = myalign
+        else:
+            shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
+
+    if long_end[-1] != len(seqB) - 1:
+        seq1 = seqA[long_start[-1]:len(seqA)]
+        seq2 = seqB[long_start[-1]:len(seqB)]
+        if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
+            seq1 = re.sub('-','',seq1)
+            seq2 = re.sub('-','',seq2)
+            myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
+            myalign = [item for item in pick_align(myalign, False)]
+        else:
+            myalign = [seq1, seq2, -0.9*len(seq1), 0, len(seq1)]
+        if shift_align is None:
+            shift_align = myalign[:3]
+        else:
+            shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
+
+    shift_align += [0]
+    shift_align += [len(shift_align[0])]
+    return shift_align
+    #return (seqA, seqB, score, begin, end)
+## ======================================================================
+def pick_align(align_list,trim=True):
     ''' From a list of equivalent alignments between 2 sequences using dynamic progamming (Needleman-Wunch), pick the one whose indel positions are the most left
         Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
         Output: align - one of the tuple in the list (seqA, seqB, score, first_non_gap_pos, last_non_gap_pos), last two elements were begin and end originally
@@ -464,12 +548,13 @@ def pick_align(align_list):
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in seqB
-        first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
-        last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+        if trim:
+            first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+            last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
 
-        # Only look at the aligned part
-        seqA = seqA[first_non_gap:last_non_gap]
-        seqB = seqB[first_non_gap:last_non_gap]
+            ## Only look at the aligned part
+            seqA = seqA[first_non_gap:last_non_gap]
+            seqB = seqB[first_non_gap:last_non_gap]
 
         ins_char = re.compile('-')
         # insert positions in sequence A and B
@@ -480,11 +565,13 @@ def pick_align(align_list):
         if this_indel_pos < leftmost_indel_pos:
             leftmost_indel_pos = this_indel_pos
             bestalign = (seqA, seqB, score, 0, len(seqA))
-            First_non_gap = first_non_gap
-            Last_non_gap = last_non_gap
-    bestalign = shift_to_left(bestalign) # shift again to make sure the indels in the homopolymers are at the leftmost, this is not the case when number of best alignments is bigger than MAX_ALIGNMENTS in the pairwise2 module
-    #print format_alignment(*bestalign)
-    return bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap # return the list of aligns whose indel positions are the leftmost
+            if trim:
+                First_non_gap = first_non_gap
+                Last_non_gap = last_non_gap
+    if trim:
+        return (bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap) # return the list of aligns whose indel positions are the leftmost
+    else:
+        return bestalign
 ## ======================================================================
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 
@@ -574,16 +661,18 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
         cov_depth = sum(non_ins_bps) # coverage depth at this position
         cov_depths.append(cov_depth) # append the new coverage depth to the vector
     cov_bps = sum([1 for cv in cov_depths if cv > 0])
+    avg_cov_depth = sum(cov_depths) / float(cov_bps)
     low_CV_pos = [-1] + [ i for i in xrange(rLen) if cov_depths[i] < minCV ] + [rLen]
     for i in xrange(1, len(low_CV_pos)):
         if low_CV_pos[i] - low_CV_pos[i-1] > minGoodLen:
             good_regions.append((low_CV_pos[i-1]+1, low_CV_pos[i])) # found a good region (begin, end) where rSeq[begin:end] is long enough and covered well
-    return good_regions, cov_bps
+    return good_regions, cov_bps, avg_cov_depth
 ## ======================================================================
 def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):
     ''' Get the polymorphic positions where the insertion happened, in the specified region (>=1000bps and covered by >=10 reads)
         Input:  ref_bps, ref_ins_dict - output objects from read_and_process_sam, noninsertion and insertion information for all the positions from the Illumina reads
                 region - (begin, end) tuple of a region to consider
+                minReads, minPercent - minimum number of read support for a base call to be considered not error
         Output: poly_bps - polymorphic non-insertion positions
                 poly_ins - polymorphic insertion positions
                 consensus_bps - nonpolymorphic non-insertion positions, get the consensus
@@ -1207,17 +1296,18 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
         if verbose:
             sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[0], gap_end_ind[0]))
 
+        best_ref = ref0
+        best_gap_pos = Gap_pos
+        Cvec1 = Cvec
         improved = False
         gap_ind = 0
 
         while not improved and gap_ind < (len(gap_lens) - 1): # until gap length improved, or all the gaps have been investigated
-            #print "gap_ind: ", gap_ind, ": ", gap_start_ind[gap_ind], '\t', gap_end_ind[gap_ind]
+            if verbose:
+                sys.stdout.write("gap_ind:  {} : ({}, {})\n".format(gap_ind,gap_start_ind[gap_ind], gap_end_ind[gap_ind]))
             reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[gap_ind], gap_end_ind[gap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
             # initialize the current best choice
             totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
-            best_ref = ref0
-            best_gap_pos = Gap_pos
-            Cvec1 = Cvec
             # start the iteration while loop
             # Stop condition:
             # 1. No more gap in the ref seq
@@ -1268,11 +1358,11 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
                 #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
                 if verbose:
                     if len(best_gap_pos) == 0:
-                        print "no more gaps"
+                        sys.stdout.write("no more gaps\n")
                     if totally_filled:
-                        print "gap totally filled"
+                        sys.stdout.write("gap totally filled\n")
                     if len(reads_ind) == 0:
-                        print "all reads tried"
+                        sys.stdout.write("all reads tried\n")
             gap_ind += 1
 
         if verbose:
@@ -1320,7 +1410,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=
     while True:
         if print_tmp_files:
             ref0_seq = array_to_seq(ref0[0])[0]
-            cur_dir = outDir + str(iter_number)
+            cur_dir = outDir + '/round_' + str(iter_number)
             if not os.path.exists(cur_dir):
                 os.makedirs(cur_dir)
             seqOut = open(cur_dir + '/seq.fasta','w')

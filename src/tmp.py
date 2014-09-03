@@ -87,7 +87,8 @@ for k, z in bp_pos_dict.items():
 import samread
 import metalrec_lib
 from numpy import *
-
+from Bio import pairwise2
+from Bio.pairwise2 import format_alignment
 maxSub=3
 maxIns=3
 maxDel=3
@@ -95,21 +96,32 @@ maxSubRate=0.02
 maxInsRate=0.2 
 maxDelRate=0.2
 
-samfile = "/Users/cjg/Work/PacBio/metalrec/test/bbmap_red.sam"
-ref_fasta = "/Users/cjg/Work/PacBio/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__54536__2157_4456.fasta"
+samfile = "/Users/cjg/Work/PacBio/metalrec/test/bbmap.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__86342__10581_12850.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 samIn = open(samfile,'r')
 for i in xrange(3):
     a = samIn.readline()
 
-while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2115:2784:47256':
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2205:18229:5647':
     a = samIn.readline()
 
 
 r1 = samread.SamRead(a) # SamRead object
 samIn.close()
 
+r1 = samread.SamRead(a) # SamRead object
+rLen = len(rseq)
+ref_region_start = max( r1.rstart - 5, 1)
+ref_region_end = min(r1.get_rend() + 5, rLen)
+#print r1.qSeq
+r1.trim_qseq()
+#print r1.qSeq
+realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], r1.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+#print format_alignment(*new_align) # for DEBUG
+pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
 
 ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=10, maxDel=100, maxIns=100, maxSubRate=0.1, outsamFile="/Users/cjg/Work/PacBio/metalrec/test/a.sam", outFastaFile="/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta")
 good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=1, minCV=3)
