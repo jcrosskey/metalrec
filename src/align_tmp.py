@@ -51,8 +51,9 @@ def main(argv=None):
     if not os.path.exists(args.inputDir):
         sys.exit("input directory does not exist!\n")
 
+    args.inputDir = os.path.abspath(args.inputDir)
     inputDir = args.inputDir if args.inputDir[-1] == '/' else args.inputDir + '/'
-    PacBio_seqs = glob.glob(args.inputDir + '*/seq.fasta')
+    PacBio_seqs = glob.glob(inputDir + 'round*/seq.fasta')
 
     for PacBio_seq in PacBio_seqs:
         seq_dir = os.path.dirname(PacBio_seq) # directory for output of this subread

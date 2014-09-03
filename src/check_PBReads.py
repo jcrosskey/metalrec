@@ -158,7 +158,7 @@ def main(argv=None):
                         bbmap.write("bbwrap.sh mapper=bbmappacbioskimmer  outputunmapped=f build=1 killbadpairs=f ambiguous=all local=f strictmaxindel=t keepnames=t k=10 ignorebadquality=t secondary=t maxsites=50 sam=1.4 requirecorrectstrand=f idtag=t saa=f md=t {} threads={} trimreaddescriptions=t {} {} append\n".format('-Xmx'+args.memory, str(args.threads), Illumina_in, map_out))
                         bbmap.write("echo Ending Time is $(date)\n")
                         bbmap.close()
-                        time.sleep(1)
+                        time.sleep(0.5)
                         os.system("qsub {}".format(bbmap_name)) #run system command and submit bbmap job
                     else:
                         sys.stdout.write("\t too short\n")
