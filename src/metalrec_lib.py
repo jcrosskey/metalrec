@@ -374,6 +374,8 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
             else:
                 record = line
                 myread = samread.SamRead(record)
+                #if myread.qname == "HISEQ11:285:H987LADXX:1:1215:17746:43895":
+                print myread.qname
                 if not myread.is_record_bad(maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
                     keepRec += 1
 
@@ -460,7 +462,7 @@ def shift_to_left(align):
 
     return (seqA, seqB, score, begin, end)
 ## ======================================================================
-def shift_to_left_chop(align, matchLen=4):
+def shift_to_left_chop(align, matchLen=1):
     ''' Take the result from Bio.pairwise2.align.global**, shift the indels in the homopolymer to the leftmost positions.
     
         Input:  The result (align) is a list of tuples: (seqA, seqB, score, begin, end). seqA and seqB are strings showing the alignment between the sequences. score is the score of the alignment. begin and end are indexes into seqA and seqB that indicate the where the alignment occurs.
@@ -545,6 +547,8 @@ def pick_align(align_list,trim=True):
     '''
     leftmost_indel_pos = (1000000,1000000)
     bestalign = ''
+    #if len(align_list) == 1000:
+    #    sys.stderr.write("1000 alignments\n")
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in seqB

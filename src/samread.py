@@ -188,9 +188,10 @@ class SamRead:
         #print format_alignment(*new_align) # for DEBUG
         new_align1 = metalrec_lib.shift_to_left_chop(new_align)
         while new_align1 != new_align:
-            #print "realign"
+            #print "ealign"
             new_align = new_align1
             new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        #print "done"
         #print format_alignment(*new_align) # for DEBUG
         pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
 
