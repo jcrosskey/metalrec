@@ -661,7 +661,7 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
         cov_depth = sum(non_ins_bps) # coverage depth at this position
         cov_depths.append(cov_depth) # append the new coverage depth to the vector
     cov_bps = sum([1 for cv in cov_depths if cv > 0])
-    avg_cov_depth = sum(cov_depths) / float(cov_bps)
+    avg_cov_depth = sum(cov_depths) / float(cov_bps) if cov_bps != 0 else 0
     low_CV_pos = [-1] + [ i for i in xrange(rLen) if cov_depths[i] < minCV ] + [rLen]
     for i in xrange(1, len(low_CV_pos)):
         if low_CV_pos[i] - low_CV_pos[i-1] > minGoodLen:

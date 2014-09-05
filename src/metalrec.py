@@ -11,6 +11,7 @@ import sys, os
 import argparse
 import metalrec_lib
 import time
+import re
 
 ## =================================================================
 ## argument parser
@@ -39,10 +40,10 @@ parser.add_argument("-od","--outDir",help="directory for the intermediate files"
 parser.add_argument("-v","--verbose",help="verbose, more output",action='store_true',dest='verbose')
 
 ## setting thresholds
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
-parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=3, type=int)
-parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=3, type=int)
-parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.020, type=float)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=100, type=int)
+parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=100, type=int)
+parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=100, type=int)
+parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.1, type=float)
 parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
 parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
 parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
@@ -66,7 +67,7 @@ def main(argv=None):
     if not os.path.exists(args.samFile):
         sys.exit("input sam file does not exist!\n")
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
-        args.oSeqFile = os.getcwd() + '/corrected_PacBio.fasta'
+        args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/corrected_PacBio.fasta'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
         os.remove(args.oSeqFile)
         sys.stdout.write("Output sequence file already exists, overwrite.\n")
@@ -91,6 +92,8 @@ def main(argv=None):
 
         refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
 
+        seqName = os.path.basename(args.seqFile).split('.')[0]
+        seqName = re.sub('__','/',seqName)
         # try to correct PacBio sequence at each good region
         for good_region_index in xrange(len(good_regions)):
             # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
@@ -104,20 +107,13 @@ def main(argv=None):
             # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
             read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            if args.outDir is not None:
-                region_outDir = args.outDir + '/region_' + str(good_region_index)
-            else:
-                args.outDir = os.getcwd() + '/tmp/'
-                region_outDir = args.outDir + '/region_' + str(good_region_index)
-            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, region_outDir, read_info, verbose=args.verbose)
+            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, args.outDir, read_info, verbose=args.verbose)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
             ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
-            if args.verbose:
-                pass # need to fill in this part later TODO
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{} ({}, {}) gap length: {}\n{}\n'.format(good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], ref_new_short))
+            refOut.write('>{}:{} ({}, {}) gap length: {}\n{}\n'.format(seqName, good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], ref_new_short))
         refOut.close()
     print "total time :" + str(time.time() - start_time) +  "seconds"
     print "==========================================================="
