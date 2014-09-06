@@ -3,8 +3,17 @@
 import metalrec_lib
 import re
 import sys
+import math
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
+
+def gap_A_fn(gap_index, gap_len, maxLen=1000):
+    score = 0
+    for i in xrange(gap_len):
+        score += (0.099/6.91)*(math.log(1-((gap_index+i)/(maxLen)))) - 0.9
+    #print score
+    return score
+
 revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
 ''' Class SamRead '''
 
@@ -183,6 +192,33 @@ class SamRead:
         ref_region_end = min(self.get_rend() + 5, rLen)
         self.trim_qseq()
         realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+        new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+        align_start = new_align[3] # starting position of the alignment for the new extended alignment
+        #print format_alignment(*new_align) # for DEBUG
+        new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        while new_align1 != new_align:
+            #print "realign"
+            new_align = new_align1
+            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        #print "done"
+        #print format_alignment(*new_align) # for DEBUG
+        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
+
+        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
+        # update information in the sam record
+        self.rstart = ref_region_start + align_start # starting position
+        return pos_dict, ins_dict
+
+
+    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
+    # tentative: define a gap penalty function based on the gap positions -- taking too long 
+    def re_align1(self, rseq):
+        rLen = len(rseq)
+        ref_region_start = max( self.rstart - 5, 1)
+        ref_region_end = min(self.get_rend() + 5, rLen)
+        self.trim_qseq()
+        realign_res = pairwise2.align.globalmc(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, gap_A_fn, gap_A_fn, penalize_end_gaps=[True, False])
+        print "new align method: ", len(realign_res)
         new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
         align_start = new_align[3] # starting position of the alignment for the new extended alignment
         #print format_alignment(*new_align) # for DEBUG

@@ -375,7 +375,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                 record = line
                 myread = samread.SamRead(record)
                 #if myread.qname == "HISEQ11:285:H987LADXX:1:1215:17746:43895":
-                print myread.qname
+                #print myread.qname
                 if not myread.is_record_bad(maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
                     keepRec += 1
 
@@ -548,7 +548,7 @@ def pick_align(align_list,trim=True):
     leftmost_indel_pos = (1000000,1000000)
     bestalign = ''
     #if len(align_list) == 1000:
-    #    sys.stderr.write("1000 alignments\n")
+    #    sys.stderr.write("{} alignments\n".format(len(align_list)))
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in seqB

@@ -74,6 +74,20 @@ def main(argv=None):
     elif not os.path.exists(os.path.dirname(os.path.abspath(args.oSeqFile))): # make sure the directory for the output file exists
         os.makedirs(os.path.dirname(os.path.abspath(args.oSeqFile)))
 
+    if args.verbose: # for verbose output, make necessary files and directories
+        samFile_base = '.'.join(os.path.abspath(args.samFile).split('.')[:-1])
+        if args.redSam == '':
+            args.redSam = samFile_base + '.red.sam'
+            sys.stdout.write("write new alignment in sam file {}.\n".format(args.redSam))
+        if args.outFasta== '':
+            args.outFasta= samFile_base + '.goodreads.fasta'
+            sys.stdout.write("write aligned sequences in fasta file {}.\n".format(args.outFasta))
+        if args.outDir is None:
+            args.outDir = os.path.dirname(samFile_base) + "/tmp/"
+        if not os.path.exists(args.outDir): # make sure the output directory exists
+            os.makedirs(args.outDir)
+        if args.outDir[-1] != '/':
+            args.outDir += '/'
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
