@@ -1121,7 +1121,7 @@ def gap_pos(ref_array, read_array, compatible_ind):
     '''
     base_pos = where( ref_array == 1)[0] # coordinates corresponding to the bases called by the reference
     if len(compatible_ind) == 0: # no compatible reads, all positions are gap positions
-        return arange(ref_array.shape[0])
+        return arange(ref_array.shape[0]/5)
     else:
         read_array = read_array[compatible_ind,:]
         base_cov = read_array[ : , base_pos].reshape(-1,len(base_pos))
@@ -1272,8 +1272,6 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
     else:
         if verbose:
             sys.stdout.write("Initial sequence specified, now try to fill the gap in this sequence. \n")
-        #print ref0
-        #print read_array
         Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
         Gap_pos = gap_pos(ref0, read_array, Cvec) # positions not covered by the compatible reads (gap positions)
 
@@ -1306,7 +1304,7 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
         improved = False
         gap_ind = 0
 
-        while not improved and gap_ind < (len(gap_lens) - 1): # until gap length improved, or all the gaps have been investigated
+        while not improved and gap_ind <= (len(gap_lens) - 1): # until gap length improved, or all the gaps have been investigated
             if verbose:
                 sys.stdout.write("gap_ind:  {} : ({}, {})\n".format(gap_ind,gap_start_ind[gap_ind], gap_end_ind[gap_ind]))
             reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[gap_ind], gap_end_ind[gap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
