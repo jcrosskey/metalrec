@@ -14,7 +14,8 @@ def gap_A_fn(gap_index, gap_len, maxLen=1000):
     #print score
     return score
 
-revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
+
+revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence
 ''' Class SamRead '''
 
 class SamRead:
