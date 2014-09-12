@@ -67,7 +67,7 @@ def samStat(samFile, outputFile):
                     refSeq_dict[myread.rname] = {'refLen':refLen, 'nReads':0, 'nReadsBp':0, 'nMatchBp':0,'nInsBp':0, 'nDelBp':0, 'nSubBp':0, 'nEdit':0,'coverage':[0]*refLen}
 
                 if not readSeq_dict.has_key(myread.qname):
-                    readSeq_dict[myread.qname] = {'nMapping':0, 'mapInfo':list()}
+                    readSeq_dict[myread.qname] = {'nMapping':0, 'mapInfo':[]}
 
                 #print qname, '\t', rname, '\t', refLen
 
@@ -102,7 +102,7 @@ def samStat(samFile, outputFile):
                 # start and end positions for both the query read and the ref seq
                 # is this a secondary alignment?
                 # is this a reverse complement?
-                readSeq_dict[myread.qname]['mapInfo'].append(( cigarInfo['match_len'], cigarInfo['ins_len'], cigarInfo['del_len'], cigarInfo['sub_len'], myread.NM, myread.rstart, myread.get_rend(), myread.is_secondary(), myread.is_reverse(),myread.rname))
+                readSeq_dict[myread.qname]['mapInfo'].append([cigarInfo['match_len'], cigarInfo['ins_len'], cigarInfo['del_len'], cigarInfo['sub_len'], myread.NM, myread.rstart, myread.get_rend(), myread.is_secondary(), myread.is_reverse(),myread.rname])
 
                 if count % 10000 == 0:
                     sys.stdout.write('  scanned {} records\n'.format(count))
@@ -122,14 +122,14 @@ def samStat(samFile, outputFile):
 
     # print out statistics information for the reads
     myout2 = open(outputFile+".read", 'w')
-    myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format('readName', 'Mappings','nMatchBp', 'nInsBp', 'nDelBp', 'nSubBp', 'nEdit', 'rstart','rend', 'is_secondary','is_revcomp'))
-    for key in readSeq_dict:
+    myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format('readName', 'Mappings','nMatchBp', 'nInsBp', 'nDelBp', 'nSubBp', 'nEdit', 'rstart','rend', 'is_secondary','is_revcomp','rname'))
+    for key in sorted(readSeq_dict):
         d = readSeq_dict[key]
-        myout2.write("{}\t{}\t".format(key, d['nMapping']))
+        #myout2.write("{}\t{}\t".format(key, d['nMapping']))
         for i in xrange(d['nMapping']):
             thismap = d['mapInfo'][i]
             # qstart, qend # rstart, rend # secondary # forward/backward @  edit distance, refName
-            myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(key,i,thismap[0],thismap[1],thismap[2],thismap[3],thismap[4], thismap[5], thismap[6], thismap[7], thismap[8]))
+            myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(key,i,thismap[0],thismap[1],thismap[2],thismap[3],thismap[4], thismap[5], thismap[6], thismap[7], thismap[8], thismap[9].split()[0]))
 
     myout2.close()
     return readSeq_dict
