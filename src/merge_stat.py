@@ -57,7 +57,7 @@ def extract_from_allFR(read_stat_file, read_dict, out):
             readLen = readLen[1] - readLen[0]
             if readName in read_dict:
                 read_dict[readName] += [readLen, line[2], line[3], line[4], line[5], line[6]]
-    for read in read_dict:
+    for read in sorted(read_dict):
         out.write('{}\t{}\n'.format(read, "\t".join(map(str,read_dict[read]))))
 
 

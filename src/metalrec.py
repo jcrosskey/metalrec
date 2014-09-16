@@ -110,6 +110,7 @@ def main(argv=None):
         seqName = re.sub('__','/',seqName)
         # try to correct PacBio sequence at each good region
         for good_region_index in xrange(len(good_regions)):
+            sys.stdout.write("====\nworking on region {}\n".format(good_region_index))
             # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
             poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index], minReads=args.minReads, minPercent=args.minPercent)
             # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences

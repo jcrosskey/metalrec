@@ -1247,6 +1247,8 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
 
         ## starting sequence in string format for the consensus sequence
         seq0 = array_to_seq(ref0)[-1]
+        if verbose:
+            sys.stdout.write("Consensus sequence is:\n{}\n".format(re.sub('-','',seq0)))
         for i in Gap_pos: # gap position will be written in lower case instead of upper case
             seq0 = seq0[:i] + seq0[i].lower() + seq0[i+1 :] 
 
@@ -1369,6 +1371,7 @@ def greedy_fill_gap(read_array, ref0=None, verbose=False):
 
         if verbose:
             seq1 = array_to_seq(best_ref)[-1] # gap position will be written in lower case instead of upper case
+            sys.stdout.write("newly proposed sequence is:\n{}\n".format(re.sub('-','',seq1)))
             for i in best_gap_pos:
                 seq1 = seq1[:i] + seq1[i].lower() + seq1[i+1 :] 
             sys.stdout.write('\n')
@@ -1411,6 +1414,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=
 
     while True:
         if print_tmp_files:
+            sys.stdout.write("iteration number {}\n".format(iter_number))
             ref0_seq = array_to_seq(ref0[0])[0]
             cur_dir = outDir + '/round_' + str(iter_number)
             if not os.path.exists(cur_dir):
@@ -1428,7 +1432,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=
                 ref0 = ref1
                 iter_number += 1
             else:
-                print "not improving any more :("
+                sys.stdout.write("not improving any more... Smallest gap length: {}\n".format(Mingap))
                 break
         else:
             break
