@@ -131,10 +131,10 @@ int initializeArguments(int argc, char ** argv,
 	if (outDir == "")
 	    outDir = Utils::get_cwd(); /* output directory, default: current directory */
 
-	cout << "python command's path is: " << py_cmd_path << endl;
-	cout << "output directory is: " << outDir << endl;
-	cout << "input fasta directory is: " << fastaDir << endl;
-	cout << "input sam file directory is: " << samDir << endl;
+	//cout << "python command's path is: " << py_cmd_path << endl;
+	//cout << "output directory is: " << outDir << endl;
+	//cout << "input fasta directory is: " << fastaDir << endl;
+	//cout << "input sam file directory is: " << samDir << endl;
 
 	// find all the fasta files in the input directory, ends with .fa or .fasta
 	if (fastaDir != "") {
@@ -146,7 +146,7 @@ int initializeArguments(int argc, char ** argv,
 		fasta_dir.setPattern(".fasta");
 		fasta_dir.getFiles(fastaFilenames);
 
-		cout << "total number of fasta files is " << fastaFilenames.size() << endl;
+		//cout << "total number of fasta files is " << fastaFilenames.size() << endl;
 	}
 
 	/* number of fasta files found in the input directory
@@ -169,7 +169,7 @@ int initializeArguments(int argc, char ** argv,
 
 	// create the output directory if it does not exist already
 	if (!Utils::isDirectory(outDir)) {
-		cout << " create directory: " << outDir << endl;
+		//cout << " create directory: " << outDir << endl;
 		mkdir(outDir.c_str(), 0777);
 	}
 
@@ -238,20 +238,23 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
             break;
         }
         
-	string fastaFile = fastaFilenames[currentWorkID];
+	string fastaFile = fastaFilenames[currentWorkID]; // input fasta file 
 	string basename = Utils::getFilebase(fastaFile); // base name of the fasta file, same for sam file
+	string outFile = outFilenames[currentWorkID]; // output corrected fasta file
+	string logFile = Utils::getFilebase(outFile) + ".log"; // log file
+
 	unsigned slash_pos = basename.find_last_of("/");
 	basename = basename.substr(slash_pos + 1);
-	cout << "basename is " << basename << endl;
-	string samFile = samDir  + "/" + basename + ".sam";
-	cout << "sam File is " << samFile << endl;
+	string samFile = samDir  + "/" + basename + ".sam"; // sam file
+
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
-		string py_cmd = "python " + py_cmd_path + " -i " + fastaFile + " -s " + samFile + " -o " + outFilenames[currentWorkID];
-		const int res = system(py_cmd.c_str());
-		if(res != 0){
-			cout << "   *** Failed command " << py_cmd << endl;
-		}
+		string py_cmd = "python " + py_cmd_path + " -i " + fastaFile + " -s " + samFile + " -o " + outFile + " > " + logFile;
+		cout << py_cmd << endl;
+		//const int res = system(py_cmd.c_str());
+		//if(res != 0){
+		//	cout << "   *** Failed command " << py_cmd << endl;
+		//}
 	}
 	// else just print message
 	else{
