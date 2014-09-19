@@ -97,8 +97,8 @@ class SamRead:
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
-    def is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
-        is_bad = metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
+    def is_record_bad(self, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
+        is_bad = metalrec_lib.is_record_bad(self.alignRecord, refLen, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
         if is_bad and not self.is_unmapped():
             self.flag += 0x4 # change its own "unmapped" flag
             self.is_unmapped = True
@@ -211,6 +211,37 @@ class SamRead:
         # update information in the sam record
         self.rstart = ref_region_start + align_start # starting position
         return pos_dict, ins_dict
+
+
+    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
+    # this time take the whole sequence, instead of only expanding the reference sequence a little bit
+    # also do not penalize the indels at the end of the two reads
+    def re_align2(self, rseq):
+        rLen = len(rseq)
+        realign_res = pairwise2.align.localms(rseq, self.qSeq, 1, -1, -0.9, -0.9, penalize_end_gaps=[False, False])
+        
+        print "number of best alignments is ", len(realign_res)
+        #print format_alignment(*realign_res[0])
+        new_align = metalrec_lib.pick_align(realign_res, trim=True) # pick the best mapping: indel positions are the leftmost collectively
+
+        print new_align
+        #align_start = new_align[3] # starting position of the alignment for the new extended alignment
+        print format_alignment(*new_align[0]) # for DEBUG
+        print new_align[0]
+        new_align1 = metalrec_lib.shift_to_left_chop(new_align[0])
+        new_align = new_align[0]
+        while new_align1 != new_align:
+            print "realign"
+            new_align = new_align1
+            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        print "done"
+        print format_alignment(*new_align) # for DEBUG
+        #pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
+
+        #self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
+        # update information in the sam record
+        #self.rstart = ref_region_start + align_start # starting position
+        #return pos_dict, ins_dict
 
 
     # re-align read to PacBio sequence and shift indels to the leftmost possible positions

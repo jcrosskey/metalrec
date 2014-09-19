@@ -96,15 +96,15 @@ maxSubRate=0.02
 maxInsRate=0.2 
 maxDelRate=0.2
 
-samfile = "/Users/cjg/Work/PacBio/metalrec/test/bbmap.sam"
-ref_fasta = "/Users/cjg/Work/PacBio/metalrec/test/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__86342__10581_12850.fasta"
+samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/blasr_mark.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 samIn = open(samfile,'r')
-for i in xrange(3):
+for i in xrange(4):
     a = samIn.readline()
 
-while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2205:18229:5647':
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2209:4718:39590':
     a = samIn.readline()
 
 

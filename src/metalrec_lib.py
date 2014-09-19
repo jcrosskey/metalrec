@@ -32,6 +32,15 @@ def cigar(cigar_string):
     ref_region_len = sum(count[i] for i in xrange(len(char)) if char[i] in 'MD=X') # length of the region on the reference sequence corresponding to the read
     ins_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'I') # insert bps
     del_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'D') # deletion bps
+    pad_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'P') # padded bps, inserted both in reference sequence and the read sequence)
+    left_clip_len = 0
+    right_clip_len = 0
+    if char[0] in 'SH':
+        left_clip_len = count[0]
+    if char[-1] in 'SH':
+        right_clip_len = count[-1]
+
+    clip_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'SH') # clipped bps, including hard and soft clipping
     try:
         max_ins_len = max(count[i] for i in xrange(len(char)) if char[i] == 'I') #  maximum insertion stretch
     except ValueError:
@@ -56,8 +65,7 @@ def cigar(cigar_string):
     else:   # sam 1.3, aligned bps from 'M'
         align_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'M') # aligned bps(including matching and substitution)
 
-    pad_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'P') # padded bps, inserted both in reference sequence and the read sequence)
-    return {'read_len':read_len, 'seq_len': seq_len, 'ref_len':ref_region_len, 'ins_len':ins_len, 'del_len':del_len, 'match_len':match_len, 'sub_len':sub_len, 'align_len':align_len, 'pad_len':pad_len, 'max_ins': max_ins_len, 'max_del': max_del_len, 'max_sub': max_sub_len}
+    return {'read_len':read_len, 'seq_len': seq_len, 'ref_len':ref_region_len, 'ins_len':ins_len, 'del_len':del_len, 'match_len':match_len, 'sub_len':sub_len, 'align_len':align_len, 'pad_len':pad_len, 'max_ins': max_ins_len, 'max_del': max_del_len, 'max_sub': max_sub_len, 'left_clip_len':left_clip_len, 'right_clip_len':right_clip_len}
 ## ======================================================================
 def md(MD_tag):
     """
@@ -126,7 +134,7 @@ def read_single_seq(fastaFile):
     seq = re.sub('\n','',seq)
     return seq
 ## ======================================================================
-def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
+def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
     ''' Test and see if an alignment record is bad in the sam file. 
         TODO: only works with sam v1.4 cigar string now, combine the ref seq to also work for v1.3 string later.
         Input:  alignRecord - a mapping line in sam file
@@ -134,17 +142,17 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxI
                 maxIns - maximum stretches of insertion
                 maxDel - maximum stretches of deletion
                 maxSubRate - maximum total substitution rate of the read
-                maxInsRate - maximum total insertion rate of the read
-                maxDelRate - maximum total deletion rate of the read
+                maxInDelRate - maximum total indel rate of the read (put InsRate and DelRate restrictions together into this one)
         Output: boolean value, True if bad else False
     '''
     fields = alignRecord.split("\t") # split by tabs
-    cigarstring = fields[5] # CIGAR string
-    try:
+    try: # flag
         flag = int(fields[1])
     except ValueError:
         sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
         return True
+
+    cigarstring = fields[5] # CIGAR string
 
     if flag & 0x4 == 0x4: # read is unmapped (most reliable place to tell if a read is unmapped)
         return True
@@ -152,11 +160,24 @@ def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxI
         return True
     else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
+
+        if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
+            try: # 1-based leftmost mapping position
+                rstart = int(fields[3]) # number of bases before the leftmost mapping position
+            except ValueError:
+                sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
+                return True
+            if cigar_info['left_clip_len'] > 0:
+                left_clip_len = min(rstart - 1, cigar_info['left_clip_len'])
+            if cigar_info['right_clip_len'] > 0:
+                right_clip_len = min( refLen - rstart - cigar_info['ref_len'] + 1, cigar_info['right_clip_len'])
+
+        indel_len = cigar_info['ins_len'] + cigar_info['del_len'] + left_clip_len + right_clip_len
         # if consecutive sub or indels is longer than the threshold, treat as bad
         if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
             return True
         # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
-        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or cigar_info['ins_len'] > maxInsRate * cigar_info['seq_len'] or cigar_info['del_len'] > maxDelRate * cigar_info['seq_len']:
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or indel_len > maxIndelRate * cigar_info['seq_len']:
             return True
         # Finally, if it passes all the thresholds, it's a good record
         else:
@@ -471,6 +492,7 @@ def shift_to_left_chop(align, matchLen=1):
 
         Output: The alignment after shifting
     '''
+    print "align = ", align
     seqA, seqB, score, begin, end = align
     # First find all the insertion positions, ignoring the opening and ending gaps in seqB
     first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
@@ -545,16 +567,20 @@ def pick_align(align_list,trim=True):
         Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
         Output: align - one of the tuple in the list (seqA, seqB, score, first_non_gap_pos, last_non_gap_pos), last two elements were begin and end originally
     '''
-    leftmost_indel_pos = (1000000,1000000)
+    leftmost_indel_pos = (-1,-1)
     bestalign = ''
     #if len(align_list) == 1000:
     #    sys.stderr.write("{} alignments\n".format(len(align_list)))
     for align in align_list:
         seqA, seqB, score, begin, end = align
-        # First find all the insertion positions, ignoring the opening and ending gaps in seqB
+        # First find all the insertion positions, ignoring the opening and ending gaps in both sequences
         if trim:
-            first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
-            last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+            first_non_gap_B = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+            last_non_gap_B = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
+            first_non_gap_A = 0 if seqA[0]!='-' else re.search(r'^[-]+',seqA).end()
+            last_non_gap_A = len(seqA) if seqA[-1]!='-' else re.search(r'[-]+$',seqA).start()
+            first_non_gap = max(first_non_gap_A, first_non_gap_B)
+            last_non_gap = min(last_non_gap_A, last_non_gap_B)
 
             ## Only look at the aligned part
             seqA = seqA[first_non_gap:last_non_gap]
@@ -565,15 +591,22 @@ def pick_align(align_list,trim=True):
         insA = [m.start() for m in ins_char.finditer(seqA)]
         insB = [m.start() for m in ins_char.finditer(seqB)]
         this_indel_pos = (sum(insA+insB), sum(insB)) # use two sums as the measure, one for both sequences and one for the query sequence
-
-        if this_indel_pos < leftmost_indel_pos:
+        #print "indel positions: ", this_indel_pos
+        if leftmost_indel_pos == (-1,-1):
+            leftmost_indel_pos = this_indel_pos
+            bestalign = (seqA, seqB, score, 0, len(seqA))
+            if trim:
+                First_non_gap = first_non_gap
+                Last_non_gap = last_non_gap
+        elif this_indel_pos < leftmost_indel_pos:
             leftmost_indel_pos = this_indel_pos
             bestalign = (seqA, seqB, score, 0, len(seqA))
             if trim:
                 First_non_gap = first_non_gap
                 Last_non_gap = last_non_gap
     if trim:
-        return (bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap) # return the list of aligns whose indel positions are the leftmost
+        return [bestalign, First_non_gap, Last_non_gap] # return the list of aligns whose indel positions are the leftmost
+        #return (bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap) # return the list of aligns whose indel positions are the leftmost
     else:
         return bestalign
 ## ======================================================================
