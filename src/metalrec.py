@@ -122,7 +122,11 @@ def main(argv=None):
             # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
             read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, args.outDir+'region' + str(good_region_index), read_info, verbose=args.verbose)
+            if args.verbose:
+                outdir = args.outDir+'region' + str(good_region_index)
+            else:
+                outdir = ''
+            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, outdir, read_info, verbose=args.verbose)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
             ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
