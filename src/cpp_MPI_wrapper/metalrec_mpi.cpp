@@ -1,5 +1,5 @@
 #include <mpi.h> // for mpi
-#include <stdlib.h> // for EXIT_FAILURE
+#include <stdexcept> // for standard exceptions out_or_range
 #include "utils.hpp" // for useful utilities - namespace
 #include "directoryStructure.hpp" // for searching files in directory - class
 
@@ -54,94 +54,81 @@ int initializeArguments(int argc, char ** argv,
 			 string & samDir, // output directory name
                          string & py_cmd_path) // python commmand's prefix (including path and some options, no input and output)
 {
-	cout << argc << " arguments: \n";
-	for(int i = 0; i < argc; i++){
-		cout << i << "th argument is " << argv[i] << "\t";
-	}
-	cout << endl;
+	vector<string> Arguments;
+	while(argc--)
+		Arguments.push_back(*argv++);
+
 	string fastaDir = ""; /*input directory for the fasta files of PacBio sequences */
 	string outDir = ""; /* output directory */
 
 	samDir  = ""; /* input directory for the sam files of PacBio sequences */
 	py_cmd_path = ""; /* python commmand's prefix (including path and some options, no input and output) */
 
-	for(int i = 1; i < argc; i++)
+	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
-	// input directory for the fasta files of PacBio sequences
-	if (strcmp(argv[i], "-fd") == 0) {
-		try{
-		    fastaDir = argv[i+1];
-		    i = i + 1;
+		// input directory for the fasta files of PacBio sequences
+		if (Arguments[i] == "-fd") {
+			try{
+			    fastaDir = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				fastaDir = "";
+			}
 		}
-		catch(const out_of_range& oor){
-			fastaDir = "";
-		}
-	}
 
-	// input directory for the sam files of PacBio sequences
-	else if (strcmp(argv[i], "-sd") == 0){
-		try{
-		    samDir = argv[i+1];
-		    i = i + 1;
+		// input directory for the sam files of PacBio sequences
+		else if (Arguments[i] == "-sd"){
+			try{
+			    samDir = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				samDir = "";
+			}
 		}
-		catch(const out_of_range& oor){
-			samDir = "";
-		}
-	}
 
-	// output directory for the fasta files of corrected PacBio sequences
-	else if (strcmp(argv[i],"-od")==0){
-		try{
-		    outDir = argv[i+1];
-		    i = i + 1;
+		// output directory for the fasta files of corrected PacBio sequences
+		else if (Arguments[i] == "-od"){
+			try{
+			    outDir = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				outDir = "";
+			}
 		}
-		catch(const out_of_range& oor){
-			outDir = "";
-			cerr << "Out of range error:" << oor.what() << endl;
-		}
-	}
 
-	// python commmand's prefix (including path and some options, no input and output)
-	else if (strcmp(argv[i] , "-path")==0){
-		try{
-		    py_cmd_path = argv[i+1];
-		    i = i + 1;
+		// python commmand's prefix (including path and some options, no input and output)
+		else if (Arguments[i] == "-path"){
+			try{
+			    py_cmd_path = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				py_cmd_path = "";
+			}
 		}
-		catch(const out_of_range& oor){
-			py_cmd_path = "";
-		}
-	}
 
-	// help, print Usage
-	else if (strcmp(argv[i], "-h")==0 || strcmp(argv[i], "--help")==0)
-	{
-	    usage();
-	    return 1;
-	    //exit(EXIT_FAILURE);
+		// help, print Usage
+		else if (Arguments[i] == "-h" || Arguments[i] == "--help")
+		{
+		    usage();
+		    return 1;
+		}
+		else
+		{
+		    cerr << "Unknown option " << Arguments[i] << endl << endl;
+		    cerr << "Use -h/--help for usage. \n";
+		    return 1;
+		}
 	}
-	else
-	{
-	    cerr << "Unknown option " << argv[i] << endl << endl;
-	    cerr << "Use -h/--help for usage. \n";
-	    return 1;
-	    //exit(EXIT_FAILURE);
-	}
-	}
-	cout << "arguments all parsed, now check if anything is missing. \n";
 	/* check required arguments
-	* 1. fastaDir; 2. samDir 3. python command path 
-	*/
+	* 1. fastaDir; 2. samDir 3. python command path */
 	if ((fastaDir== "") || (py_cmd_path == "") || (samDir == ""))
 	{
-	cerr << "missing necessary parameter(s)"<<endl;
-	cerr << "use -h/--help for help" << endl;
-	return 1;
-	//exit(EXIT_FAILURE);
+		cerr << "missing necessary parameter(s)"<<endl;
+		cerr << "use -h/--help for help" << endl;
+		return 1;
 	}
 
-	cout << "output directory is: " << outDir << endl;
 	if (outDir == "")
-	    //outDir = Utils::get_cwd(); /* output directory, default: current directory */
 	    outDir = Utils::get_cwd(); /* output directory, default: current directory */
 
 	cout << "python command's path is: " << py_cmd_path << endl;
@@ -149,18 +136,17 @@ int initializeArguments(int argc, char ** argv,
 	cout << "input fasta directory is: " << fastaDir << endl;
 	cout << "input sam file directory is: " << samDir << endl;
 
-	cout << "nothing is missing, now look for files in the fasta directory \n";
 	// find all the fasta files in the input directory, ends with .fa or .fasta
 	if (fastaDir != "") {
-	DirectoryStructure fasta_dir(fastaDir);
+		DirectoryStructure fasta_dir(fastaDir);
 
-	fasta_dir.setPattern(".fa");
-	fasta_dir.getFiles(fastaFilenames);
+		fasta_dir.setPattern(".fa");
+		fasta_dir.getFiles(fastaFilenames);
 
-	fasta_dir.setPattern(".fasta");
-	fasta_dir.getFiles(fastaFilenames);
+		fasta_dir.setPattern(".fasta");
+		fasta_dir.getFiles(fastaFilenames);
 
-	cout << "total number of fasta files is " << fastaFilenames.size() << endl;
+		cout << "total number of fasta files is " << fastaFilenames.size() << endl;
 	}
 
 	/* number of fasta files found in the input directory
@@ -169,28 +155,25 @@ int initializeArguments(int argc, char ** argv,
 	int fileNum = (int) fastaFilenames.size();
 	if (fileNum == 0)
 	{
-	cerr << "no fasta file in the input directory"<<endl;
-	return 1;
-	//exit(EXIT_FAILURE);
+		cerr << "no fasta file in the input directory"<<endl;
+		return 1;
 	}
 
 	// full path of the input files and the output files
 	for (int i = 0; i < fileNum; i++)
 	{
-	string outFilename = outDir + "/" + fastaFilenames.at(i); // output file name for the corrected PacBio sequence
-	fastaFilenames.at(i) = fastaDir + "/" + fastaFilenames.at(i); // full path for the input fasta files
-	outFilenames.push_back(outFilename);
+		string outFilename = outDir + "/" + fastaFilenames.at(i); // output file name for the corrected PacBio sequence
+		fastaFilenames.at(i) = fastaDir + "/" + fastaFilenames.at(i); // full path for the input fasta files
+		outFilenames.push_back(outFilename);
 	}
 
 	// create the output directory if it does not exist already
 	if (!Utils::isDirectory(outDir)) {
-	cout << " create directory: " << outDir << endl;
-	mkdir(outDir.c_str(), 0777);
+		cout << " create directory: " << outDir << endl;
+		mkdir(outDir.c_str(), 0777);
 	}
 
 	return 0;
-	//exit(EXIT_SUCCESS);
-    
 }
 
 // master job
@@ -313,45 +296,51 @@ int main(int argc, char ** argv){
     /* initialize command line arguments */
     int init = initializeArguments(argc, argv, fastaFilenames, outFilenames, samDir, py_cmd_path);
 
-    cout << "This is processor " << myid << ", initialization succeeded with exit code " << init << endl;
-    double start_time, finish_time, elapsed_time;
-    //int fileNum = (int) fastaFilenames.size();
-    //
-    //if (myid == 0) {
-    //    start_time = MPI_Wtime();
-    //    // display work start and time record
-    //    cout << endl
-    //    << "============================================================================"
-    //    << endl << Utils::currentDateTime() << endl
-    //    << " Beginning Error Correction" << endl
-    //    << " [Step 1] Looking for fasta files: Running -> " << std::flush;
-    //}
-    //
-    //if ( myid == 0 ) {
-    //    cout << " Done!" << endl;
-    //    cout << " [Step 2] Error correction: Running -> " << std::flush;
-    //    MasterProcess(fileNum);
-    //}
-    //
-    //else
-    //{
-    //    SlaveProcess(fastaFilenames, outFilenames, py_cmd_path, samDir);
-    //}
-    //
-    //if( myid == 0 )
-    //{
-    //    cout << " Done!" << endl;
-    //    finish_time = MPI_Wtime();
-    //    
-    //    // display work end and time record
-    //    cout << Utils::currentDateTime() << " Ending Corrections "<< endl
-    //    << "Total Elapsed Time =  "
-    //    << double(finish_time - start_time) << " [seconds]" << endl
-    //    << "============================================================================"
-    //    << std::endl << std::endl;
-    //}
-    
-    MPI_Finalize();
+    if(init != 0){
+	    MPI_Finalize();
+	    return 0;
+    }
+    else{
+	    double start_time, finish_time, elapsed_time;
+	    int fileNum = (int) fastaFilenames.size();
+	    
+	    if (myid == 0) {
+		start_time = MPI_Wtime();
+		// display work start and time record
+		cout << "Initialization succeeded " << endl;
+		cout << endl
+		<< "============================================================================"
+		<< endl << Utils::currentDateTime() << endl
+		<< " Beginning Error Correction" << endl
+		<< " [Step 1] Looking for fasta files: Running -> " << std::flush;
+	    }
+	    
+	    if ( myid == 0 ) {
+		cout << " Done!" << endl;
+		cout << " [Step 2] Error correction: Running -> " << std::flush;
+		MasterProcess(fileNum);
+	    }
+	    
+	    else
+	    {
+		SlaveProcess(fastaFilenames, outFilenames, py_cmd_path, samDir);
+	    }
+	    
+	    if( myid == 0 )
+	    {
+		cout << " Done!" << endl;
+		finish_time = MPI_Wtime();
+		
+		// display work end and time record
+		cout << Utils::currentDateTime() << " Ending Corrections "<< endl
+		<< "Total Elapsed Time =  "
+		<< double(finish_time - start_time) << " [seconds]" << endl
+		<< "============================================================================"
+		<< std::endl << std::endl;
+	    }
+	    
+	    MPI_Finalize();
 
-    return 0;
+	    return 0;
+    }
 }

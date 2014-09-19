@@ -27,15 +27,15 @@ do
 	done
 	mediumQ=`qstat -u cjg | grep medium | grep Q -c`
 	largeQ=`qstat -u cjg | grep large | grep Q -c`
-	if [ $(($largeQ - 2* mediumQ)) -gt  0 ]; then
+	if [ $(( $largeQ - 2* $mediumQ )) -gt  0 ]; then
 		queue=medium
 	else
 		queue=large
 	fi
 	#queue=medium
 	echo $dir running on $queue queue
-	echo "python /chongle/shared/software/metalrec/src/correct_PBReads.py -i $dir -q $queue"
-	python /chongle/shared/software/metalrec/src/correct_PBReads.py -i $dir -q $queue
+	echo "python /chongle/shared/software/metalrec/src/correct_PBReads.py -i $dir -q $queue -t 01:30:00"
+	python /chongle/shared/software/metalrec/src/correct_PBReads.py -i $dir -q $queue -t 01:30:00
 done
 
 echo Ending Time is $(date)
