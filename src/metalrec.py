@@ -44,8 +44,7 @@ parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxS
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=100, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=100, type=int)
 parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.1, type=float)
-parser.add_argument("--insRate",help="maximum insertion rate allowed",dest='maxInsRate',default=0.20, type=float)
-parser.add_argument("--delRate",help="maximum deletion rate allowed",dest='maxDelRate',default=0.20, type=float)
+parser.add_argument("--indelRate",help="maximum insertion rate allowed",dest='maxInDelRate',default=0.30, type=float)
 parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
 parser.add_argument("--minPacBioLen",help="minimum PacBio length to be considered",dest='minPacBioLen',default=1000, type=int)
 parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=400, type=int)
@@ -91,7 +90,7 @@ def main(argv=None):
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
-    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInsRate=args.maxInsRate, maxDelRate=args.maxDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsamFile=args.redSam, outFastaFile=args.outFasta,verbose=args.verbose)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsamFile=args.redSam, outFastaFile=args.outFasta,verbose=args.verbose)
 
     good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
     sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))

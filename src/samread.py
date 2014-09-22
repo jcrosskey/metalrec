@@ -98,7 +98,7 @@ class SamRead:
     
     # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
     def is_record_bad(self, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
-        is_bad = metalrec_lib.is_record_bad(self.alignRecord, refLen, maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate)
+        is_bad = metalrec_lib.is_record_bad(self.alignRecord, refLen, maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)
         if is_bad and not self.is_unmapped():
             self.flag += 0x4 # change its own "unmapped" flag
             self.is_unmapped = True
@@ -123,6 +123,31 @@ class SamRead:
                 self.qSeq = self.qSeq[:-int(cigar_list[-2])]
                 del cigar_list[-2:]
             self.cigarstring = ''.join(cigar_list)
+
+    ## trim query sequences, with clipped part in consideration. This function does not change cigar string.
+    ## It takes care of soft clipping, not hard clipping
+    ## Retrieve the clipped part as long as it's still inside the long PacBio sequence.
+    def trim_qseq_clip(self, rseq):
+        keep_left = 0
+        keep_right = 0
+        if 'S' in self.cigarstring:
+            cigar_info = metalrec_lib.cigar(self.cigarstring)
+            #print "before clipping: ", self.qSeq
+            #print "starting position on the ref sequence is ", self.rstart
+            #print "left clip: ", cigar_info['left_clip_len']
+            #print "right clip: ", cigar_info['right_clip_len']
+            if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0:
+                if cigar_info['left_clip_len'] > 0:
+                    keep_left = min( self.rstart - 1, cigar_info['left_clip_len'])
+                    #print "keep_left: ", keep_left
+                    self.qSeq = self.qSeq[(cigar_info['left_clip_len'] - keep_left):]
+                if cigar_info['right_clip_len'] > 0:
+                    keep_right = min(len(rseq) - self.get_rend(), cigar_info['right_clip_len'])
+                    #print "keep_right: ", keep_right
+                    if keep_right < cigar_info['right_clip_len']:
+                        self.qSeq = self.qSeq[:-(cigar_info['right_clip_len'] - keep_right)]
+        #print "after clipping: ", self.qSeq
+        return keep_left, keep_right
 
     # get the read segment
     def get_read_seq(self):
@@ -190,75 +215,27 @@ class SamRead:
 
     # re-align read to PacBio sequence and shift indels to the leftmost possible positions
     def re_align(self, rseq):
+        #print self.qname
         rLen = len(rseq)
-        ref_region_start = max( self.rstart - 5, 1)
-        ref_region_end = min(self.get_rend() + 5, rLen)
-        self.trim_qseq()
+        keep_left, keep_right = self.trim_qseq_clip(rseq)
+
+        ref_region_start = max( self.rstart - keep_left - 5, 1)
+        ref_region_end = min(self.get_rend() + keep_right + 5, rLen)
+        #print ref_region_start, ref_region_end
+        #print "sequence A: ", rseq[(ref_region_start-1):ref_region_end]
+        #print "sequence B: ", self.qSeq
+        #print "\n"
         realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-        new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-        align_start = new_align[3] # starting position of the alignment for the new extended alignment
+        #print len(realign_res), " equivalent good mappings"
+        #print format_alignment(*realign_res[0])
+        #print format_alignment(*realign_res[1])
+        new_align, align_start, align_end = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+        #align_start = new_align[3] # starting position of the alignment for the new extended alignment
         #print format_alignment(*new_align) # for DEBUG
         new_align1 = metalrec_lib.shift_to_left_chop(new_align)
         while new_align1 != new_align:
             #print "realign"
-            new_align = new_align1
-            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-        #print "done"
-        #print format_alignment(*new_align) # for DEBUG
-        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
-
-        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
-        # update information in the sam record
-        self.rstart = ref_region_start + align_start # starting position
-        return pos_dict, ins_dict
-
-
-    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
-    # this time take the whole sequence, instead of only expanding the reference sequence a little bit
-    # also do not penalize the indels at the end of the two reads
-    def re_align2(self, rseq):
-        rLen = len(rseq)
-        realign_res = pairwise2.align.localms(rseq, self.qSeq, 1, -1, -0.9, -0.9, penalize_end_gaps=[False, False])
-        
-        print "number of best alignments is ", len(realign_res)
-        #print format_alignment(*realign_res[0])
-        new_align = metalrec_lib.pick_align(realign_res, trim=True) # pick the best mapping: indel positions are the leftmost collectively
-
-        print new_align
-        #align_start = new_align[3] # starting position of the alignment for the new extended alignment
-        print format_alignment(*new_align[0]) # for DEBUG
-        print new_align[0]
-        new_align1 = metalrec_lib.shift_to_left_chop(new_align[0])
-        new_align = new_align[0]
-        while new_align1 != new_align:
-            print "realign"
-            new_align = new_align1
-            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-        print "done"
-        print format_alignment(*new_align) # for DEBUG
-        #pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
-
-        #self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
-        # update information in the sam record
-        #self.rstart = ref_region_start + align_start # starting position
-        #return pos_dict, ins_dict
-
-
-    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
-    # tentative: define a gap penalty function based on the gap positions -- taking too long 
-    def re_align1(self, rseq):
-        rLen = len(rseq)
-        ref_region_start = max( self.rstart - 5, 1)
-        ref_region_end = min(self.get_rend() + 5, rLen)
-        self.trim_qseq()
-        realign_res = pairwise2.align.globalmc(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, gap_A_fn, gap_A_fn, penalize_end_gaps=[True, False])
-        print "new align method: ", len(realign_res)
-        new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-        align_start = new_align[3] # starting position of the alignment for the new extended alignment
-        #print format_alignment(*new_align) # for DEBUG
-        new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-        while new_align1 != new_align:
-            #print "ealign"
+            #print format_alignment(*new_align1) # for DEBUG
             new_align = new_align1
             new_align1 = metalrec_lib.shift_to_left_chop(new_align)
         #print "done"

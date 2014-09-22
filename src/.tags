@@ -4,13 +4,34 @@
 !_TAG_PROGRAM_NAME	Exuberant Ctags	//
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.8	//
+CC	cpp_MPI_wrapper/Makefile	/^CC=	g++ $/;"	m
+CFLAGS	cpp_MPI_wrapper/Makefile	/^CFLAGS= -c $/;"	m
 Cvec0	tmp.py	/^Cvec0 = metalrec_lib.get_compatible_reads(ref0, read_array)$/;"	v
 Cvec1	tmp.py	/^Cvec1 = metalrec_lib.get_compatible_reads(ref1, read_array)$/;"	v
 Cvec2	tmp.py	/^Cvec2 = metalrec_lib.get_compatible_reads(ref2, read_array)$/;"	v
+DIETAG	cpp_MPI_wrapper/metalrec_mpi.cpp	20;"	d	file:
+DIRECTORYSTRUCTURE_HPP	cpp_MPI_wrapper/directoryStructure.hpp	2;"	d
+Directory	cpp_MPI_wrapper/directoryStructure.hpp	/^		string 	Directory;$/;"	m	class:DirectoryStructure
+DirectoryStructure	cpp_MPI_wrapper/directoryStructure.cpp	/^DirectoryStructure::DirectoryStructure( const string & dir )$/;"	f	class:DirectoryStructure
+DirectoryStructure	cpp_MPI_wrapper/directoryStructure.cpp	/^DirectoryStructure::DirectoryStructure()$/;"	f	class:DirectoryStructure
+DirectoryStructure	cpp_MPI_wrapper/directoryStructure.hpp	/^class DirectoryStructure$/;"	c
 GAP_SCORE	params.py	/^GAP_SCORE = -0.9$/;"	v
+GetCurrentDir	cpp_MPI_wrapper/utils.hpp	25;"	d
+GetCurrentDir	cpp_MPI_wrapper/utils.hpp	28;"	d
 MATCH_SCORE	params.py	/^MATCH_SCORE = 0$/;"	v
 MISMATCH_SCORE	params.py	/^MISMATCH_SCORE = -1.0$/;"	v
+MPCC	cpp_MPI_wrapper/Makefile	/^MPCC= \/usr\/local\/bin\/g++ -fopenmp $/;"	m
+MPICC	cpp_MPI_wrapper/Makefile	/^MPICC=	mpic++ $/;"	m
+MasterProcess	cpp_MPI_wrapper/metalrec_mpi.cpp	/^void MasterProcess(const int & fileNum)$/;"	f
+PIPE	multi_proc_metalrec.py	/^from subprocess import Popen, PIPE, check_call, STDOUT$/;"	i
+Popen	multi_proc_metalrec.py	/^from subprocess import Popen, PIPE, check_call, STDOUT$/;"	i
+STDOUT	multi_proc_metalrec.py	/^from subprocess import Popen, PIPE, check_call, STDOUT$/;"	i
 SamRead	samread.py	/^class SamRead:$/;"	c
+SlaveProcess	cpp_MPI_wrapper/metalrec_mpi.cpp	/^void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & outFilenames,$/;"	f
+UTILS_HPP	cpp_MPI_wrapper/utils.hpp	2;"	d
+Utils	cpp_MPI_wrapper/utils.cpp	/^namespace Utils$/;"	n	file:
+Utils	cpp_MPI_wrapper/utils.hpp	/^namespace Utils$/;"	n
+WORKTAG	cpp_MPI_wrapper/metalrec_mpi.cpp	19;"	d	file:
 __init__	samread.py	/^    def __init__(self, alignRecord):$/;"	m	class:SamRead
 a	tmp.py	/^        a = key$/;"	v
 a	tmp.py	/^    a = samIn.readline()$/;"	v
@@ -21,9 +42,13 @@ aa	tmp.py	/^aa = array_a.reshape(-1,5)$/;"	v
 add_help	align_tmp.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	check_PBReads.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	clean_sam.py	/^                                 add_help=True, # include help in the options$/;"	v
+add_help	correct_PBReads.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	find_good_regions.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	get_bbmap_time.py	/^                                 add_help=True, # include help in the options$/;"	v
+add_help	merge_stat.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	metalrec.py	/^                                 add_help=True, # include help in the options$/;"	v
+add_help	multi_proc_metalrec.py	/^    add_help=True, # include help in the options$/;"	v
+add_help	samStat.py	/^                                 add_help=True, # include help in the options$/;"	v
 add_help	test.py	/^                                 add_help=True, # include help in the options$/;"	v
 adjac	tmp.py	/^adjac = gaps[1:] - gaps[:-1] # difference between a position in the gap vec and the previous position, if the difference is 1, then it's consecutive gap$/;"	v
 alignment	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
@@ -33,29 +58,47 @@ are_reads_compatible	metalrec_lib.py	/^def are_reads_compatible(read_array1d1, r
 argparse	align_tmp.py	/^import argparse$/;"	i
 argparse	check_PBReads.py	/^import argparse$/;"	i
 argparse	clean_sam.py	/^import argparse$/;"	i
+argparse	correct_PBReads.py	/^import argparse$/;"	i
 argparse	find_good_regions.py	/^import argparse$/;"	i
 argparse	get_bbmap_time.py	/^import argparse$/;"	i
+argparse	merge_stat.py	/^import argparse$/;"	i
 argparse	metalrec.py	/^import argparse$/;"	i
+argparse	multi_proc_metalrec.py	/^import argparse$/;"	i
+argparse	samStat.py	/^import argparse$/;"	i
 argparse	test.py	/^import argparse$/;"	i
 array_a	tmp.py	/^array_a = metalrec_lib.make_read_array1d(a, bp_pos_dict, ins_pos_dict, type_array,poly_bps, poly_ins, consensus_bps, consensus_ins)$/;"	v
 array_b	tmp.py	/^array_b = metalrec_lib.make_read_array1d(read_info.keys()[0], bp_pos_dict, ins_pos_dict, type_array,poly_bps, poly_ins, consensus_bps, consensus_ins)$/;"	v
 array_to_seq	metalrec_lib.py	/^def array_to_seq(seq_array):$/;"	f
+check_call	multi_proc_metalrec.py	/^from subprocess import Popen, PIPE, check_call, STDOUT$/;"	i
 cigar	metalrec_lib.py	/^def cigar(cigar_string):$/;"	f
-clean_samfile	metalrec_lib.py	/^def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	f
+clean_samfile	metalrec_lib.py	/^def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):$/;"	f
+commaStringToVector	cpp_MPI_wrapper/utils.cpp	/^    std::vector<std::string> commaStringToVector(std::string & comma_string, const char & delimit)$/;"	f	namespace:Utils
 compatible_mat	metalrec_lib.py	/^def compatible_mat(read_array):$/;"	f
 compress_homopolymer	unused.py	/^def compress_homopolymer(string):$/;"	f
 conflict_handler	align_tmp.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	check_PBReads.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	clean_sam.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
+conflict_handler	correct_PBReads.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	find_good_regions.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	get_bbmap_time.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
+conflict_handler	merge_stat.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	metalrec.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
+conflict_handler	multi_proc_metalrec.py	/^    conflict_handler='resolve', # for handling conflict options$/;"	v
+conflict_handler	samStat.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	test.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 cov_bps	metalrec_lib.py	/^def cov_bps(read_array1d):$/;"	f
+currentDateTime	cpp_MPI_wrapper/utils.cpp	/^    std::string currentDateTime() $/;"	f	namespace:Utils
+datetime	multi_proc_metalrec.py	/^from datetime import datetime$/;"	i
 dict_to_string	metalrec_lib.py	/^def dict_to_string(dictionary):$/;"	f
 diff_chars	unused.py	/^diff_chars = alphabet.replace(leftmost_char,"")$/;"	v
+doubleToString	cpp_MPI_wrapper/utils.cpp	/^    std::string doubleToString( const double & input_value )$/;"	f	namespace:Utils
 dynamic	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
 dynamic	samread.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
+exitWithError	cpp_MPI_wrapper/utils.cpp	/^    void exitWithError(const std::string &error) $/;"	f	namespace:Utils
+extract_from_allFR	merge_stat.py	/^def extract_from_allFR(read_stat_file, read_dict, out):$/;"	f
+fileCount	cpp_MPI_wrapper/directoryStructure.hpp	/^        size_t fileCount;$/;"	m	class:DirectoryStructure
+fileList	cpp_MPI_wrapper/directoryStructure.hpp	/^		vector<string> fileList;$/;"	m	class:DirectoryStructure
+fileListItr	cpp_MPI_wrapper/directoryStructure.hpp	/^		vector<string>::iterator fileListItr;$/;"	m	class:DirectoryStructure
 fill_gap	metalrec_lib.py	/^def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=False):$/;"	f
 firstX_rSeq	unused.py	/^firstX_rSeq = firstX_rSeq  - left_one$/;"	v
 format_alignment	metalrec_lib.py	/^from Bio.pairwise2 import format_alignment$/;"	i
@@ -64,17 +107,26 @@ format_alignment	tmp.py	/^from Bio.pairwise2 import format_alignment$/;"	i
 formatter_class	align_tmp.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	check_PBReads.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	clean_sam.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
+formatter_class	correct_PBReads.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	find_good_regions.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	get_bbmap_time.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
+formatter_class	merge_stat.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	metalrec.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
+formatter_class	multi_proc_metalrec.py	/^    formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
+formatter_class	samStat.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 formatter_class	test.py	/^                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter # print default values for options in help message$/;"	v
 fromfile_prefix_chars	align_tmp.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	check_PBReads.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	clean_sam.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
+fromfile_prefix_chars	correct_PBReads.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	find_good_regions.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	get_bbmap_time.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
+fromfile_prefix_chars	merge_stat.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	metalrec.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
+fromfile_prefix_chars	multi_proc_metalrec.py	/^    fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
+fromfile_prefix_chars	samStat.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	test.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
+gap_A_fn	samread.py	/^def gap_A_fn(gap_index, gap_len, maxLen=1000):$/;"	f
 gap_lens	tmp.py	/^gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap$/;"	v
 gap_lens	tmp.py	/^gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)$/;"	v
 gap_pos	metalrec_lib.py	/^def gap_pos(ref_array, read_array, compatible_ind):$/;"	f
@@ -83,6 +135,17 @@ gap_pos1	tmp.py	/^gap_pos1 = metalrec_lib.gap_pos(ref1, read_array, Cvec1)$/;"	v
 gap_pos2	tmp.py	/^gap_pos2 = metalrec_lib.gap_pos(ref2, read_array, Cvec2)$/;"	v
 gap_starts	tmp.py	/^gap_starts = where(adjac != 1)[0] # positions where new gap starts$/;"	v
 generate_sam_record	samread.py	/^    def generate_sam_record(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	m	class:SamRead
+getFileCount	cpp_MPI_wrapper/directoryStructure.cpp	/^size_t DirectoryStructure::getFileCount()$/;"	f	class:DirectoryStructure
+getFilebase	cpp_MPI_wrapper/utils.cpp	/^    std::string getFilebase(const std::string & filename)$/;"	f	namespace:Utils
+getFilebase2	cpp_MPI_wrapper/utils.cpp	/^    std::string getFilebase2(const std::string & filename)$/;"	f	namespace:Utils
+getFilename	cpp_MPI_wrapper/utils.cpp	/^    std::string getFilename(const std::string & filepath)$/;"	f	namespace:Utils
+getFilename2	cpp_MPI_wrapper/utils.cpp	/^    std::string getFilename2(const std::string & filename)$/;"	f	namespace:Utils
+getFiles	cpp_MPI_wrapper/directoryStructure.cpp	/^void DirectoryStructure::getFiles( vector<string> & files )$/;"	f	class:DirectoryStructure
+getFiles	cpp_MPI_wrapper/utils.cpp	/^    void getFiles(const std::string & directory, const std::string & extension,$/;"	f	namespace:Utils
+getNextFile	cpp_MPI_wrapper/directoryStructure.cpp	/^string DirectoryStructure::getNextFile()$/;"	f	class:DirectoryStructure
+getPathSeparator	cpp_MPI_wrapper/utils.cpp	/^    std::string getPathSeparator()$/;"	f	namespace:Utils
+getProgramDir	cpp_MPI_wrapper/utils.cpp	/^    std::string getProgramDir(const std::string & program_path)$/;"	f	namespace:Utils
+getProgramName	cpp_MPI_wrapper/utils.cpp	/^    std::string getProgramName(const std::string & program_path)$/;"	f	namespace:Utils
 get_bases	metalrec_lib.py	/^def get_bases(cigar_string, qseq='', start_pos=''):$/;"	f
 get_bases	samread.py	/^    def get_bases(self):$/;"	m	class:SamRead
 get_bases_from_align	metalrec_lib.py	/^def get_bases_from_align(align, start_pos):$/;"	f
@@ -91,8 +154,11 @@ get_cigar_info	samread.py	/^    def get_cigar_info(self):$/;"	m	class:SamRead
 get_compatible_reads	metalrec_lib.py	/^def get_compatible_reads(ref_array, read_array):$/;"	f
 get_consensus	unused.py	/^def get_consensus(samFile, ref_fasta, maxSub=3, maxIns=3, maxDel=3, maxErrRate=0.20):$/;"	f
 get_consensus_from_array	metalrec_lib.py	/^def get_consensus_from_array(read_array):$/;"	f
+get_cwd	cpp_MPI_wrapper/utils.cpp	/^    std::string get_cwd()$/;"	f	namespace:Utils
 get_gaps	metalrec_lib.py	/^def get_gaps(gaps):$/;"	f
 get_good_regions	metalrec_lib.py	/^def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):$/;"	f
+get_length	merge_stat.py	/^def get_length(lengthFile, trim=""):$/;"	f
+get_muscle_cmd_and_log	multi_proc_metalrec.py	/^def get_muscle_cmd_and_log(inputfile,outputdir='.\/'):$/;"	f
 get_new_ref	metalrec_lib.py	/^def get_new_ref(ref_array, read_ind, read_array):$/;"	f
 get_poly_pos	metalrec_lib.py	/^def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):$/;"	f
 get_read_seq	samread.py	/^    def get_read_seq(self):$/;"	m	class:SamRead
@@ -102,11 +168,23 @@ get_rend	samread.py	/^    def get_rend(self):$/;"	m	class:SamRead
 get_tags	samread.py	/^    def get_tags(self):$/;"	m	class:SamRead
 get_time	get_bbmap_time.py	/^def get_time(inputfile):$/;"	f
 glob	align_tmp.py	/^import glob$/;"	i
+glob	correct_PBReads.py	/^import glob$/;"	i
 glob	find_good_regions.py	/^import glob$/;"	i
 glob	get_bbmap_time.py	/^import glob$/;"	i
+glob	multi_proc_metalrec.py	/^import glob$/;"	i
 good_regions	tmp.py	/^good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=1, minCV=3)$/;"	v
 good_regions	tmp.py	/^good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=1)$/;"	v
 greedy_fill_gap	metalrec_lib.py	/^def greedy_fill_gap(read_array, ref0=None, verbose=False):$/;"	f
+group	multi_proc_metalrec.py	/^group = parser.add_mutually_exclusive_group()$/;"	v
+ifFileEmptyRemove	cpp_MPI_wrapper/utils.cpp	/^    void ifFileEmptyRemove(const std::string & filename)$/;"	f	namespace:Utils
+ifFileExistRemove	cpp_MPI_wrapper/utils.cpp	/^    void ifFileExistRemove(const std::string & filename)$/;"	f	namespace:Utils
+initializeArguments	cpp_MPI_wrapper/metalrec_mpi.cpp	/^int initializeArguments(int argc, char ** argv,$/;"	f
+intToString	cpp_MPI_wrapper/utils.cpp	/^    std::string intToString( const int & input_value )$/;"	f	namespace:Utils
+isDirectory	cpp_MPI_wrapper/utils.cpp	/^    bool isDirectory( const std::string & directory )$/;"	f	namespace:Utils
+isFastaFormat	cpp_MPI_wrapper/utils.cpp	/^    bool isFastaFormat(const std::string & input_string)$/;"	f	namespace:Utils
+isFastqFormat	cpp_MPI_wrapper/utils.cpp	/^    bool isFastqFormat(const std::string & input_string)$/;"	f	namespace:Utils
+isFileEmpty	cpp_MPI_wrapper/utils.cpp	/^    bool isFileEmpty(const std::string & filename)$/;"	f	namespace:Utils
+isFileExist	cpp_MPI_wrapper/utils.cpp	/^    bool isFileExist(const std::string & filename)$/;"	f	namespace:Utils
 is_compatible	metalrec_lib.py	/^def is_compatible(array1, array2):$/;"	f
 is_duplicate	samread.py	/^    def is_duplicate(self):$/;"	m	class:SamRead
 is_paired	samread.py	/^    def is_paired(self):$/;"	m	class:SamRead
@@ -115,29 +193,39 @@ is_qcfail	samread.py	/^    def is_qcfail(self):$/;"	m	class:SamRead
 is_read1	samread.py	/^    def is_read1(self):$/;"	m	class:SamRead
 is_read2	samread.py	/^    def is_read2(self):$/;"	m	class:SamRead
 is_read_compatible	metalrec_lib.py	/^def is_read_compatible(ref_array, read_array1d):$/;"	f
-is_record_bad	metalrec_lib.py	/^def is_record_bad(alignRecord,maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	f
-is_record_bad	samread.py	/^    def is_record_bad(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	m	class:SamRead
+is_record_bad	metalrec_lib.py	/^def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):$/;"	f
+is_record_bad	samread.py	/^    def is_record_bad(self, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):$/;"	m	class:SamRead
 is_reverse	samread.py	/^    def is_reverse(self):$/;"	m	class:SamRead
 is_secondary	samread.py	/^    def is_secondary(self):$/;"	m	class:SamRead
 is_supplementary	samread.py	/^    def is_supplementary(self):$/;"	m	class:SamRead
 is_unmapped	samread.py	/^    def is_unmapped(self):$/;"	m	class:SamRead
+jj_utils	multi_proc_metalrec.py	/^import jj_utils$/;"	i
+last_line	cpp_MPI_wrapper/utils.cpp	/^    std::string last_line(const std::string & filename)$/;"	f	namespace:Utils
 left_one	unused.py	/^left_one = max([rSeq.rfind(x,0,rstart-1) for x in diff_chars]) # position of the first different character to the left$/;"	v
 leftmost_char	unused.py	/^leftmost_char = rSeq[rstart - 1] # leftmost character of the aligned region on the reference sequence$/;"	v
 locate_in_compress	unused.py	/^def locate_in_compress(string, pos):$/;"	f
 main	align_tmp.py	/^def main(argv=None):$/;"	f
 main	check_PBReads.py	/^def main(argv=None):$/;"	f
 main	clean_sam.py	/^def main(argv=None):$/;"	f
+main	correct_PBReads.py	/^def main(argv=None):$/;"	f
+main	cpp_MPI_wrapper/metalrec_mpi.cpp	/^int main(int argc, char ** argv){$/;"	f
 main	find_good_regions.py	/^def main(argv=None):$/;"	f
 main	get_bbmap_time.py	/^def main(argv=None):$/;"	f
+main	merge_stat.py	/^def main(argv=None):$/;"	f
 main	metalrec.py	/^def main(argv=None):$/;"	f
+main	multi_proc_metalrec.py	/^def main(argv=None):$/;"	f
+main	samStat.py	/^def main(argv=None):$/;"	f
 main	test.py	/^def main(argv=None):$/;"	f
 make_read_array	metalrec_lib.py	/^def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array,  poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):$/;"	f
 make_read_array1d	metalrec_lib.py	/^def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):$/;"	f
 make_ref_array	metalrec_lib.py	/^def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array,ext_region):$/;"	f
 make_type_array	metalrec_lib.py	/^def make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext,verbose=False):$/;"	f
 massage_mapping	unused.py	/^def massage_mapping(rSeq, qSeq, rstart, rend, cigar_string):$/;"	f
+matchPattern	cpp_MPI_wrapper/directoryStructure.cpp	/^bool DirectoryStructure::matchPattern( const string & pattern, const string & filename )$/;"	f	class:DirectoryStructure
+matchPattern	cpp_MPI_wrapper/utils.cpp	/^    bool matchPattern(  const std::string & pattern, const std::string & filename )$/;"	f	namespace:Utils
 mate_is_reverse	samread.py	/^    def mate_is_reverse(self):$/;"	m	class:SamRead
 mate_is_unmapped	samread.py	/^    def mate_is_unmapped(self):$/;"	m	class:SamRead
+math	samread.py	/^import math$/;"	i
 maxDel	tmp.py	/^maxDel=3$/;"	v
 maxDelRate	tmp.py	/^maxDelRate=0.2$/;"	v
 maxIns	tmp.py	/^maxIns=3$/;"	v
@@ -149,18 +237,25 @@ md	metalrec_lib.py	/^def md(MD_tag):$/;"	f
 metalrec_lib	align_tmp.py	/^import metalrec_lib$/;"	i
 metalrec_lib	check_PBReads.py	/^import metalrec_lib$/;"	i
 metalrec_lib	clean_sam.py	/^import metalrec_lib$/;"	i
+metalrec_lib	correct_PBReads.py	/^import metalrec_lib$/;"	i
 metalrec_lib	find_good_regions.py	/^import metalrec_lib$/;"	i
 metalrec_lib	metalrec.py	/^import metalrec_lib$/;"	i
 metalrec_lib	samread.py	/^import metalrec_lib$/;"	i
 metalrec_lib	test.py	/^import metalrec_lib$/;"	i
 metalrec_lib	tmp.py	/^import metalrec_lib$/;"	i
+mkdirIfNonExist	cpp_MPI_wrapper/utils.cpp	/^    void mkdirIfNonExist(const std::string & dirname)$/;"	f	namespace:Utils
+muscleAlign	multi_proc_metalrec.py	/^def muscleAlign(args):$/;"	f
+new_align	tmp.py	/^new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively$/;"	v
 new_ref	tmp.py	/^new_ref = metalrec_lib.fill_gap(read_array, outFastaFile="\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/good_reads.fasta", outDir=None, readinfo=readinfo, verbose=True)$/;"	v
 os	align_tmp.py	/^import os$/;"	i
 os	check_PBReads.py	/^import os$/;"	i
+os	correct_PBReads.py	/^import sys, os$/;"	i
 os	find_good_regions.py	/^import os$/;"	i
 os	get_bbmap_time.py	/^import os$/;"	i
+os	merge_stat.py	/^import os$/;"	i
 os	metalrec.py	/^import sys, os$/;"	i
 os	metalrec_lib.py	/^import sys, os$/;"	i
+os	multi_proc_metalrec.py	/^import sys, warnings, os$/;"	i
 pairwise	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
 pairwise	samread.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
 pairwise2	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
@@ -169,80 +264,131 @@ pairwise2	tmp.py	/^from Bio import pairwise2$/;"	i
 parser	align_tmp.py	/^parser = argparse.ArgumentParser(description="Align reads to corrected PacBio sequences at all correction steps.",$/;"	v
 parser	check_PBReads.py	/^parser = argparse.ArgumentParser(description="Check the PacBio subreads and see if any of them has good regions",$/;"	v
 parser	clean_sam.py	/^parser = argparse.ArgumentParser(description="parse sam file and get summary statistics",$/;"	v
+parser	correct_PBReads.py	/^parser = argparse.ArgumentParser(description="Error correction of PacBio reads from aligned results",$/;"	v
 parser	find_good_regions.py	/^parser = argparse.ArgumentParser(description="Find good regions of a PacBio read using mapping from short reads onto it",$/;"	v
 parser	get_bbmap_time.py	/^parser = argparse.ArgumentParser(description="Get the bbmap running time for the mapping jobs.",$/;"	v
+parser	merge_stat.py	/^parser = argparse.ArgumentParser(description=" Merge the stat.read files from 2 different mappings and compare the result",$/;"	v
 parser	metalrec.py	/^parser = argparse.ArgumentParser(description="Error correction of a PacBio read from alignment of Illumina reads to this PacBio read.",$/;"	v
+parser	multi_proc_metalrec.py	/^parser = argparse.ArgumentParser(description="Multiple sequence alignments with MUSCLE",$/;"	v
+parser	samStat.py	/^parser = argparse.ArgumentParser(description="parse sam file and get summary statistics",$/;"	v
 parser	test.py	/^parser = argparse.ArgumentParser(description="parse sam file and get summary statistics",$/;"	v
-pick_align	metalrec_lib.py	/^def pick_align(align_list):$/;"	f
+pick_align	metalrec_lib.py	/^def pick_align(align_list,trim=True):$/;"	f
 prefix_chars	align_tmp.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	check_PBReads.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	clean_sam.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
+prefix_chars	correct_PBReads.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	find_good_regions.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	get_bbmap_time.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
+prefix_chars	merge_stat.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	metalrec.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
+prefix_chars	multi_proc_metalrec.py	/^    prefix_chars='-', # prefix for options$/;"	v
+prefix_chars	samStat.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 prefix_chars	test.py	/^                                 prefix_chars='-', # prefix for options$/;"	v
 print_seqs	metalrec_lib.py	/^def print_seqs(seq1, seq2, print_width = 100):$/;"	f
 prog	align_tmp.py	/^                                 prog = 'align_tmp', #program name$/;"	v
 prog	check_PBReads.py	/^                                 prog = 'check_PBreads', #program name$/;"	v
 prog	clean_sam.py	/^                                 prog = 'testDrive', #program name$/;"	v
+prog	correct_PBReads.py	/^                                 prog = 'run_metalrec', #program name$/;"	v
 prog	find_good_regions.py	/^                                 prog = 'find_good_regions', #program name$/;"	v
 prog	get_bbmap_time.py	/^                                 prog = 'check_PBreads', #program name$/;"	v
+prog	merge_stat.py	/^                                 prog = 'merge_stat', #program name$/;"	v
 prog	metalrec.py	/^                                 prog = 'metalrec', #program name$/;"	v
+prog	multi_proc_metalrec.py	/^    prog = 'muscleAlign', #program name$/;"	v
+prog	samStat.py	/^                                 prog = 'samStat', #program name$/;"	v
 prog	test.py	/^                                 prog = 'testDrive', #program name$/;"	v
 programming	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
 programming	samread.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
+pysam	samStat.py	/^import pysam$/;"	i
 qseq	tmp.py	/^qseq = 'TGGGCGCGGGCGCAGCATGGGTGGCGGTCGCTACGGAAGGCACTACTAGCTACTAGCGGCGAGAGCGAGGGTAGGCGGGCGAGCTGGCAGGTTGGCGGGTACGCCGCGCCCGCCATTGCAATACGCTTGCCG'$/;"	v
+r	tmp.py	/^r = samread.SamRead(a)$/;"	v
 r1	tmp.py	/^r1 = samread.SamRead(a) # SamRead object$/;"	v
+rLen	tmp.py	/^rLen = len(rseq)$/;"	v
 rSeq_ext	unused.py	/^rSeq_ext = rSeq[left_one : rend ] # extend the mapped region to that position$/;"	v
 re	align_tmp.py	/^import re$/;"	i
 re	check_PBReads.py	/^import re$/;"	i
+re	correct_PBReads.py	/^import re$/;"	i
 re	get_bbmap_time.py	/^import re$/;"	i
+re	merge_stat.py	/^import re$/;"	i
+re	metalrec.py	/^import re$/;"	i
 re	metalrec_lib.py	/^import re$/;"	i
 re	samread.py	/^import re$/;"	i
 re_align	samread.py	/^    def re_align(self, rseq):$/;"	m	class:SamRead
-read_and_process_sam_samread	metalrec_lib.py	/^def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2, minPacBioLen=1000, minCV=1,outsamFile='',outFastaFile='', verbose=False):$/;"	f
+re_align1	samread.py	/^    def re_align1(self, rseq):$/;"	m	class:SamRead
+re_align2	samread.py	/^    def re_align2(self, rseq):$/;"	m	class:SamRead
+read_EC_stat	merge_stat.py	/^def read_EC_stat(read_stat_file):$/;"	f
+read_and_process_sam_samread	metalrec_lib.py	/^def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, minCV=1,outsamFile='',outFastaFile='', verbose=False):$/;"	f
 read_array1d	tmp.py	/^read_array1d = metalrec_lib.make_read_array1d(readinfo.keys()[0], bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext) $/;"	v
 read_fasta	metalrec_lib.py	/^def read_fasta(fasta_file,trim=True,reverse=False):$/;"	f
 read_sam	unused.py	/^def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	f
 read_single_seq	metalrec_lib.py	/^def read_single_seq(fastaFile):$/;"	f
+read_stat	merge_stat.py	/^def read_stat(statFile, splitChar='',length_dict=dict()):$/;"	f
+realign_res	tmp.py	/^realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], r1.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])$/;"	v
 ref0	tmp.py	/^ref0 = metalrec_lib.get_consensus_from_array(read_array)$/;"	v
 ref1	tmp.py	/^ref1 = metalrec_lib.get_new_ref(ref0, 10, read_array) # get a new ref$/;"	v
 ref2	tmp.py	/^ref2 = metalrec_lib.get_new_ref(ref0, 319, read_array) # get a new ref$/;"	v
 ref_consensus	unused.py	/^def ref_consensus(ref_bps, ref_ins_dict, rSeq):$/;"	f
 ref_extension	metalrec_lib.py	/^def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None, print_width = 100, verbose=False):$/;"	f
+ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409.fasta"$/;"	v
 ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/Results\/Wetlands\/subreads_with_good_regions\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430.fasta"$/;"	v
 ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__54536__2157_4456.fasta"$/;"	v
 ref_new	tmp.py	/^ref_new = metalrec_lib.fill_gap(read_array, "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/good_reads.fasta", "\/Users\/cjg\/Work\/PacBio\/metalrec\/test", readinfo, verbose=False)$/;"	v
+ref_region_end	tmp.py	/^ref_region_end = min(r1.get_rend() + 5, rLen)$/;"	v
+ref_region_start	tmp.py	/^ref_region_start = max( r1.rstart - 5, 1)$/;"	v
+resetListIterator	cpp_MPI_wrapper/directoryStructure.cpp	/^void DirectoryStructure::resetListIterator()$/;"	f	class:DirectoryStructure
 revcompl	metalrec_lib.py	/^revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence$/;"	v
-revcompl	samread.py	/^revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence$/;"	v
+revcompl	samread.py	/^revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence$/;"	v
 rseq	tmp.py	/^rseq = 'CCGTTCGGCGTCAAAGCCCACGCGCAGCTCTTCAGCGGTCCGCGTGGCGCGGGCGCAGCATGGGTGGCGGTCGCTACGGAAGGCACTACTAGCTACTAGCGGCGAGAGCGAGGGTAGGCGGGGCGAGCTGGCAGGTTGGCGGGTACGCGCGCCGCCATTGCAATACGCTTGCCGTCGCGGCGGGCCTTCGAGCGTGGCATG'$/;"	v
 rseq	tmp.py	/^rseq = metalrec_lib.read_single_seq(ref_fasta)$/;"	v
 samIn	tmp.py	/^samIn = open(samfile,'r')$/;"	v
+samStat	samStat.py	/^def samStat(samFile, outputFile):$/;"	f
+samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409\/blasr_mark.sam"$/;"	v
 samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/Results\/Wetlands\/subreads_with_good_regions\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430\/a.sam"$/;"	v
 samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/bbmap_red.sam"$/;"	v
 samread	metalrec_lib.py	/^import samread$/;"	i
+samread	samStat.py	/^import samread$/;"	i
 samread	tmp.py	/^import samread$/;"	i
+setDirectory	cpp_MPI_wrapper/directoryStructure.cpp	/^void DirectoryStructure::setDirectory( const string & dir )$/;"	f	class:DirectoryStructure
+setPattern	cpp_MPI_wrapper/directoryStructure.cpp	/^void DirectoryStructure::setPattern( string pattern )$/;"	f	class:DirectoryStructure
 shift_and_reduce	unused.py	/^def shift_and_reduce(align_list):$/;"	f
 shift_ends	unused.py	/^def shift_ends(samFile, rSeq, samNew):$/;"	f
 shift_to_left	metalrec_lib.py	/^def shift_to_left(align):$/;"	f
+shift_to_left_chop	metalrec_lib.py	/^def shift_to_left_chop(align, matchLen=1):$/;"	f
 shutil	find_good_regions.py	/^import shutil$/;"	i
-simplify_read_string	unused.py	/^def simplify_read_string(read_string):$/;"	f
+stringToDouble	cpp_MPI_wrapper/utils.cpp	/^    double stringToDouble( const std::string& input_string ) $/;"	f	namespace:Utils
+stringToFloat	cpp_MPI_wrapper/utils.cpp	/^    float stringToFloat( const std::string& input_string ) $/;"	f	namespace:Utils
+stringToInt	cpp_MPI_wrapper/utils.cpp	/^    int stringToInt( const std::string &input_string ) $/;"	f	namespace:Utils
+stringToUnsignedInt	cpp_MPI_wrapper/utils.cpp	/^    unsigned int stringToUnsignedInt( const std::string &input_string ) $/;"	f	namespace:Utils
 sys	align_tmp.py	/^import sys$/;"	i
 sys	check_PBReads.py	/^import sys$/;"	i
 sys	clean_sam.py	/^import sys$/;"	i
+sys	correct_PBReads.py	/^import sys, os$/;"	i
 sys	find_good_regions.py	/^import sys$/;"	i
 sys	get_bbmap_time.py	/^import sys$/;"	i
+sys	merge_stat.py	/^import sys$/;"	i
 sys	metalrec.py	/^import sys, os$/;"	i
 sys	metalrec_lib.py	/^import sys, os$/;"	i
+sys	multi_proc_metalrec.py	/^import sys, warnings, os$/;"	i
+sys	samStat.py	/^import sys$/;"	i
 sys	samread.py	/^import sys$/;"	i
 sys	test.py	/^import sys$/;"	i
 time	align_tmp.py	/^import time$/;"	i
 time	check_PBReads.py	/^import time$/;"	i
 time	clean_sam.py	/^import time$/;"	i
+time	correct_PBReads.py	/^import time$/;"	i
 time	get_bbmap_time.py	/^import time$/;"	i
+time	merge_stat.py	/^import time$/;"	i
+time	metalrec.py	/^import time$/;"	i
+time	multi_proc_metalrec.py	/^import time$/;"	i
 trim_qseq	samread.py	/^    def trim_qseq(self):$/;"	m	class:SamRead
+trim_qseq_clip	samread.py	/^    def trim_qseq_clip(self, rseq):$/;"	m	class:SamRead
 type_array	tmp.py	/^type_array = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)$/;"	v
+unsignedIntToString	cpp_MPI_wrapper/utils.cpp	/^    std::string unsignedIntToString( const unsigned int & input_value )$/;"	f	namespace:Utils
 update_pos_info	metalrec_lib.py	/^def update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict):$/;"	f
+usage	cpp_MPI_wrapper/metalrec_mpi.cpp	/^void usage()$/;"	f
 using	metalrec_lib.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
 using	samread.py	/^from Bio import pairwise2 # pairwise alignment using dynamic programming$/;"	i
+vectorToCommaString	cpp_MPI_wrapper/utils.cpp	/^    std::string vectorToCommaString(const std::vector<std::string> & input_vector)$/;"	f	namespace:Utils
+version_str	multi_proc_metalrec.py	/^version_str = "0.0.2"$/;"	v
+warnings	multi_proc_metalrec.py	/^import sys, warnings, os$/;"	i
 write_compatible_reads	metalrec_lib.py	/^def write_compatible_reads(readsFasta, readinfo, compatible_ind, outDir):$/;"	f
+~DirectoryStructure	cpp_MPI_wrapper/directoryStructure.cpp	/^DirectoryStructure::~DirectoryStructure()$/;"	f	class:DirectoryStructure

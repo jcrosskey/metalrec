@@ -100,11 +100,16 @@ samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_
 ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
+reload(metalrec_lib)
+reload(samread)
+r = samread.SamRead(a)
+r.re_align(rseq)
+
 samIn = open(samfile,'r')
 for i in xrange(4):
     a = samIn.readline()
 
-while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2209:4718:39590':
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2206:18758:34925':
     a = samIn.readline()
 
 

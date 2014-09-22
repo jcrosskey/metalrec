@@ -155,12 +155,15 @@ def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
     cigarstring = fields[5] # CIGAR string
 
     if flag & 0x4 == 0x4: # read is unmapped (most reliable place to tell if a read is unmapped)
+        #print "not mapped"
         return True
     elif cigarstring == '*': # if cigar string is not available, treat as bad 
+        #print "cigarstring does not exsit"
         return True
     else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
-
+        left_clip_len = 0
+        right_clip_len = 0
         if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
             try: # 1-based leftmost mapping position
                 rstart = int(fields[3]) # number of bases before the leftmost mapping position
@@ -177,13 +180,14 @@ def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
         if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
             return True
         # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
-        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or indel_len > maxIndelRate * cigar_info['seq_len']:
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or indel_len > maxInDelRate * cigar_info['seq_len']:
+            #print "sub or indel too many"
             return True
         # Finally, if it passes all the thresholds, it's a good record
         else:
             return False
 ## ======================================================================
-def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
+def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
     ''' Remove low quality alignments from short reads to long read, from the 
         mapping results, and write reads with good mapping quality to a new sam file for visualization.
         Input:  samFile - sam file from mapping multiple short reads to a long read
@@ -204,7 +208,7 @@ def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=
             else:
                 record = line.strip('\n')
                 fields = record.split('\t')
-                if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
+                if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     myread = samread.SamRead(record)
 
                     # improve the alignment to the reference sequence by dynamic programming
@@ -338,7 +342,7 @@ def get_bases_from_align(align, start_pos):
 
     return pos_dict, ins_dict
 ## ======================================================================
-def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2, minPacBioLen=1000, minCV=1,outsamFile='',outFastaFile='', verbose=False):
+def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, minCV=1,outsamFile='',outFastaFile='', verbose=False):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
         Uses SamRead class instead of calling all the functions
 
@@ -397,7 +401,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                 myread = samread.SamRead(record)
                 #if myread.qname == "HISEQ11:285:H987LADXX:1:1215:17746:43895":
                 #print myread.qname
-                if not myread.is_record_bad(maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate): # if this alignment is good
+                if not myread.is_record_bad(rLen, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     keepRec += 1
 
                     pos_dict, ins_dict = myread.re_align(rseq) # realign read to PacBio sequence
@@ -492,7 +496,7 @@ def shift_to_left_chop(align, matchLen=1):
 
         Output: The alignment after shifting
     '''
-    print "align = ", align
+    #print "align = ", align
     seqA, seqB, score, begin, end = align
     # First find all the insertion positions, ignoring the opening and ending gaps in seqB
     first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
@@ -509,53 +513,64 @@ def shift_to_left_chop(align, matchLen=1):
         elif seqA[i] != seqB[i]:
             mapping_type_array[i] = 3 # mismatch
 
-    match_pos = where(mapping_type_array == 0)[0]
-    matching_start, matching_end = get_gaps(match_pos)
-    matching_lens = matching_end - matching_start
-    long_match_ind = where(matching_lens > matchLen)[0]
-    long_start = matching_start[long_match_ind]
+    match_pos = where(mapping_type_array == 0)[0] # matching positions
+    matching_start, matching_end = get_gaps(match_pos) # matching region start and end positions
+    matching_lens = matching_end - matching_start # matching regions' lengths
+    long_match_ind = where(matching_lens > matchLen)[0] # long match regions (longer than specified matchLen)
+    long_start = matching_start[long_match_ind] # start and end coordinates of the long regions
     long_end = matching_end[long_match_ind]
     shift_align = None
     if long_start[0] != 0:
         seq1 = seqA[:long_start[0]]
         seq2 = seqB[:long_start[0]]
+        #print seq1
+        #print seq2
         if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
             seq1 = re.sub('-','',seq1)
             seq2 = re.sub('-','',seq2)
             myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
-            shift_align = [item for item in pick_align(myalign, False)][:3]
+            shift_align = [item for item in pick_align(myalign, False)[0]][:3]
         else:
             shift_align = [seq1, seq2, -0.9*len(seq1)]
+        #print format_alignment(*(shift_align + [0, len(seq1)]))
 
     for i in xrange(len(long_match_ind)-1):
         seq1 = seqA[long_start[i] : long_start[i+1]]
         seq2 = seqB[long_start[i] : long_start[i+1]]
+        #print seq1
+        #print seq2
         if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
             seq1 = re.sub('-','',seq1)
             seq2 = re.sub('-','',seq2)
             myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
-            myalign = [item for item in pick_align(myalign, False)]
-        else:
-            myalign = [seq1, seq2, -0.9*len(seq1), 0, len(seq1)]
-        if shift_align is None:
-            shift_align = myalign
-        else:
-            shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
-
-    if long_end[-1] != len(seqB) - 1:
-        seq1 = seqA[long_start[-1]:len(seqA)]
-        seq2 = seqB[long_start[-1]:len(seqB)]
-        if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
-            seq1 = re.sub('-','',seq1)
-            seq2 = re.sub('-','',seq2)
-            myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
-            myalign = [item for item in pick_align(myalign, False)]
+            myalign = [item for item in pick_align(myalign, False)[0]]
         else:
             myalign = [seq1, seq2, -0.9*len(seq1), 0, len(seq1)]
         if shift_align is None:
             shift_align = myalign[:3]
         else:
             shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
+        #print format_alignment(*(shift_align + [0, len(seq1)]))
+
+    if long_end[-1] != len(seqB) - 1:
+        seq1 = seqA[long_start[-1]:len(seqA)]
+        seq2 = seqB[long_start[-1]:len(seqB)]
+        #print seq1
+        #print seq2
+        if seq1.count('-') != len(seq1) and seq2.count('-') != len(seq2): # one sequence is all insertion
+            seq1 = re.sub('-','',seq1)
+            seq2 = re.sub('-','',seq2)
+            myalign = pairwise2.align.globalms(seq1, seq2, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, True])
+            myalign = [item for item in pick_align(myalign, False)[0]]
+        else:
+            myalign = [seq1, seq2, -0.9*len(seq1), 0, len(seq1)]
+        if shift_align is None:
+            shift_align = myalign[:3]
+        else:
+            shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
+        #print format_alignment(*(shift_align + [0, len(seq1)]))
+    else:
+        shift_align = [shift_align[0] + seqA[long_start[-1]:] , shift_align[1] + seqB[long_start[-1]:], shift_align[2]]
 
     shift_align += [0]
     shift_align += [len(shift_align[0])]
@@ -569,18 +584,16 @@ def pick_align(align_list,trim=True):
     '''
     leftmost_indel_pos = (-1,-1)
     bestalign = ''
+    First_non_gap = 0
+    Last_non_gap = -1
     #if len(align_list) == 1000:
     #    sys.stderr.write("{} alignments\n".format(len(align_list)))
     for align in align_list:
         seqA, seqB, score, begin, end = align
         # First find all the insertion positions, ignoring the opening and ending gaps in both sequences
         if trim:
-            first_non_gap_B = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
-            last_non_gap_B = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
-            first_non_gap_A = 0 if seqA[0]!='-' else re.search(r'^[-]+',seqA).end()
-            last_non_gap_A = len(seqA) if seqA[-1]!='-' else re.search(r'[-]+$',seqA).start()
-            first_non_gap = max(first_non_gap_A, first_non_gap_B)
-            last_non_gap = min(last_non_gap_A, last_non_gap_B)
+            first_non_gap = 0 if seqB[0]!='-' else re.search(r'^[-]+',seqB).end()
+            last_non_gap = len(seqB) if seqB[-1]!='-' else re.search(r'[-]+$',seqB).start()
 
             ## Only look at the aligned part
             seqA = seqA[first_non_gap:last_non_gap]
@@ -606,9 +619,8 @@ def pick_align(align_list,trim=True):
                 Last_non_gap = last_non_gap
     if trim:
         return [bestalign, First_non_gap, Last_non_gap] # return the list of aligns whose indel positions are the leftmost
-        #return (bestalign[0], bestalign[1], bestalign[2], First_non_gap, Last_non_gap) # return the list of aligns whose indel positions are the leftmost
     else:
-        return bestalign
+        return [bestalign, 0, len(seqA)]
 ## ======================================================================
 def get_cigar(seqA, seqB):
     ''' Get CIGAR string from the align result 
