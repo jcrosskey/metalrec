@@ -31,8 +31,8 @@ parser.add_argument("-s","--sam",help="input sam file",dest='samFile',required=T
 
 ## output directory
 parser.add_argument("-o","--out",help="output corrected PacBio sequence file",dest='oSeqFile',default=None)
-parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = '') # optional, for visualization
-parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=False, default='')
+parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = None) # optional, for visualization
+parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=False, default=None)
 parser.add_argument("-od","--outDir",help="directory for the intermediate files",dest='outDir',default = None)
 
 # options
@@ -58,13 +58,16 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    print "\n==========================================================="
+    sys.stdout.write("\n===========================================================")
     start_time = time.time()
     # check input and output file settings
+    ## required input files: PacBio sequence file and sam file for this PacBio sequence
     if not os.path.exists(args.seqFile):
         sys.exit("input PacBio sequence file does not exist!\n")
     if not os.path.exists(args.samFile):
         sys.exit("input sam file does not exist!\n")
+
+    ## output file and directories, optional
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
         args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/corrected_PacBio.fasta'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
@@ -75,14 +78,14 @@ def main(argv=None):
 
     if args.verbose: # for verbose output, make necessary files and directories
         samFile_base = '.'.join(os.path.abspath(args.samFile).split('.')[:-1])
-        if args.redSam == '':
+        if args.redSam == None:
             args.redSam = samFile_base + '.red.sam'
             sys.stdout.write("write new alignment in sam file {}.\n".format(args.redSam))
-        if args.outFasta== '':
+        if args.outFasta== None:
             args.outFasta= samFile_base + '.goodreads.fasta'
             sys.stdout.write("write aligned sequences in fasta file {}.\n".format(args.outFasta))
         if args.outDir is None:
-            args.outDir = os.path.dirname(samFile_base) + "/tmp/"
+            args.outDir = samFile_base + ".tmp/"
         if not os.path.exists(args.outDir): # make sure the output directory exists
             os.makedirs(args.outDir)
         if args.outDir[-1] != '/':
@@ -90,12 +93,13 @@ def main(argv=None):
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
-    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, minCV=args.minCV, outsamFile=args.redSam, outFastaFile=args.outFasta,verbose=args.verbose)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outsamFile=args.redSam, outFastaFile=args.outFasta,verbose=args.verbose)
 
     good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
     sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
     if len(good_regions) == 0 :
-        sys.exit("PacBio read does not have any good region covered by the Illumina reads")
+        sys.stdout.write("PacBio read does not have any good region covered by the Illumina reads")
+        sys.exit(0)
     else: # examine good regions one by one
         # first print out all good regions
         sys.stdout.write("Good regions:\n")

@@ -342,7 +342,7 @@ def get_bases_from_align(align, start_pos):
 
     return pos_dict, ins_dict
 ## ======================================================================
-def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, minCV=1,outsamFile='',outFastaFile='', verbose=False):
+def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, outsamFile='',outFastaFile='', verbose=False):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
         Uses SamRead class instead of calling all the functions
 
@@ -350,7 +350,6 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                 rseq - reference sequence as a string
                 maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate are used to filter out badly mapped reads
                 minPacBioLen - contiguous region length threshold to be a good region
-                minCV - minimum coverage depth for a position to be considered as part of a good region
                 outsamFile - output processed sam file name
                 outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold
 
@@ -399,13 +398,9 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
             else:
                 record = line
                 myread = samread.SamRead(record)
-                #if myread.qname == "HISEQ11:285:H987LADXX:1:1215:17746:43895":
-                #print myread.qname
                 if not myread.is_record_bad(rLen, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     keepRec += 1
-
                     pos_dict, ins_dict = myread.re_align(rseq) # realign read to PacBio sequence
-
                     if verbose:
                         newsam.write(myread.generate_sam_record())
                         outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
@@ -431,11 +426,6 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
 
                     if verbose and keepRec % 1000 == 0:
                         sys.stdout.write('  processed {} good records\n'.format(keepRec))
-                    ##  use only 5000 reads, for testing purpose, remove this for real analysis
-                    #if keepRec % 5000 == 0:
-                    #    print lineNum
-                    #    sys.stdout.write("discarded {} reads so far.\n".format(discardRec))
-                    #    return ref_bps, ref_ins_dict
                 else:
                     discardRec += 1
     
@@ -713,7 +703,7 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
     avg_cov_depth = sum(cov_depths) / float(cov_bps) if cov_bps != 0 else 0
     low_CV_pos = [-1] + [ i for i in xrange(rLen) if cov_depths[i] < minCV ] + [rLen]
     for i in xrange(1, len(low_CV_pos)):
-        if low_CV_pos[i] - low_CV_pos[i-1] > minGoodLen:
+        if low_CV_pos[i] - low_CV_pos[i-1] >= minGoodLen:
             good_regions.append((low_CV_pos[i-1]+1, low_CV_pos[i])) # found a good region (begin, end) where rSeq[begin:end] is long enough and covered well
     return good_regions, cov_bps, avg_cov_depth
 ## ======================================================================
