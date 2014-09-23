@@ -46,7 +46,7 @@ parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns'
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=100, type=int)
 parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.1, type=float)
 parser.add_argument("--indelRate",help="maximum insertion rate allowed",dest='maxInDelRate',default=0.30, type=float)
-parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
+parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=3, type=int)
 parser.add_argument("--minPacBioLen",help="minimum PacBio length to be considered",dest='minPacBioLen',default=1000, type=int)
 parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=400, type=int)
 parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
