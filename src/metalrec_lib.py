@@ -4,6 +4,7 @@
 '''
 import re
 import sys, os
+sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
 from numpy import *
 import samread
 from Bio import pairwise2 # pairwise alignment using dynamic programming
@@ -398,8 +399,10 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
             else:
                 record = line
                 myread = samread.SamRead(record)
+                #print myread.qname # DEBUG
                 if not myread.is_record_bad(rLen, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     keepRec += 1
+                    #sys.stdout.write("realign\n") # DEBUG
                     pos_dict, ins_dict = myread.re_align(rseq) # realign read to PacBio sequence
                     if verbose:
                         newsam.write(myread.generate_sam_record())
@@ -507,7 +510,7 @@ def shift_to_left_chop(align, matchLen=1):
     match_pos = where(mapping_type_array == 0)[0] # matching positions
     matching_start, matching_end = get_gaps(match_pos) # matching region start and end positions
     matching_lens = matching_end - matching_start # matching regions' lengths
-    long_match_ind = where(matching_lens > matchLen)[0] # long match regions (longer than specified matchLen)
+    long_match_ind = where(matching_lens >= matchLen)[0] # long match regions (longer than specified matchLen)
     long_start = matching_start[long_match_ind] # start and end coordinates of the long regions
     long_end = matching_end[long_match_ind]
     shift_align = None
@@ -543,7 +546,7 @@ def shift_to_left_chop(align, matchLen=1):
             shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
         #print format_alignment(*(shift_align + [0, len(seq1)]))
 
-    if long_end[-1] != len(seqB) - 1:
+    if long_end[-1] != len(seqB) - 1: # last base is not a match
         seq1 = seqA[long_start[-1]:len(seqA)]
         seq2 = seqB[long_start[-1]:len(seqB)]
         #print seq1

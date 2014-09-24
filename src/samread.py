@@ -3,6 +3,7 @@
 import metalrec_lib
 import re
 import sys
+sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
 import math
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
@@ -233,11 +234,17 @@ class SamRead:
         #align_start = new_align[3] # starting position of the alignment for the new extended alignment
         #print format_alignment(*new_align) # for DEBUG
         new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-        while new_align1 != new_align:
-            #print "realign"
+        rounds = 0
+        while new_align1[:2] != new_align[:2] and rounds < 10:
+            #print "realign round ", rounds
             #print format_alignment(*new_align1) # for DEBUG
-            new_align = new_align1
+            new_align = list(new_align1)
+            #print "before realign: ", new_align
             new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+            #print "after  realign: ", new_align1
+            #print format_alignment(*new_align1)
+            rounds += 1
+            
         #print "done"
         #print format_alignment(*new_align) # for DEBUG
         pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
