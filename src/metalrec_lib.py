@@ -4,6 +4,7 @@
 '''
 import re
 import sys, os
+sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
 from numpy import *
 import samread
 from Bio import pairwise2 # pairwise alignment using dynamic programming

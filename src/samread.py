@@ -3,6 +3,7 @@
 import metalrec_lib
 import re
 import sys
+sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
 import math
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
