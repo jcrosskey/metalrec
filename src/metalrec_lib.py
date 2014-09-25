@@ -564,7 +564,10 @@ def shift_to_left_chop(align, matchLen=1):
             shift_align = [shift_align[j] + myalign[j] for j in xrange(3)]
         #print format_alignment(*(shift_align + [0, len(seq1)]))
     else:
-        shift_align = [shift_align[0] + seqA[long_start[-1]:] , shift_align[1] + seqB[long_start[-1]:], shift_align[2]]
+        if shift_align is not None:
+            shift_align = [shift_align[0] + seqA[long_start[-1]:] , shift_align[1] + seqB[long_start[-1]:], shift_align[2]]
+        else:
+            shift_align = [seqA[long_start[-1]:] , seqB[long_start[-1]:], 0]
 
     shift_align += [0]
     shift_align += [len(shift_align[0])]
@@ -1020,17 +1023,18 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                 for j in xrange(len(bases[i])): # for all the bases inserted at this position (could be more than 1 bp inserted)
                     ins_position = position + j
                     ins_positions.append(ins_position - start)
-                    if type_array[ins_position - start] == 1: # consensus insertion position
-                        c_bp = [l[1] for l in consensus_ins_ext if l[0] == ins_position][0]
-                        read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
+                    if ins_position < len(type_array): # in some cases, when there is more than 1 base pair inserted, the index could go out of range
+                        if type_array[ins_position - start] == 1: # consensus insertion position
+                            c_bp = [l[1] for l in consensus_ins_ext if l[0] == ins_position][0]
+                            read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
 
-                    if type_array[ins_position - start] == 3: # polymorphic insertion position
-                        p_bps = [l[1] for l in poly_ins_ext if l[0] == ins_position][0]
-                        if bases[i][j] in p_bps:
-                            read_array1d[ (ins_position-start)*5 + alphabet.index(bases[i][j]) ] = 1
-                        else:
-                            for p_bp in p_bps:
-                                read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
+                        if type_array[ins_position - start] == 3: # polymorphic insertion position
+                            p_bps = [l[1] for l in poly_ins_ext if l[0] == ins_position][0]
+                            if bases[i][j] in p_bps:
+                                read_array1d[ (ins_position-start)*5 + alphabet.index(bases[i][j]) ] = 1
+                            else:
+                                for p_bp in p_bps:
+                                    read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
         #print ins_positions
 
         # check if this read missed any insertion position

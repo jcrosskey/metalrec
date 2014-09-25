@@ -139,7 +139,7 @@ def main(argv=None):
             refOut.write('>{}/{} ({}, {}) gap length: {}\n{}\n'.format(seqName, good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], ref_new_short))
         refOut.close()
     sys.stdout.write("total time :" + str(time.time() - start_time) +  "seconds")
-    sys.stdout.write("\n===========================================================\n")
+    sys.stdout.write("\n===========================================================\nDone\n")
 ##==============================================================
 ## call from command line (instead of interactively)
 ##==============================================================
