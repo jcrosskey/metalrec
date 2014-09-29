@@ -35,7 +35,11 @@ def read_EC_stat(read_stat_file):
         header = stat.readline()
         for line in stat:
             readName = line.strip("\n").split("\t")[0]
-            sName = readName.split(":")[0]
+            if readName.count(':') == 2:
+                sName = readName.split(":")[0]
+            else:
+                sName = '/'.join(readName.split("/")[:-1])
+            print sName
             readLen = map(int,re.findall('\d+',readName[readName.find('(') : readName.find(')')]))
             readLen = readLen[1] - readLen[0]
             nMatchBp, nInsBp, nDelBp, nSubBp, nEdit = map(int, line.strip("\n").split("\t")[2:7])
