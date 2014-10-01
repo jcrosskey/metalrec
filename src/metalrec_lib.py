@@ -4,11 +4,13 @@
 '''
 import re
 import sys, os
-sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
+sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages") # for loading modules on titan
 from numpy import *
-import samread
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
+# import local module
+import mycolor # print with color in terminal
+import samread # for manipulating sam record
 alphabet = 'ACGTD'
 revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
 ## ======================================================================
@@ -40,8 +42,8 @@ def cigar(cigar_string):
         left_clip_len = count[0]
     if char[-1] in 'SH':
         right_clip_len = count[-1]
+    clip_len = left_clip_len + right_clip_len # clipped bps, including hard and soft clipping, on both end of the reads
 
-    clip_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'SH') # clipped bps, including hard and soft clipping
     try:
         max_ins_len = max(count[i] for i in xrange(len(char)) if char[i] == 'I') #  maximum insertion stretch
     except ValueError:
@@ -62,7 +64,7 @@ def cigar(cigar_string):
             max_sub_len = max(count[i] for i in xrange(len(char)) if char[i] == 'X') # maximum substitution stretch
         except ValueError:
             max_sub_len = 0
-        align_len = match_len + sub_len
+        align_len = match_len + sub_len # aligned bps(including matching and substitution)
     else:   # sam 1.3, aligned bps from 'M'
         align_len = sum(count[i] for i in xrange(len(char)) if char[i] == 'M') # aligned bps(including matching and substitution)
 
@@ -75,8 +77,6 @@ def md(MD_tag):
     Input:  MD tag as a string
     Output: 1-level dictionary with matching, deletion, and substitution lengths
     """
-    #matchLens = re.sub("\D"," ",MD_tag).split() #replace non-digit chars by blanks
-    #matchLens = map(int, matchLens) #length of the matches before a mismatch/deletion
     match_len = sum(map(int,re.findall("\d+",MD_tag))) #Get all the numbers in MD tag, these are the number of matches
     nonMatches = re.findall("\D+",MD_tag) #mismatch/deletion, replace digits by blanks
     del_len = 0
@@ -96,7 +96,7 @@ def read_fasta(fasta_file,trim=True,reverse=False):
         3. reverse: if true, seq => ID, instead of ID => seq
         Output
         1. dictionary object
-        '''
+    '''
     fasta = open(fasta_file,'r')
     ## all the contigs in a list
     contigs = fasta.read().split('\n>')
@@ -112,11 +112,10 @@ def read_fasta(fasta_file,trim=True,reverse=False):
             contigID = contig.split("\n",1)[0] # full header
         contigSeq = contig.split("\n",1)[1] # its corresponding sequence
         contigSeq = re.sub("\r","",contigSeq) # remove windows style EOF
+        contigSeq = re.sub("\n","",contigSeq) # remove unix style EOF
 
         if reverse: # contigSeq => contigID
-            # what if two proteins have the same sequences??
-            # store the corresponding IDs in a list
-            contigSeq = re.sub("\n","",contigSeq) # remove unix style EOF
+            # if two proteins have the same sequences, store the corresponding IDs in a list
             if input_info.has_key(contigSeq):
                 input_info[contigSeq].append(contigID)
             else:
@@ -132,10 +131,11 @@ def read_single_seq(fastaFile):
     '''
     with open(fastaFile,'r') as fasta:
         seq = fasta.read().split('\n',1)[-1]
-    seq = re.sub('\n','',seq)
+    seq = re.sub('\n','',seq) # remove both unix and windows style newline characters
+    seq = re.sub('\r','',seq)
     return seq
 ## ======================================================================
-def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
+def is_record_bad(alignRecord, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
     ''' Test and see if an alignment record is bad in the sam file. 
         TODO: only works with sam v1.4 cigar string now, combine the ref seq to also work for v1.3 string later.
         Input:  alignRecord - a mapping line in sam file
@@ -152,14 +152,15 @@ def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
     except ValueError:
         sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
         return True
-
-    cigarstring = fields[5] # CIGAR string
+    try: # cigar string
+        cigarstring = fields[5] # CIGAR string
+    except IndexError:
+        sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
+        return True
 
     if flag & 0x4 == 0x4: # read is unmapped (most reliable place to tell if a read is unmapped)
-        #print "not mapped"
         return True
     elif cigarstring == '*': # if cigar string is not available, treat as bad 
-        #print "cigarstring does not exsit"
         return True
     else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
@@ -167,28 +168,28 @@ def is_record_bad(alignRecord, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0
         right_clip_len = 0
         if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
             try: # 1-based leftmost mapping position
-                rstart = int(fields[3]) # number of bases before the leftmost mapping position
+                rstart = int(fields[3]) # leftmost mapping position
             except ValueError:
                 sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
                 return True
-            if cigar_info['left_clip_len'] > 0:
+            if cigar_info['left_clip_len'] > 0: # if the read is clipped because of aligning to the end of PacBio read, only consider the clipped part up to the end of the PacBio sequence
                 left_clip_len = min(rstart - 1, cigar_info['left_clip_len'])
             if cigar_info['right_clip_len'] > 0:
                 right_clip_len = min( refLen - rstart - cigar_info['ref_len'] + 1, cigar_info['right_clip_len'])
 
         indel_len = cigar_info['ins_len'] + cigar_info['del_len'] + left_clip_len + right_clip_len
         # if consecutive sub or indels is longer than the threshold, treat as bad
-        if cigar_info['max_ins'] > maxIns or cigar_info['max_sub'] > maxSub or cigar_info['max_del'] > maxDel:
+        if (maxIns != -1 and cigar_info['max_ins'] > maxIns) or (maxSub != -1 and cigar_info['max_sub'] > maxSub) or (maxDel != -1 and cigar_info['max_del'] > maxDel):
             return True
         # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
-        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or indel_len > maxInDelRate * cigar_info['seq_len']:
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['ref_len'] or indel_len > maxInDelRate * (cigar_info['seq_len'] + left_clip_len + right_clip_len): # subRate * mapped ref region; indelRate * seqLen + clipLen
             #print "sub or indel too many"
             return True
         # Finally, if it passes all the thresholds, it's a good record
         else:
             return False
 ## ======================================================================
-def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
+def clean_samfile(samFile,samNew, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
     ''' Remove low quality alignments from short reads to long read, from the 
         mapping results, and write reads with good mapping quality to a new sam file for visualization.
         Input:  samFile - sam file from mapping multiple short reads to a long read
@@ -246,7 +247,7 @@ def clean_samfile(samFile,samNew, rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=
     sys.stdout.write('Total number of records kept is {}. \n'.format(keepRec))
     sys.stdout.write('Total number of records discarded is {}. \n'.format(discardRec))
 ## ======================================================================
-def get_bases(cigar_string, qseq='', start_pos=''):
+def get_bases(cigar_string, qseq='', start_pos=None):
     ''' from CIGAR string, query segment (in alignment record), and starting position (1-based) on the ref sequence, return position wise base call from the read.
         Assuming that cigar_string is available, doesn't matter if it's sam 1.3 format or 1.4 format
         If there is only one input argument, treat it as the whole alignment record.
@@ -261,7 +262,7 @@ def get_bases(cigar_string, qseq='', start_pos=''):
                 ins_dict: ref_pos => (query_pos, base(s)) # the inserted length could be 1, or greater than 1
     '''
     # the whole alignment record
-    if qseq == '' and start_pos == '':
+    if qseq == '' or start_pos is None:
         fields = cigar_string.strip('\n').split('\t')
         cigar_string = fields[5]
         qseq = fields[9]
@@ -317,7 +318,7 @@ def get_bases_from_align(align, start_pos):
         Input:  align - alignment output from Bio.pairwise2.globalXX, tuple (seqA, seqB, score, begin, end)
                 start_pos - starting position (1-based from sam file) on the reference sequence
 
-        Output: (pos_dict, ins_dict), tuple of 2 dictionaries, one for the non-insertion positions, and one for the insertion positions.
+        Output: (pos_dict, ins_dict), tuple of 2 dictionaries, one for the non-insertion positions, and one for the insertion positions. 0-based index
                 When there is a deletion from the reference sequence, the base called will be "D". The bases are 0-based.
                 pos_dict: ref_pos => (query_pos, base), or ref_pos => 'D'
                 ins_dict: ref_pos => (query_pos, base(s)) # the inserted length could be 1, or greater than 1
@@ -326,9 +327,11 @@ def get_bases_from_align(align, start_pos):
     ins_dict = dict() # ref_pos (0-based) => inserted base
     
     seqA, seqB, score, begin, end = align
+    if len(seqA) != len(seqB): # sanity check
+        sys.stderr.write("get_bases_from_align: seqA and seqB do not have the same length\n{}\n{}".format(seqA, seqB))
     ref_pos = start_pos - 1 # convert 1-based position to 0-based position
 
-    for i in xrange(len(seqA)):
+    for i in xrange(len(seqB)): # seqA: reference, seqB: read
         if seqA[i] == '-': # insertion
             if ref_pos in ins_dict: # insertion of more than 1 base pair
                 ins_dict[ ref_pos ] = ins_dict[ref_pos] + seqB[i]
@@ -343,7 +346,7 @@ def get_bases_from_align(align, start_pos):
 
     return pos_dict, ins_dict
 ## ======================================================================
-def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, outsamFile='',outFastaFile='', verbose=False):
+def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, outsamFile='',outFastaFile='',samFile_base='', verbose=False):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
         Uses SamRead class instead of calling all the functions
 
@@ -353,6 +356,8 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                 minPacBioLen - contiguous region length threshold to be a good region
                 outsamFile - output processed sam file name
                 outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold
+                samFile_base - base name for the reduced sam and good Illumina reads output
+                verbose - switch of verbosity
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
                 ref_ins_dict - dictionary of insertions, one for each insertion position found in the alignments.
@@ -365,7 +370,8 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
     # print verbose information, including reduced alignment and reads that are aligned well
     # make sure the file names are set
     if verbose:
-        samFile_base = '.'.join(os.path.abspath(samFile).split('.')[:-1])
+        if samFile_base == '':
+            samFile_base = '.'.join(os.path.abspath(samFile).split('.')[:-1])
         if outsamFile == '':
             outsamFile = samFile_base + '.red.sam'
             sys.stdout.write("write new alignment in sam file {}.\n".format(outsamFile))
@@ -391,7 +397,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
                         if verbose:
                             sys.stderr.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
                         return 0 
-                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list corresponding to each position on the reference sequence
+                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list(length 5) corresponding to each position on the reference sequence
                     ref_ins_dict = dict() # global insertion dictionary for the reference sequence
                     readinfo = dict() # dictionary storing read information (base call for the mapped read)
             #####################################
@@ -437,6 +443,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=3, maxIns=3, maxDel=3,maxS
         newsam.close()
         outFasta.close()
         sys.stdout.write("discarded {} reads, kept {} reads.\n".format(discardRec, keepRec))
+        sys.stdout.write("number of unique reads: {}\n".format(len(readinfo)))
     return ref_bps, ref_ins_dict, readinfo
 ## ======================================================================
 def shift_to_left(align):
@@ -500,10 +507,10 @@ def shift_to_left_chop(align, matchLen=1):
 
     mapping_type_array = zeros(len(seqA),dtype=int8)
     for i in xrange(len(seqA)):
-        if seqA[i] == '-' and seqB[i] != '_':
+        if seqA[i] == '-' and seqB[i] != '-':
             mapping_type_array[i] = 1 # insertion into seqA
-        elif seqB[i] == '-' and seqA[i] != '_':
-            mapping_type_array[i] = 2 # insertion into seqA
+        elif seqB[i] == '-' and seqA[i] != '-':
+            mapping_type_array[i] = 2 # deletion from seqA
         elif seqA[i] != seqB[i]:
             mapping_type_array[i] = 3 # mismatch
 
@@ -577,6 +584,7 @@ def shift_to_left_chop(align, matchLen=1):
 def pick_align(align_list,trim=True):
     ''' From a list of equivalent alignments between 2 sequences using dynamic progamming (Needleman-Wunch), pick the one whose indel positions are the most left
         Input:  align_list - list of tuples output from Bio.pairwise2.globalXX
+                trim - switch to trim the opening and closing gaps in seqB
         Output: align - one of the tuple in the list (seqA, seqB, score, first_non_gap_pos, last_non_gap_pos), last two elements were begin and end originally
     '''
     leftmost_indel_pos = (-1,-1)
@@ -683,8 +691,8 @@ def get_cigar(seqA, seqB):
 ## ======================================================================
 def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
     ''' From mapping results from Illumina reads to a PacBio read, find the regions of PacBio read that satisfy these conditions:
-        1.  Every base pair in the region is covered by at least 10 reads
-        2.  The contiguous region has length >= 1000 bps
+        1.  Every base pair in the region is covered by at least minCV reads
+        2.  The contiguous region has length >= minGoodLen
         
         Input:  ref_bps - dictionary for the match/mismatch and the deletion positions
                 rSeq - PacBio sequence
@@ -697,7 +705,7 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
     rLen = len(rSeq)
     # if the whole sequence is shorter than 1000 bps, do not consider this sequence
     if rLen < minGoodLen:
-        return []
+        return [], [], None
 
     cov_depths = []
     good_regions = []
@@ -715,17 +723,17 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
     return good_regions, cov_bps, avg_cov_depth
 ## ======================================================================
 def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):
-    ''' Get the polymorphic positions where the insertion happened, in the specified region (>=1000bps and covered by >=10 reads)
+    ''' Get the polymorphic positions where the insertion happened, in the specified region
         Input:  ref_bps, ref_ins_dict - output objects from read_and_process_sam, noninsertion and insertion information for all the positions from the Illumina reads
                 region - (begin, end) tuple of a region to consider
-                minReads, minPercent - minimum number of read support for a base call to be considered not error
+                minReads, minPercent - minimum number of read support for a base call to be considered as possible for the genome
         Output: poly_bps - polymorphic non-insertion positions
                 poly_ins - polymorphic insertion positions
                 consensus_bps - nonpolymorphic non-insertion positions, get the consensus
                 consensus_ins - nonpolymorphic insertion positions, get the consensus
                 cvs - coverage depths across all the base pairs
     '''
-    if region is None: # region to consider
+    if region is None: # region to consider, 0-based index
         region = (0, len(ref_bps))
     poly_bps = [] # list of tuples
     poly_ins = []
@@ -740,12 +748,13 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv) # vector of coverage depths, for each position in the region
         # At least 3 or 30% of the read support for a base call to be considered, otherwise the base call will be treated as an error. e.g. for low coverage bases:
-        # cv = 1: > 0 (1)
-        # cv = 2: > 1 (2)
-        # cv = 3: > 1 (2)
-        # cv = 4: > 1 (2)
-        # cv = 5: > 2 (3)
-        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads or ref_bps[pos][i] > round(cv * minPercent) ]
+        # cv = 1: >= 0 (1)
+        # cv = 2: >= 1 (1)
+        # cv = 3: >= 1 (1)
+        # cv = 4: >= 1 (1)
+        # cv = 5: >= 2 (2)
+        # when cv < 5, consider every possible base call as possible/valid
+        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads or ref_bps[pos][i] >= round(cv * minPercent) ]
         if len(base_calls) > 1: # more than 1 base call with enough read support
             poly_bps.append((pos, base_calls))
         elif len(base_calls) == 1:
@@ -754,8 +763,9 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
             base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] > 0 ]
             if len(base_calls) == 1: # if they all agree (low CV region) then use the consensus base
                 consensus_bps.append((pos, base_calls[0]))
-            else: # if they do not agree, pick the consensus base
-                consensus_bps.append((pos, alphabet[ref_bps[pos].index(max(ref_bps[pos]))]))
+            else: # if they do not agree, treat each one as possible/valid. because all of them should have very low read support now passing 
+                poly_bps.append( (pos, base_calls) )
+                #consensus_bps.append((pos, alphabet[ref_bps[pos].index(max(ref_bps[pos]))]))
 
         # check the insertion positions now
         if pos in ref_ins_dict: 
@@ -796,15 +806,15 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
     ins_pos_uniq = list(set(ins_pos)) # distinct insertion positions, longer than 1 bp insertion only counts once
     ins_pos_uniq.sort() # sort in ascending order
 
-    poly_bp_pos = [i[0] for i in poly_bps]
-    consensus_bp_pos = [i[0] for i in consensus_bps]
+    poly_bp_pos = [i[0] for i in poly_bps] # polymorphic positions
+    consensus_bp_pos = [i[0] for i in consensus_bps] # consensus positions
 
     ins_pos_dict = dict()
     bp_pos_dict = dict()
 
     inserted_bases = 0
     current_pos = begin
-    #origSeq = rseq[ begin : end ]
+    #origSeq = rseq[ begin : end ] # no need for original sequence any more
     newSeq = '' # new sequence with consensus base call non-insertion positions updated, and dashes for insertions and deletions
     oldSeq = '' # old sequence with just dashes for insertions
     matching_string = '' # matching string to print between two sequences for better visualization
@@ -813,7 +823,7 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
             if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage, keep the original base call
                 newSeq += rseq[mypos]
                 oldSeq += rseq[mypos]
-                matching_string += 'Y'
+                matching_string += '^'
             else: # consensus position
                 newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # new sequence takes the consensus position
                 oldSeq += rseq[mypos]
@@ -834,7 +844,7 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
     for mypos in xrange(current_pos, region[1]):
         if mypos not in consensus_bp_pos: # position has polymorphism or doesn't have enough short read coverage
             newSeq += rseq[mypos]
-            newSeq += rseq[mypos]
+            oldSeq += rseq[mypos]
             matching_string += '|'
         else:
             newSeq += consensus_bps[consensus_bp_pos.index(mypos)][1] # if there is consensus
@@ -848,13 +858,13 @@ def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region
     # print the alignment between the original sequence and the newly proposed sequence
     # for the two different sequences, print the coordinates on each row, for both of them.
     if verbose:
-        sys.stdout.write("Extend the PacBio sequence with the insertion positions in the specified region with extended sequence above original sequence.\n")
+        sys.stdout.write("Extend the PacBio sequence with the insertion positions in the specified region with extended sequence below original sequence.\n")
         sys.stdout.write("X means consensus base call different from original\n")
-        sys.stdout.write("Y means positions is polymorphic\n\n")
+        sys.stdout.write("^ means positions is polymorphic\n\n")
         for i in xrange(len(newSeq) / print_width + 1):
-            sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(begin + i*print_width, re.sub('D','-',newSeq[i*print_width:(i+1)*print_width]), min(begin+(i+1)*print_width,len(newSeq)+ begin) ))
+            sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(begin + i*print_width - oldSeq[:i*print_width].count('-'), oldSeq[i*print_width:(i+1)*print_width], min(begin+(i+1)*print_width - oldSeq[:(i+1)*print_width].count('-'),len(oldSeq) + begin -oldSeq.count('-'))))
             sys.stdout.write('{:>5}\t{}\t{:<5}\n'.format(' ', matching_string[i*print_width:(i+1)*print_width],' ' ))
-            sys.stdout.write('{:>5}\t{}\t{:<5}\n\n'.format(begin + i*print_width - oldSeq[:i*print_width].count('-'), oldSeq[i*print_width:(i+1)*print_width], min(begin+(i+1)*print_width - oldSeq[:(i+1)*print_width].count('-'),len(oldSeq) + begin -oldSeq.count('-'))))
+            sys.stdout.write('{:>5}\t{}\t{:<5}\n\n'.format(begin + i*print_width, re.sub('D','-',newSeq[i*print_width:(i+1)*print_width]), min(begin+(i+1)*print_width,len(newSeq) + begin) ))
 
     return newSeq, bp_pos_dict, ins_pos_dict
 ## ======================================================================
@@ -893,7 +903,7 @@ def make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins
     end = max(all_pos) + 1
     if verbose:
         sys.stdout.write('Making type array for the new sequence from {} to {}.\n'.format(start, end))
-    type_array = zeros(end - start, dtype=int32) # initialize all to type 0 TODO: dtype is longer than needed, int8 would be enough for the type array
+    type_array = zeros(end - start, dtype=int8) # initialize all to type 0 TODO: dtype is longer than needed, int8 would be enough for the type array
     if len(consensus_ins_pos) > 0: # fill in different types
         type_array[consensus_ins_pos - start] = 1
     if len(poly_bps_pos) > 0:
@@ -904,6 +914,7 @@ def make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins
 ## ======================================================================
 def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array,ext_region):
     ''' Construct array for the reference sequence, with consensus positions' entries filled in.
+        Polymorphic positions are filled with 0s now.
         Input:  consensus information (consensus_bps_ext, consensus_ins_ext)
                 type_array - array including type of each position
                 ext_region - (start, end) of the region on the extended sequence
@@ -920,7 +931,7 @@ def make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array,ext_region):
         ref_array[ i*5 + alphabet.index(base) ] = 1
     return ref_array
 ## ======================================================================
-def array_to_seq(seq_array):
+def array_to_seq(seq_array, miss_char='.'):
     ''' Convert 0-1 1d array back to nucleotide sequence.
         Input:  seq_array - 1d array with 0 and 1 as entries. length has to be multiple of 5, there can only be one 1 every 5 positions from start
         Output: seq - corresponding DNA sequence
@@ -930,7 +941,7 @@ def array_to_seq(seq_array):
     else:
         seqLen = len(seq_array) / 5 # sequence length
         seq_array = seq_array.reshape(-1,5) # reshape to an array with 5 columns
-        seq = ["x"] * seqLen # initialize the sequence to return, as a list
+        seq = [miss_char] * seqLen # initialize the sequence to return, as a list
         for i in xrange(5): # for each base (ACGTD) look for their positions
             positions = where(seq_array[:,i] == 1)[0]
             seq = [ alphabet[i] if x in positions else seq[x] for x in xrange(seqLen) ] # update the sequence with the specified base call
@@ -974,21 +985,24 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
         Output: read_array1d - 1d array for this particular read string
     '''
     if ext_region is None:
-        #all_pos = bp_pos_dict.keys() + ins_pos_dict.keys() # values instead of keys?
         all_pos = bp_pos_dict.values() + ins_pos_dict.values() # values instead of keys, since it's the "extended" region
         ext_region = (min(all_pos), max(all_pos)+1 ) # the end is one bigger than the 0-based end
     start, end = ext_region
 
     read_array1d = zeros( len(type_array) * 5, dtype=int32 ) # initialization
-    bpstring = read_string.split(":")[0] # non-insertion information
-    insstring = read_string.split(":")[1] # insertion position's information
+    bpstring = read_string.split(":")[0] # non-insertion base calls
+    insstring = read_string.split(":")[1] # insertion position's base calls
 
     # all the positions of a read that lay in the specified region (covered by the dicts)
     map_positions = []
     for pos in map(int, re.findall('\d+',bpstring)):
         if pos in bp_pos_dict:
             map_positions.append(bp_pos_dict[pos])
-    if len(map_positions) == 0: # the read does not cover any of the positions in the region
+    for pos in map(int, re.findall('\d+',insstring)):
+        if pos in ins_pos_dict:
+            map_positions.append(ins_pos_dict[pos])
+
+    if len(map_positions) == 0: # the read does not cover any (non-insertion and insertion) of the positions in the region
         return read_array1d
     else:
         start_pos = min(map_positions) # start and end positions of the covered region for this read
@@ -1002,10 +1016,11 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                 if positions[i] in bp_pos_dict:
                     position = bp_pos_dict[positions[i]] # position in the extended sequence
                     ## note: type_array's index starts with 0, instead of "start", so does read_array1d
-                    if type_array[position - start] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
+                    relative_pos = position - start
+                    if type_array[relative_pos] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
                         c_bp = [l[1] for l in consensus_bps_ext if l[0] == position][0] # consensus base
-                        read_array1d[ (position - start)*5 + alphabet.index(c_bp) ] = 1
-                    if type_array[position - start] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
+                        read_array1d[ (relative_pos)*5 + alphabet.index(c_bp) ] = 1
+                    if type_array[relative_pos] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
                         p_bps = [l[1] for l in poly_bps_ext if l[0] == position][0] # polymorphic base
                         if bases[i] in p_bps: # if read's call is one of the possible calls, do not change it
                             read_array1d[ (position-start)*5 + alphabet.index(bases[i]) ] = 1
@@ -1014,27 +1029,28 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                                 read_array1d[ (position-start)*5 + alphabet.index(p_bp) ] = 1
                             
         # If this read covers some insertion positions, do the following:            
-        positions = map(int, re.findall('\d+',insstring))
-        ins_positions = [] # insert positions, starting from 0
-        bases = re.findall('\D+',insstring)
-        for i in xrange(len(positions)): # for each base inserted at this position (there might be more than 1 base inserted)
-            if positions[i] in ins_pos_dict: # if this position is decided to be an insertion position in the extended sequence, proceed. Otherwise, it's treated as an error
-                position = ins_pos_dict[positions[i]]
-                for j in xrange(len(bases[i])): # for all the bases inserted at this position (could be more than 1 bp inserted)
-                    ins_position = position + j
-                    ins_positions.append(ins_position - start)
-                    if ins_position < len(type_array): # in some cases, when there is more than 1 base pair inserted, the index could go out of range
-                        if type_array[ins_position - start] == 1: # consensus insertion position
-                            c_bp = [l[1] for l in consensus_ins_ext if l[0] == ins_position][0]
-                            read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
+        if len(insstring) > 0:
+            positions = map(int, re.findall('\d+',insstring))
+            ins_positions = [] # insert positions, starting from 0
+            bases = re.findall('\D+',insstring)
+            for i in xrange(len(positions)): # for each insertion position in this read
+                if positions[i] in ins_pos_dict: # if this position is decided to be an insertion position in the extended sequence, proceed. Otherwise, it's treated as an error
+                    position = ins_pos_dict[positions[i]]
+                    for j in xrange(len(bases[i])): # for all the bases inserted at this position (could be more than 1 bp inserted)
+                        ins_position = position + j
+                        ins_positions.append(ins_position - start) # all the insertion positions the read covers
+                        if ins_position < len(type_array): # in some cases, when there is more than 1 base pair inserted, the index could go out of range
+                            if type_array[ins_position - start] == 1: # consensus insertion position
+                                c_bp = [l[1] for l in consensus_ins_ext if l[0] == ins_position][0]
+                                read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
 
-                        if type_array[ins_position - start] == 3: # polymorphic insertion position
-                            p_bps = [l[1] for l in poly_ins_ext if l[0] == ins_position][0]
-                            if bases[i][j] in p_bps:
-                                read_array1d[ (ins_position-start)*5 + alphabet.index(bases[i][j]) ] = 1
-                            else:
-                                for p_bp in p_bps:
-                                    read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
+                            if type_array[ins_position - start] == 3: # polymorphic insertion position
+                                p_bps = [l[1] for l in poly_ins_ext if l[0] == ins_position][0]
+                                if bases[i][j] in p_bps:
+                                    read_array1d[ (ins_position-start)*5 + alphabet.index(bases[i][j]) ] = 1
+                                else:
+                                    for p_bp in p_bps:
+                                        read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
         #print ins_positions
 
         # check if this read missed any insertion position
@@ -1043,6 +1059,8 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                 read_array1d[ins_pos * 5 + 4 ] = 1
 
         return read_array1d
+## ======================================================================
+#def array_to_seq_read(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):
 ## ======================================================================
 def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array,  poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):
     ''' Make 2d array for all reads from readinfo dictionary, dim1 of the array is equal to the length of the dictionary
@@ -1482,4 +1500,7 @@ def fill_gap(read_array, outFastaFile=None, outDir=None, readinfo=None, verbose=
         else:
             break
 
+    ## DEBUG -- figure out how many reads are compatible and non-compatible with the resulted PacBio sequence
+    compatible_reads = get_compatible_reads(ref0[0], read_array)
+    sys.stdout.write("number of compatible reads is {}, and the total number of reads is {}\n".format(len(compatible_reads), read_array.shape[0]))
     return ref0

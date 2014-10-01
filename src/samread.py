@@ -98,7 +98,7 @@ class SamRead:
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
-    def is_record_bad(self, refLen, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.1, maxInDelRate=0.3):
+    def is_record_bad(self, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
         is_bad = metalrec_lib.is_record_bad(self.alignRecord, refLen, maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)
         if is_bad and not self.is_unmapped():
             self.flag += 0x4 # change its own "unmapped" flag
@@ -129,6 +129,10 @@ class SamRead:
     ## It takes care of soft clipping, not hard clipping
     ## Retrieve the clipped part as long as it's still inside the long PacBio sequence.
     def trim_qseq_clip(self, rseq):
+        ''' This function alters the qSeq of the read. Get the segment for realigning to PacBio sequence, considering the clipped part.
+            Input:  rseq - reference sequence (PacBio)
+            Output: keep_left, keep_right - number of clipped bases kept to the left and right of the mapped segment of Illumina read
+        '''
         keep_left = 0
         keep_right = 0
         if 'S' in self.cigarstring:
@@ -150,25 +154,30 @@ class SamRead:
         #print "after clipping: ", self.qSeq
         return keep_left, keep_right
 
-    # get the read segment
-    def get_read_seq(self):
+    # get the read segment, could be hard clipped or not, depending on if the clip function has been called
+    def get_read_seq(self, keep_orientation=False):
+        ''' Get the read segment.
+            Input:  keep_orientation - switch to keep the original orientation of the read, or set it the same as how it's aligned
+                                       default: keep orientation as how it's mapped to the PacBio sequence
+            Output: read_seq - read segment (or the whole read)
+        '''
         read_seq = self.qSeq
-        if self.is_reverse():
+        if self.is_reverse() and keep_orientation:
             return revcompl(read_seq)
         else:
             return read_seq
 
     # generate the alignment record for the read, also considering its mate in this function
     # record will be written if a read is mapped well, or at least one of the read of a pair is well mapped
-    def generate_sam_record(self, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):
+    def generate_sam_record(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
         # [0] qname stays the same
         # [1] new flag: mapped/unmapped status might change
-        if not self.is_unmapped() and self.mate is not None and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # read was originally mapped but didn't pass the threshold
+        if not self.is_unmapped() and self.mate is not None and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # read was originally mapped but didn't pass the threshold
             self.flag += 0x4 # change its own "unmapped" flag
             if self.mate is not None:
                 self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
                 self.cigarstring = '*'
-        if self.is_paired() and self.mate is not None and not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # mate was originally mapped but didn't pass the threshold
+        if self.is_paired() and self.mate is not None and not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
             self.mate.flag += 0x8 # if mate record is bad, mark its mate as unmapped
             if self.mate is not None:
                 self.flag += 0x4 # if mate record is bad, mark its mate as unmapped
@@ -188,7 +197,7 @@ class SamRead:
             self.mate.fields[5] = self.mate.cigarstring
         # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
         # [7] PNEXT Position of the mate/next read: might change because of re-mapping
-        if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInsRate, maxDelRate): # mate was originally mapped but didn't pass the threshold
+        if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
             self.fields[7] = self.mate.rstart
         if self.mate is not None:
             self.mate.fields[7] = self.rstart
@@ -216,9 +225,11 @@ class SamRead:
 
     # re-align read to PacBio sequence and shift indels to the leftmost possible positions
     def re_align(self, rseq):
+        # TODO: when a read is aligned to the end of PacBio sequence and it shifted towards the interior of the PacBio read 
+        #       after re-align, need to retain more clipped bases to see if more bases can be aligned. Try to be as global as possible
         #print self.qname
         rLen = len(rseq)
-        keep_left, keep_right = self.trim_qseq_clip(rseq)
+        keep_left, keep_right = self.trim_qseq_clip(rseq) # get the correct segment for realigning
 
         ref_region_start = max( self.rstart - keep_left - 5, 1)
         ref_region_end = min(self.get_rend() + keep_right + 5, rLen)

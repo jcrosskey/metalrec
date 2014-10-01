@@ -31,6 +31,7 @@ parser.add_argument("-s","--sam",help="input sam file",dest='samFile',required=T
 
 ## output directory
 parser.add_argument("-o","--out",help="output corrected PacBio sequence file",dest='oSeqFile',default=None)
+parser.add_argument("-prefix",help="prefix for file names used for the intermediate output",dest='prefix',required=False, default = None) # optional, for verbose output
 parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = None) # optional, for visualization
 parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=False, default=None)
 parser.add_argument("-od","--outDir",help="directory for the intermediate files",dest='outDir',default = None)
@@ -78,7 +79,10 @@ def main(argv=None):
         os.makedirs(os.path.dirname(os.path.abspath(args.oSeqFile)))
 
     if args.verbose: # for verbose output, make necessary files and directories
-        samFile_base = '.'.join(os.path.abspath(args.samFile).split('.')[:-1])
+        if args.prefix is None:
+            samFile_base = '.'.join(os.path.abspath(args.samFile).split('.')[:-1])
+        else:
+            samFile_base = os.path.dirname(os.path.abspath(args.samFile)) + '/' + args.prefix
         if args.redSam == None:
             args.redSam = samFile_base + '.red.sam'
             sys.stdout.write("write new alignment in sam file {}.\n".format(args.redSam))
@@ -94,7 +98,7 @@ def main(argv=None):
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
-    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outsamFile=args.redSam, outFastaFile=args.outFasta,verbose=args.verbose)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outsamFile=args.redSam, outFastaFile=args.outFasta,samFile_base = samFile_base, verbose=args.verbose)
 
     good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
     sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
