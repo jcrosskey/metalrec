@@ -260,7 +260,7 @@ class SamRead:
         #print format_alignment(*new_align) # for DEBUG
         pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
 
-        self.cigarstring,first_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
+        self.cigarstring,first_non_gap,last_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
         # update information in the sam record
         self.rstart = ref_region_start + align_start # starting position
         return pos_dict, ins_dict
