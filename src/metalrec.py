@@ -31,9 +31,6 @@ parser.add_argument("-s","--sam",help="input sam file",dest='samFile',required=T
 
 ## output directory
 parser.add_argument("-o","--out",help="output corrected PacBio sequence file",dest='oSeqFile',default=None)
-parser.add_argument("-prefix",help="prefix for file names used for the intermediate output",dest='prefix',required=False, default = None) # optional, for verbose output
-parser.add_argument("-rs","--redSam",help="reduced sam file with only good alignment",dest='redSam',required=False, default = None) # optional, for visualization
-parser.add_argument("-of","--outFasta",help="fasta file including reads that are reserved from the mapping results",dest='outFasta',required=False, default=None)
 parser.add_argument("-od","--outDir",help="directory for the intermediate files",dest='outDir',default = None)
 
 # options
@@ -42,12 +39,12 @@ parser.add_argument("-v","--verbose",help="verbose, more output",action='store_t
 parser.add_argument("--width",help="print width for sequences in verbose output",dest='width', default = 100, type = int)
 
 ## setting thresholds
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=100, type=int)
-parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=100, type=int)
-parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=100, type=int)
-parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.1, type=float)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=-1, type=int)
+parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
+parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
+parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.05, type=float)
 parser.add_argument("--indelRate",help="maximum insertion rate allowed",dest='maxInDelRate',default=0.30, type=float)
-parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=3, type=int)
+parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
 parser.add_argument("--minPacBioLen",help="minimum PacBio length to be considered",dest='minPacBioLen',default=1000, type=int)
 parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=400, type=int)
 parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
@@ -71,34 +68,26 @@ def main(argv=None):
 
     ## output file and directories, optional
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
-        args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/corrected_PacBio.fasta'
+        args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/EC.fasta'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
         os.remove(args.oSeqFile)
         sys.stdout.write("Output sequence file already exists, overwrite.\n")
     elif not os.path.exists(os.path.dirname(os.path.abspath(args.oSeqFile))): # make sure the directory for the output file exists
         os.makedirs(os.path.dirname(os.path.abspath(args.oSeqFile)))
 
-    if args.verbose: # for verbose output, make necessary files and directories
-        if args.prefix is None:
-            samFile_base = '.'.join(os.path.abspath(args.samFile).split('.')[:-1])
-        else:
-            samFile_base = os.path.dirname(os.path.abspath(args.samFile)) + '/' + args.prefix
-        if args.redSam == None:
-            args.redSam = samFile_base + '.red.sam'
-            sys.stdout.write("write new alignment in sam file {}.\n".format(args.redSam))
-        if args.outFasta== None:
-            args.outFasta= samFile_base + '.goodreads.fasta'
-            sys.stdout.write("write aligned sequences in fasta file {}.\n".format(args.outFasta))
+    if args.verbose:
         if args.outDir is None:
-            args.outDir = samFile_base + ".tmp/"
-        if not os.path.exists(args.outDir): # make sure the output directory exists
+            args.outDir = os.path.dirname(os.path.abspath(args.samFile)) + '/EC/'
+        else:
+            args.outDir = os.path.abspath(args.outDir) + '/'
+        if not os.path.exists(args.outDir):
             os.makedirs(args.outDir)
-        if args.outDir[-1] != '/':
-            args.outDir += '/'
+        sys.stdout.write("verbose output directory: {}.\n".format(args.outDir))
+
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
-    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outsamFile=args.redSam, outFastaFile=args.outFasta,samFile_base = samFile_base, verbose=args.verbose)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outDir=args.outDir, verbose=args.verbose)
 
     good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
     sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
@@ -134,7 +123,7 @@ def main(argv=None):
                 region_outdir = args.outDir+'region' + str(good_region_index)
             else:
                 region_outdir = ''
-            ref_new = metalrec_lib.fill_gap(read_array, args.outFasta, region_outdir, read_info, verbose=args.verbose)
+            ref_new = metalrec_lib.fill_gap(read_array, args.outDir + 'goodreads.fasta', region_outdir, read_info, verbose=args.verbose)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
             ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence

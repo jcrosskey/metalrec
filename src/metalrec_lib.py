@@ -135,7 +135,7 @@ def read_single_seq(fastaFile):
     seq = re.sub('\r','',seq)
     return seq
 ## ======================================================================
-def is_record_bad(alignRecord, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
+def is_record_bad(alignRecord, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):
     ''' Test and see if an alignment record is bad in the sam file. 
         TODO: only works with sam v1.4 cigar string now, combine the ref seq to also work for v1.3 string later.
         Input:  alignRecord - a mapping line in sam file
@@ -147,6 +147,9 @@ def is_record_bad(alignRecord, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRat
         Output: boolean value, True if bad else False
     '''
     fields = alignRecord.split("\t") # split by tabs
+    if len(fields) < 11: # sam record has at least 11 mandatory fields
+        sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
+        return True
     try: # flag
         flag = int(fields[1])
     except ValueError:
@@ -164,88 +167,31 @@ def is_record_bad(alignRecord, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRat
         return True
     else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
-        left_clip_len = 0
-        right_clip_len = 0
-        if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
-            try: # 1-based leftmost mapping position
-                rstart = int(fields[3]) # leftmost mapping position
-            except ValueError:
-                sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
-                return True
-            if cigar_info['left_clip_len'] > 0: # if the read is clipped because of aligning to the end of PacBio read, only consider the clipped part up to the end of the PacBio sequence
-                left_clip_len = min(rstart - 1, cigar_info['left_clip_len'])
-            if cigar_info['right_clip_len'] > 0:
-                right_clip_len = min( refLen - rstart - cigar_info['ref_len'] + 1, cigar_info['right_clip_len'])
+        #left_clip_len = 0 # clipped part should not be counted towards error, and the type of error won't be known
+        #right_clip_len = 0
+        #if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
+        #    try: # 1-based leftmost mapping position
+        #        rstart = int(fields[3]) # leftmost mapping position
+        #    except ValueError:
+        #        sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
+        #        return True
+        #    if cigar_info['left_clip_len'] > 0: # if the read is clipped because of aligning to the end of PacBio read, only consider the clipped part up to the end of the PacBio sequence
+        #        left_clip_len = min(rstart - 1, cigar_info['left_clip_len'])
+        #    if cigar_info['right_clip_len'] > 0:
+        #        right_clip_len = min( refLen - rstart - cigar_info['ref_len'] + 1, cigar_info['right_clip_len'])
 
-        indel_len = cigar_info['ins_len'] + cigar_info['del_len'] + left_clip_len + right_clip_len
+        indel_len = cigar_info['ins_len'] + cigar_info['del_len']
         # if consecutive sub or indels is longer than the threshold, treat as bad
         if (maxIns != -1 and cigar_info['max_ins'] > maxIns) or (maxSub != -1 and cigar_info['max_sub'] > maxSub) or (maxDel != -1 and cigar_info['max_del'] > maxDel):
             return True
-        # if any kind of error count exceeds the query sequence length * maximum allowed rate, also bad
-        elif cigar_info['sub_len'] > maxSubRate * cigar_info['ref_len'] or indel_len > maxInDelRate * (cigar_info['seq_len'] + left_clip_len + right_clip_len): # subRate * mapped ref region; indelRate * seqLen + clipLen
-            #print "sub or indel too many"
+        # substitution rate is relative to the aligned region length on the PacBio sequence
+        # indelRate is relative to the total length of the mapped segment of the Illumina sequence
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['ref_len'] or indel_len > maxInDelRate * cigar_info['seq_len']: # subRate * mapped ref region; indelRate * seqLen 
+            #print "sub_len: ", cigar_info['sub_len'], ", indel len: ", indel_len #DEBUG
             return True
         # Finally, if it passes all the thresholds, it's a good record
         else:
             return False
-## ======================================================================
-def clean_samfile(samFile,samNew, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
-    ''' Remove low quality alignments from short reads to long read, from the 
-        mapping results, and write reads with good mapping quality to a new sam file for visualization.
-        Input:  samFile - sam file from mapping multiple short reads to a long read
-                samNew - file name for the reduced good quality mappings
-                rseq - reference sequence as a string, used to remap the reads with new penalty
-                maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate are used in is_record_bad
-        Output: samNew - new sam file for visualization of cleaner mapping
-    '''
-    newsam = open(samNew,'w')
-    keepRec = 0
-    discardRec = 0
-    with open(samFile,'r') as mysam:
-        for line in mysam:
-            if line[0] == '@': # copy header lines
-                newsam.write(line)
-                if line[1:3] == 'SQ':
-                    rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
-            else:
-                record = line.strip('\n')
-                fields = record.split('\t')
-                if not is_record_bad(record, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
-                    myread = samread.SamRead(record)
-
-                    # improve the alignment to the reference sequence by dynamic programming
-                    # original starting and ending positions on the reference sequence of the mapped region
-                    ref_region_start = max( myread.rstart - 5, 1)
-                    ref_region_end = min(myread.get_rend() + 5, rLen)
-                    # query sequence with clipped part trimmed
-                    trimmed_qseq = myread.get_trim_qseq()
-                    # redo global alignment using dynamic programming
-                    realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], trimmed_qseq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-                    new_align = pick_align(realign_res) # pick the first mapping 
-
-                    # For DEBUG
-                    #if myread.qname == 'HISEQ11:283:H97Y1ADXX:1:1108:1971:87341':
-                    #    #for i in realign_res:
-                    #    #    print format_alignment(*i)
-                    #    print "\n\n\n"
-                    #    print format_alignment(*new_align)
-                    #    print "\n\n\n"
-
-                    cigarstring,first_non_gap = get_cigar(new_align[0], new_align[1]) # get the cigar string for the new alignment
-                    # update information in the sam record
-                    fields[3] = str(ref_region_start + new_align[3]) # starting position
-                    fields[5] = cigarstring # cigar string
-                    fields[9] = trimmed_qseq # trimmed query sequence
-                    # write updated record in the new file
-                    line = '\t'.join(fields) + '\n'
-                    newsam.write(line)
-                    keepRec += 1
-                else:
-                    discardRec += 1
-    newsam.close()
-    # report some summary
-    sys.stdout.write('Total number of records kept is {}. \n'.format(keepRec))
-    sys.stdout.write('Total number of records discarded is {}. \n'.format(discardRec))
 ## ======================================================================
 def get_bases(cigar_string, qseq='', start_pos=None):
     ''' from CIGAR string, query segment (in alignment record), and starting position (1-based) on the ref sequence, return position wise base call from the read.
@@ -346,7 +292,7 @@ def get_bases_from_align(align, start_pos):
 
     return pos_dict, ins_dict
 ## ======================================================================
-def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3, minPacBioLen=1000, outsamFile='',outFastaFile='',samFile_base='', verbose=False):
+def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, minPacBioLen=1000, outDir=None, verbose=False):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
         Uses SamRead class instead of calling all the functions
 
@@ -354,9 +300,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                 rseq - reference sequence as a string
                 maxSub, maxIns, maxDel, maxSubRate, maxInsRate, maxDelRate are used to filter out badly mapped reads
                 minPacBioLen - contiguous region length threshold to be a good region
-                outsamFile - output processed sam file name
-                outFastaFile - fasta file including all the Illumina reads whose mappping passes the threshold
-                samFile_base - base name for the reduced sam and good Illumina reads output
+                outDir - output directory where the fasta file including good Illumina reads and cleaner sam file will be stored, only in verbose mode
                 verbose - switch of verbosity
 
         Output: ref_bps - list of lists, one for each position on the reference sequence (without padding)
@@ -367,17 +311,23 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
     keepRec = 0
     discardRec = 0
     lineNum = 0
+    rname = ''
     # print verbose information, including reduced alignment and reads that are aligned well
     # make sure the file names are set
     if verbose:
-        if samFile_base == '':
-            samFile_base = '.'.join(os.path.abspath(samFile).split('.')[:-1])
-        if outsamFile == '':
-            outsamFile = samFile_base + '.red.sam'
-            sys.stdout.write("write new alignment in sam file {}.\n".format(outsamFile))
-        if outFastaFile == '':
-            outFastaFile = samFile_base + '.goodreads.fasta'
-            sys.stdout.write("write aligned sequences in fasta file {}.\n".format(outFastaFile))
+        if outDir is None:
+            outDir = os.path.dirname(os.path.abspath(samFile)) + '/EC/'
+        else:
+            outDir = os.path.abspath(outDir) + '/'
+        if not os.path.exists(outDir):
+            os.makedirs(outDir)
+
+        outsamFile = outDir + 'scrub.sam'
+        sys.stdout.write("write new alignment in sam file {}.\n".format(outsamFile))
+        
+        outFastaFile = outDir + 'goodreads.fasta'
+        sys.stdout.write("write aligned sequences in fasta file {}.\n".format(outFastaFile))
+
         newsam = open(outsamFile,'w')
         outFasta = open(outFastaFile, 'w')
 
@@ -388,14 +338,14 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
             # header line
             if line[0] == '@': 
                 if verbose:
-                    newsam.write(line) # if new reduced sam file is required, write the header lines into the new sam file
+                    newsam.write(line) # if new reduced sam file is required, write the head lines into the new sam file
                 if line[1:3] == 'SQ': # reference sequence dictionary
                     rname = line[(line.find('SN:') + len('SN:')) : line.find('\t',line.find('SN:'))] # reference sequence name
                     rLen = int(line[(line.find('LN:') + len('LN:')) : line.find('\t',line.find('LN:'))]) # reference sequence length
-                    sys.stdout.write("sequence name: {} \nlength: {}\n".format(rname, rLen))
+                    sys.stdout.write("Sequence name: {} \nLength: {}\n".format(rname, rLen))
                     if rLen < minPacBioLen:
                         if verbose:
-                            sys.stderr.write("reference length is smaller than threshold {}.\n".format(minPacBioLen))
+                            sys.stdout.write("Reference is shorter than threshold {}.\n".format(minPacBioLen))
                         return 0 
                     ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list(length 5) corresponding to each position on the reference sequence
                     ref_ins_dict = dict() # global insertion dictionary for the reference sequence
@@ -406,36 +356,39 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                 record = line
                 myread = samread.SamRead(record)
                 #print myread.qname # DEBUG
-                if not myread.is_record_bad(rLen, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
-                    keepRec += 1
+                if not myread.is_record_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     #sys.stdout.write("realign\n") # DEBUG
                     pos_dict, ins_dict = myread.re_align(rseq) # realign read to PacBio sequence
-                    if verbose:
-                        newsam.write(myread.generate_sam_record())
-                        outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
+                    if len(pos_dict) + len(ins_dict) > 0:
+                        keepRec += 1
+                        if verbose:
+                            newsam.write(myread.generate_sam_record())
+                            outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
 
-                    # update string dictionary for the read information
-                    # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
-                    read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-                    # single end reads, different reads don't have same names
-                    if read_string not in readinfo: # new read_string(key) in the dictionary
-                        readinfo[read_string] = []
-                    readinfo[read_string].append(myread.qname)
+                        # update string dictionary for the read information
+                        # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
+                        read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                        # single end reads, different reads don't have same names
+                        if read_string not in readinfo: # new read_string(key) in the dictionary
+                            readinfo[read_string] = []
+                        readinfo[read_string].append(myread.qname)
 
-                    for pos in pos_dict: # all the matching/mismatching/deletion positions
-                        ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
+                        for pos in pos_dict: # all the matching/mismatching/deletion positions
+                            ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
-                    for ins in ins_dict: # all the insertion positions
-                        ins_chars = ins_dict[ins]
-                        if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
-                            ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
-                        elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
-                            ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
-                        for i in xrange(len(ins_chars)):
-                            ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
+                        for ins in ins_dict: # all the insertion positions
+                            ins_chars = ins_dict[ins]
+                            if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                                ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
+                            elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
+                                ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
+                            for i in xrange(len(ins_chars)):
+                                ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
 
-                    if verbose and keepRec % 1000 == 0:
-                        sys.stdout.write('  processed {} good records\n'.format(keepRec))
+                        if verbose and keepRec % 1000 == 0:
+                            sys.stdout.write('  processed {} good records\n'.format(keepRec))
+                    else:
+                        discardRec += 1
                 else:
                     discardRec += 1
     
@@ -579,7 +532,6 @@ def shift_to_left_chop(align, matchLen=1):
     shift_align += [0]
     shift_align += [len(shift_align[0])]
     return shift_align
-    #return (seqA, seqB, score, begin, end)
 ## ======================================================================
 def pick_align(align_list,trim=True):
     ''' From a list of equivalent alignments between 2 sequences using dynamic progamming (Needleman-Wunch), pick the one whose indel positions are the most left

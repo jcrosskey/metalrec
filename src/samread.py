@@ -98,11 +98,10 @@ class SamRead:
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
-    def is_record_bad(self, refLen, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
-        is_bad = metalrec_lib.is_record_bad(self.alignRecord, refLen, maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)
+    def is_record_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):
+        is_bad = metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)
         if is_bad and not self.is_unmapped():
             self.flag += 0x4 # change its own "unmapped" flag
-            self.is_unmapped = True
         return is_bad
 
     # get nucleotide, base by base
@@ -125,6 +124,34 @@ class SamRead:
                 del cigar_list[-2:]
             self.cigarstring = ''.join(cigar_list)
 
+    ## Retrieve the clipped part as long as it's still inside the long PacBio sequence.
+    def get_seg(self, rseq):
+        ''' This function does not alter the qSeq of the read. Get the segment for realigning to PacBio sequence, considering the clipped part.
+            Input:  rseq - reference sequence (PacBio)
+            Output: keep_left, keep_right - number of clipped bases kept to the left and right of the mapped segment of Illumina read
+                    seg - segment that totally reside inside the PacBio read
+        '''
+        keep_left = 0
+        keep_right = 0
+        seg = str(self.qSeq)
+        if 'S' in self.cigarstring: # if it's hard clipping, the sequence information is not available in sam file
+            cigar_info = metalrec_lib.cigar(self.cigarstring)
+            #print "before clipping: ", seg #DEBUG
+            #print "starting position on the ref sequence is ", self.rstart
+            #print "left clip: ", cigar_info['left_clip_len']
+            #print "right clip: ", cigar_info['right_clip_len']
+            if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0:
+                if cigar_info['left_clip_len'] > 0:
+                    keep_left = min( self.rstart - 1, cigar_info['left_clip_len'])
+                    #print "keep_left: ", keep_left
+                    seg = seg[(cigar_info['left_clip_len'] - keep_left):] # change the segment sequence, instead of the whole read sequence
+                if cigar_info['right_clip_len'] > 0:
+                    keep_right = min(len(rseq) - self.get_rend(), cigar_info['right_clip_len'])
+                    #print "keep_right: ", keep_right
+                    if keep_right < cigar_info['right_clip_len']:
+                        seg = seg[:-(cigar_info['right_clip_len'] - keep_right)]
+        #print "after clipping: ", seg
+        return keep_left, keep_right, seg
     ## trim query sequences, with clipped part in consideration. This function does not change cigar string.
     ## It takes care of soft clipping, not hard clipping
     ## Retrieve the clipped part as long as it's still inside the long PacBio sequence.
@@ -135,9 +162,9 @@ class SamRead:
         '''
         keep_left = 0
         keep_right = 0
-        if 'S' in self.cigarstring:
+        if 'S' in self.cigarstring: # if it's hard clipping, the sequence information is not available in sam file
             cigar_info = metalrec_lib.cigar(self.cigarstring)
-            #print "before clipping: ", self.qSeq
+            #print "before clipping: ", self.seg #DEBUG
             #print "starting position on the ref sequence is ", self.rstart
             #print "left clip: ", cigar_info['left_clip_len']
             #print "right clip: ", cigar_info['right_clip_len']
@@ -145,13 +172,13 @@ class SamRead:
                 if cigar_info['left_clip_len'] > 0:
                     keep_left = min( self.rstart - 1, cigar_info['left_clip_len'])
                     #print "keep_left: ", keep_left
-                    self.qSeq = self.qSeq[(cigar_info['left_clip_len'] - keep_left):]
+                    self.seg = self.seg[(cigar_info['left_clip_len'] - keep_left):] # change the segment sequence, instead of the whole read sequence
                 if cigar_info['right_clip_len'] > 0:
                     keep_right = min(len(rseq) - self.get_rend(), cigar_info['right_clip_len'])
                     #print "keep_right: ", keep_right
                     if keep_right < cigar_info['right_clip_len']:
-                        self.qSeq = self.qSeq[:-(cigar_info['right_clip_len'] - keep_right)]
-        #print "after clipping: ", self.qSeq
+                        self.seg = self.seg[:-(cigar_info['right_clip_len'] - keep_right)]
+        #print "after clipping: ", self.seg
         return keep_left, keep_right
 
     # get the read segment, could be hard clipped or not, depending on if the clip function has been called
@@ -172,7 +199,7 @@ class SamRead:
     def generate_sam_record(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
         # [0] qname stays the same
         # [1] new flag: mapped/unmapped status might change
-        if not self.is_unmapped() and self.mate is not None and self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # read was originally mapped but didn't pass the threshold
+        if (not self.is_unmapped()) and (self.mate is not None) and (self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)): # read was originally mapped but didn't pass the threshold
             self.flag += 0x4 # change its own "unmapped" flag
             if self.mate is not None:
                 self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
@@ -224,43 +251,73 @@ class SamRead:
         return record
 
     # re-align read to PacBio sequence and shift indels to the leftmost possible positions
-    def re_align(self, rseq):
-        # TODO: when a read is aligned to the end of PacBio sequence and it shifted towards the interior of the PacBio read 
-        #       after re-align, need to retain more clipped bases to see if more bases can be aligned. Try to be as global as possible
+    def re_align(self, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10):
+        ''' realign the read to PacBio sequence, including retrieving clipped parts and scrubbing '''
         #print self.qname
+        done = False # indicator of whether realigning is done
         rLen = len(rseq)
-        keep_left, keep_right = self.trim_qseq_clip(rseq) # get the correct segment for realigning
+        while not done:
+            #print "re-align"
+            keep_left, keep_right,seg = self.get_seg(rseq) # get the correct segment for realigning
 
-        ref_region_start = max( self.rstart - keep_left - 5, 1)
-        ref_region_end = min(self.get_rend() + keep_right + 5, rLen)
-        #print ref_region_start, ref_region_end
-        #print "sequence A: ", rseq[(ref_region_start-1):ref_region_end]
-        #print "sequence B: ", self.qSeq
-        #print "\n"
-        realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], self.qSeq, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
-        #print len(realign_res), " equivalent good mappings"
-        #print format_alignment(*realign_res[0])
-        #print format_alignment(*realign_res[1])
-        new_align, align_start, align_end = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
-        #align_start = new_align[3] # starting position of the alignment for the new extended alignment
-        #print format_alignment(*new_align) # for DEBUG
-        new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-        rounds = 0
-        while new_align1[:2] != new_align[:2] and rounds < 10:
-            #print "realign round ", rounds
-            #print format_alignment(*new_align1) # for DEBUG
-            new_align = list(new_align1)
-            #print "before realign: ", new_align
+            ref_region_start = max( self.rstart - keep_left - 5, 1)
+            ref_region_end = min(self.get_rend() + keep_right + 5, rLen)
+            #print ref_region_start, ref_region_end
+            #print "sequence A: ", rseq[(ref_region_start-1):ref_region_end]
+            #print "sequence B: ", self.qSeq
+            #print "\n"
+            ## global pairwise alignment, 1 penalty for mismatch and 0.9 penalty for indels, opening and ending gaps in Illumina reads don't get penalized
+            realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], seg, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+            #print len(realign_res), " equivalent good mappings, after extending the Illumina read"
+            #print format_alignment(*realign_res[0])
+            new_align, align_start, align_end = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
+            #align_start = new_align[3] # starting position of the alignment for the new extended alignment
+            #print format_alignment(*new_align) # for DEBUG
             new_align1 = metalrec_lib.shift_to_left_chop(new_align)
-            #print "after  realign: ", new_align1
-            #print format_alignment(*new_align1)
-            rounds += 1
-            
-        #print "done"
-        #print format_alignment(*new_align) # for DEBUG
+            rounds = 0
+            while new_align1[:2] != new_align[:2] and rounds < max_round:
+                #print "realign round ", rounds
+                #print format_alignment(*new_align1) # for DEBUG
+                new_align = list(new_align1)
+                #print "before realign: ", new_align
+                new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+                #print "after  realign: ", new_align1
+                #print format_alignment(*new_align1)
+                rounds += 1
+                
+            #print "done"
+            #print format_alignment(*new_align) # for DEBUG
+
+            # update information in the sam record
+            self.rstart = ref_region_start + align_start # starting position
+            new_cigarstring,first_non_gap,last_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
+            cigar_info = metalrec_lib.cigar(self.cigarstring)
+            left_clip_len = cigar_info['left_clip_len']
+            right_clip_len = cigar_info['right_clip_len']
+            if keep_left > 0  and keep_left < left_clip_len:
+                new_cigarstring = str(left_clip_len - keep_left) + 'S' + new_cigarstring
+            if keep_right > 0 and keep_right < right_clip_len:
+                new_cigarstring = new_cigarstring + str(right_clip_len - keep_right) + 'S'
+            self.cigarstring = new_cigarstring
+            self.fields[3] = str(self.rstart)
+            self.fields[5] = self.cigarstring
+            self.alignRecord = '\t'.join(self.fields)
+            #print new_cigarstring
+
+            # check if more retrieving needs to be done
+            if self.cigarstring.find('S') == -1:
+                done = True
+            else:
+                keep_left, keep_right,seg = self.get_seg(rseq) # get the correct segment for realigning
+                if keep_left == 0 and keep_right == 0:
+                    done = True
+
+            # check if there are already too many errors, if so, mark the read to be bad, and return empty dictionaries 
+            if self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate):
+                #print "too many errors, discard"
+                done = True
+                return dict(), dict()
+        #print "Done"        
         pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
 
-        self.cigarstring,first_non_gap,last_non_gap = metalrec_lib.get_cigar(new_align1[0], new_align1[1]) # get the cigar string for the new alignment
-        # update information in the sam record
-        self.rstart = ref_region_start + align_start # starting position
         return pos_dict, ins_dict
