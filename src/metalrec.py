@@ -39,6 +39,7 @@ parser.add_argument("-v","--verbose",help="verbose, more output",action='store_t
 parser.add_argument("--width",help="print width for sequences in verbose output",dest='width', default = 100, type = int)
 
 ## setting thresholds
+parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=-1, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
@@ -123,7 +124,7 @@ def main(argv=None):
                 region_outdir = args.outDir+'region' + str(good_region_index)
             else:
                 region_outdir = ''
-            ref_new = metalrec_lib.fill_gap(read_array, args.outDir + 'goodreads.fasta', region_outdir, read_info, verbose=args.verbose)
+            ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap, args.outDir + 'goodreads.fasta', region_outdir, read_info, verbose=args.verbose)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
             ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
