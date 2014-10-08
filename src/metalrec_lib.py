@@ -687,6 +687,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
                 poly_ins - polymorphic insertion positions
                 consensus_bps - nonpolymorphic non-insertion positions, get the consensus
                 consensus_ins - nonpolymorphic insertion positions, get the consensus
+                * note: all the above four objects are dictionaries. Dictionaries for the insertion positions use tuple (insert position, index of inserted base) as key, since list cannot be used as dictionary key.
                 cvs - coverage depths across all the base pairs
     '''
     if region is None: # region to consider, 0-based index
@@ -1118,6 +1119,35 @@ def get_compatible_reads(ref_array, read_array):
         if sum(read_array[i,:]) > 0 and is_read_compatible(ref_array, read_array[i,:]): # ignore reads that have all 0 vector
             compatible_ind.append(i)
     return array(compatible_ind, dtype=int32)
+## ======================================================================
+def get_overlapLen(ref_array, read_array, Cvec=None):
+    ''' Given read array, current reference array, and the indices of compatible reads, get the overlap length matrix.
+         Input: ref_array - array for the currently proposed PacBio sequence
+                read_array - array with read information
+                Cvec - indices for the compatible reads with the PacBio sequence, doesn't have to be given
+        Output: overlap_mat - matrix with overlap lengths
+    '''
+    if Cvec is None:
+        Cvec = get_compatible_reads(ref_array, read_array)
+    if len(Cvec) == 0:
+        return None
+    nreads = len(Cvec)
+    new_array = read_array[ Cvec, : ] # get only the compatible reads
+    overlap_mat = zeros(shape=(nreads,nreads),dtype=int32) # initialize the overlap length matrix, with each compatible read having one row and one column
+    zero_columns = where(ref_array==0)[0] # force only 1 base call for the reads that have ambiguous (or error) base calls, and they agree with the reference's base call
+    new_array[ : , zero_columns] = 0
+    start_pos_vec = zeros(nreads,dtype=int32)
+    for i in xrange(nreads): # starting position of the read
+        start_pos_vec[i] = where(new_array[i,:] > 0)[0][0]/5
+    for i in xrange(nreads - 1):
+        for j in xrange(i + 1, nreads):
+            overlap_len = dot(new_array[i,:], new_array[j,:])
+            if start_pos_vec[i] < start_pos_vec[j]: # positive if the first read's starting position is smaller than the second read's starting position
+                overlap_mat[i,j] = overlap_len
+            else:
+                overlap_mat[i,j] = -overlap_len
+            overlap_mat[j,i] = - overlap_mat[i,j]
+    return overlap_mat
 ## ======================================================================
 def get_reads_name(readinfo, compatible_ind):
     ''' Find the names of reads that are compatible with a given PacBio sequence, given the readinfo dictionary and the compatible array row indices.

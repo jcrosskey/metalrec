@@ -122,17 +122,18 @@ new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel 
 #print format_alignment(*new_align) # for DEBUG
 pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
 
-ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=10, maxDel=100, maxIns=100, maxSubRate=0.1, maxInDelRate=0.3, verbose=True)
-good_regions, cov_bps, avg_cov_depthgood_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=100, minCV=3)
+ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=10, maxDel=100, maxIns=100, maxSubRate=0.05, maxInDelRate=0.3, verbose=True)
+good_regions, cov_bps, avg_cov_depthgood_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=100, minCV=1)
 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[1])
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, print_width=70, verbose=True)
 poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
 type_array, ext_region = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext,verbose=True)
 #consensus_array = metalrec_lib.make_ref_array(consensus_bps_ext, consensus_ins_ext, type_array,ext_region)
 ar = metalrec_lib.make_read_array1d(readinfo.keys()[0], bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext) 
-short_r, long_r = metalrec_lib.array_to_seq(read_array1d) # get the read sequence from its array
+short_r, long_r = metalrec_lib.array_to_seq(ar) # get the read sequence from its array
 read_array, read_counts = metalrec_lib.make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
+ref0, tot_gap, Cvec = metalrec_lib.greedy_fill_gap(read_array, ref0=None, verbose=False)
+overlap_mat = metalrec_lib.get_overlapLen(ref0, read_array, Cvec=Cvec)
 ref_new = metalrec_lib.fill_gap(read_array, "/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta", "/Users/cjg/Work/PacBio/metalrec/test", readinfo, verbose=False)
 ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
-ref0, tot_gap, Cvec = metalrec_lib.greedy_fill_gap(read_array, ref0=None, verbose=False)
 new_ref = metalrec_lib.fill_gap(read_array, outFastaFile="/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta", outDir=None, readinfo=readinfo, verbose=True)
