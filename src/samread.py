@@ -294,9 +294,10 @@ class SamRead:
             cigar_info = metalrec_lib.cigar(self.cigarstring)
             left_clip_len = cigar_info['left_clip_len']
             right_clip_len = cigar_info['right_clip_len']
-            if keep_left > 0  and keep_left < left_clip_len:
+            # add the clipped part back to the cigar string
+            if keep_left < left_clip_len:
                 new_cigarstring = str(left_clip_len - keep_left) + 'S' + new_cigarstring
-            if keep_right > 0 and keep_right < right_clip_len:
+            if keep_right < right_clip_len:
                 new_cigarstring = new_cigarstring + str(right_clip_len - keep_right) + 'S'
             self.cigarstring = new_cigarstring
             self.fields[3] = str(self.rstart)

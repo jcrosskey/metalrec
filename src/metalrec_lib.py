@@ -705,13 +705,13 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv) # vector of coverage depths, for each position in the region
         # At least 3 or 30% of the read support for a base call to be considered, otherwise the base call will be treated as an error. e.g. for low coverage bases:
-        # cv = 1: >= 0 (1)
+        # cv = 1: >= 1 (1) has to have at least 1 read support, otherwise cv 1 bases will always be polymorphic !!
         # cv = 2: >= 1 (1)
         # cv = 3: >= 1 (1)
         # cv = 4: >= 1 (1)
         # cv = 5: >= 2 (2)
         # when cv < 5, consider every possible base call as possible/valid
-        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minReads or ref_bps[pos][i] >= round(cv * minPercent) ]
+        base_calls = [ alphabet[i] for i in xrange(5) if (ref_bps[pos][i] >= minReads or ref_bps[pos][i] >= max(1, round(cv * minPercent))) ]
         if len(base_calls) > 1: # more than 1 base call with enough read support
             poly_bps[pos] =  base_calls
         elif len(base_calls) == 1:
@@ -728,7 +728,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         if pos in ref_ins_dict: 
             for i in xrange(len(ref_ins_dict[pos])): # look at all the bases inserted at this position
                 pos_list = ref_ins_dict[pos][i]
-                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads or pos_list[j] >= round(cv * minPercent) ]
+                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads or pos_list[j] >= max(1, round(cv * minPercent)) ]
                 if len(base_calls) > 1: # polymorphic insertion position
                     poly_ins[ (pos,i) ] =  base_calls
                 elif len(base_calls) == 1: # consensus insertion position
@@ -1152,6 +1152,43 @@ def get_overlapLen(ref_array, read_array, Cvec=None):
     sys.stdout.write("average overlap length is {}\n".format(mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]))) ## DEBUG, for soft minOverlap cutoff shortly
     return overlap_mat
 ## ======================================================================
+def get_overlapMat(read_array):
+    ''' Given read array, get the overlap length matrix between all the reads. If two reads are not compatible, their overlap length will be set to 0
+        Too slow...
+        Input: read_array - array with read information
+        Output: overlap_Mat - matrix with overlap lengths between all reads
+    '''
+    nreads = read_array.shape[0] # number of reads in the read_array
+    overlap_Mat = zeros(shape=(nreads,nreads),dtype=int32) # initialize the overlap length matrix, with each read having one row and one column
+    start_pos_vec = zeros(nreads,dtype=int32)
+    end_pos_vec = zeros(nreads,dtype=int32)
+    cov_reads = where(sum(read_array,1) != 0)[0]
+    for i in cov_reads: # starting and ending positions of the read
+        start_pos_vec[i] = where(read_array[i,:] > 0)[0][0]/5
+        end_pos_vec[i] = where(read_array[i,:] > 0)[0][-1]/5
+    for i in xrange(nreads - 1):
+        for j in xrange(i + 1, nreads):
+            if i not in cov_reads:
+                overlap_Mat[i,:] = 0
+                overlap_Mat[:,i] = 0
+            elif j not in cov_reads:
+                overlap_Mat[j,:] = 0
+                overlap_Mat[:,j] = 0
+            elif are_reads_compatible(read_array[i,:], read_array[j,:]): # only get overlap length if two reads are compatible
+                overlap_len = dot(read_array[i,:], read_array[j,:]) # take dot product
+                multiple_call_pos = where((read_array[i,:] + read_array[j,:]) == 2)[0]
+                overlap_len = overlap_len - len(multiple_call_pos) + len(unique(multiple_call_pos)) 
+                if start_pos_vec[i] < start_pos_vec[j] and end_pos_vec[i] < end_pos_vec[j]: # positive if the first read's starting position is smaller than the second read's starting position
+                    overlap_Mat[i,j] = overlap_len
+                elif start_pos_vec[i] > start_pos_vec[j] and end_pos_vec[i] > end_pos_vec[j]:
+                    overlap_Mat[i,j] = -overlap_len
+                overlap_Mat[j,i] = - overlap_Mat[i,j]
+            else:
+                overlap_Mat[i,j] = 0
+                overlap_Mat[j,i] = 0
+    sys.stdout.write("average overlap length is {}\n".format(mean(abs(overlap_Mat)[where(abs(overlap_Mat)>0)]))) ## DEBUG, for soft minOverlap cutoff shortly
+    return overlap_Mat
+## ======================================================================
 def find_maxOverlap(overlap_mat):
     ''' From the overlap length matrix, find the maximum overlap for each read at both left and right directions.
         Input:  overlap_mat - overlap length matrix from get_overlapLen function
@@ -1292,6 +1329,21 @@ def split_at_gap(gaps, ref_array):
             contiguous_seqs.append(seq)
         return contiguous_seqs
 ## ======================================================================
+def longest_seg(ref_array, read_array, minOverlap=10):
+    ''' Given a proposed PacBio sequence, find the length of the longest contiguous segment resulted from this ref array. The ref array might be so bad that it doesn't have any read support...
+        Input:  ref_array, read_array - 1d and 2d array for the PacBio and all reads information
+                minOverlap - minimum overlap length threshold
+        Output: maxLen - length of the longest contiguous segment
+    '''
+    Cvec = get_compatible_reads(ref_array, read_array)
+    if len(Cvec) == 0: # no read support at all
+        return 0
+    else:
+        gaps = gap_pos(ref_array, read_array, Cvec, minOverlap=minOverlap)
+        contiguous_seqs = split_at_gap(gaps, ref_array)
+        contiguous_lengths = map(len, contiguous_seqs) # get length for each contiguous segment
+        return max(contiguous_lengths)
+## ======================================================================
 def get_reads_for_gap(read_array, gap, skip_reads=[]):
     ''' Given a gap (start, end), find reads that cover any base in the gap region and number of bases covered by them.
         Input:  read_array - array of read information
@@ -1363,7 +1415,7 @@ def write_compatible_reads(readsFasta, readinfo, compatible_ind, outDir):
     else:
         sys.stdout.write("compatible read list is empty, nothing to write.\n")
 ## ======================================================================
-def greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=False):
+def greedy_fill_gap_1(read_array, ref0=None, minOverlap=10, verbose=False):
     ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and minimize the number of uncovered bases using greedy algorithm
         If in verbose mode, write the newly proposed sequence and its compatible reads to files in a directory
         Input:  read_array - array including read information
@@ -1474,8 +1526,9 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=False):
                     best_ref = ref1
                     best_gap_pos = gap_pos1
                     improved = True
+                    totally_filled = True
                     best_Cvec = Cvec1
-                    continue
+                    break
                 gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
                 gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
                 if sum(gap_lens1) < Min_tot_gap:
@@ -1521,6 +1574,175 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=False):
 
         if verbose:
             seq1 = array_to_seq(best_ref)[-1] # gap position will be written in lower case instead of upper case
+            print best_gap_pos
+            for i in best_gap_pos:
+                seq1 = seq1[:i] + seq1[i].lower() + seq1[(i+1):] 
+            sys.stdout.write("newly proposed sequence is:\n{}\n".format(re.sub('-','',seq1)))
+            sys.stdout.write('\n')
+            print_seqs(seq0, seq1) # show the difference between the starting sequence and the ending sequence after gap filling
+    #sys.stdout.write("\n")
+        return best_ref, Min_tot_gap, best_Cvec
+## ======================================================================
+def greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=False):
+    ''' Try to fill THE widest gap(just one gap, not all gaps) resulted from ref0 and maximize the length of the longest segment in the resutled PacBio sequence using greedy algorithm
+        If in verbose mode, write the newly proposed sequence and its compatible reads to files in a directory
+        Input:  read_array - array including read information
+                ref0 - ref_array to start with, if not specified, call the consensus sequence instead
+        Output: (ref1, tot_gap, Cvec) - (new improved ref1, corresponding sequence with nucleotides, total number of gap positions/length, compatible read index array)
+                files that include new PacBio sequence and its compatible reads (fasta)
+    '''
+    # if no sequence to start with, only call the consensus sequence, do not try to fill the gap
+    if ref0 is None:
+        if verbose:
+            sys.stdout.write("Initial sequence not specified, use the read array to find consensus sequence and its gaps instead. \n")
+        ref0 = get_consensus_from_array(read_array) # start with consensus sequence, summarized from all the reads
+        Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
+        Gap_pos = gap_pos(ref0, read_array, Cvec, minOverlap) # positions not covered by the compatible reads (gap positions)
+
+        ## starting sequence in string format for the consensus sequence
+        seq0 = array_to_seq(ref0)[-1]
+        for i in Gap_pos: # gap position will be written in lower case instead of upper case
+            seq0 = seq0[:i] + seq0[i].lower() + seq0[(i+1):] 
+        if verbose:
+            sys.stdout.write("Consensus sequence is:\n{}\n".format(re.sub('-','',seq0)))
+
+        if len(Gap_pos) > 0:
+            gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
+            sys.stdout.write("\nGaps so far:\n")
+            for i in xrange(len(gap_start_ind)):
+                sys.stdout.write("({},{})\t".format(gap_start_ind[i], gap_end_ind[i]))
+            sys.stdout.write("\n")
+            gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
+            tot_gap = sum(gap_lens) # total gap size
+            Mgap_ind = argmax(gap_lens) # index of the maximum gap among all gaps
+            Mgap_len = gap_lens[Mgap_ind] # width of the maximum gap
+            if verbose:
+                sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[Mgap_ind], gap_end_ind[Mgap_ind]))
+        else:
+            tot_gap = 0
+            if verbose:
+                sys.stdout.write("\n=== No gap.\n")
+
+        return ref0, tot_gap, Cvec
+        #sys.stdout.write("   reads_ind: {}\n   reads_cov: {} \n".format(str(reads_ind), str(reads_cov))) # DEBUG
+
+    # if a start sequence is provided, try to fill the gap introduced by this sequence with the following iterations
+    # First try to fill the widest gap there, if it cannot be filled unless by increasing more gaps, move on to the next widest gap.
+    # Stop whenever the total length of gaps decreases, or none of the gap could be filled at all.
+    else:
+        if verbose:
+            sys.stdout.write("Initial sequence specified, now try to fill the gap in this sequence. \n")
+        Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
+        Gap_pos = gap_pos(ref0, read_array, Cvec, minOverlap) # positions not covered by the compatible reads (gap positions)
+
+        # starting sequence in string format for the
+        seq0 = array_to_seq(ref0)[-1] # with - for positions to delete
+        for i in Gap_pos: # gap position will be written in lower case instead of upper case
+            seq0 = seq0[:i] + seq0[i].lower() + seq0[i+1 :] 
+
+        gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
+        gap_lens = gap_end_ind - gap_start_ind + 1 # gap lengths
+        # sort gaps by their lengths
+        ind_gap_sort = argsort(gap_lens)[::-1] # sort in increasing order and then reverse the array
+        gap_start_ind = gap_start_ind[ind_gap_sort]
+        gap_end_ind = gap_end_ind[ind_gap_sort]
+        gap_lens = gap_lens[ind_gap_sort]
+        
+        if verbose:
+            sys.stdout.write("\nGaps so far:\n")
+            for i in xrange(len(gap_lens)):
+                sys.stdout.write("({}, {})\t".format(gap_start_ind[i], gap_end_ind[i]))
+
+        Min_tot_gap = sum(gap_lens) # smallest total gap size, initialize to the current total gap size
+        Mgap_ind = ind_gap_sort[0] # index of the maximum gap among all gaps
+        Mgap_len = gap_lens[0] # width of the maximum gap
+        if verbose:
+            sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(Mgap_len, gap_start_ind[0], gap_end_ind[0]))
+
+        best_ref = array(ref0)
+        best_gap_pos = array(Gap_pos)
+        best_Cvec = array(Cvec)
+        improved = False
+        gap_ind = 0
+
+        while not improved and gap_ind <= (len(gap_lens) - 1): # until gap length improved, or all the gaps have been investigated
+            if verbose:
+                sys.stdout.write("gap_ind:  {} : ({}, {})\n".format(gap_ind,gap_start_ind[gap_ind], gap_end_ind[gap_ind]))
+            reads_ind, reads_cov = get_reads_for_gap(read_array, (gap_start_ind[gap_ind], gap_end_ind[gap_ind]), skip_reads=Cvec) # get reads that can fill at least 1 base of the gap, and how many bases they fill
+            # initialize the current best choice
+            totally_filled = False # whether a gap is totally filled by current step, no gap filling for now, just initialization
+            # start the iteration while loop
+            # Stop condition:
+            # 1. No more gap in the ref seq
+            # 2. A gap is totally filled (ready to move on to the next gap)
+            # 3. No more gap filling reads to try
+            while len(best_gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
+                if verbose:
+                    sys.stdout.write("gap positions: {}, remaining reads: {}, continue\n".format(len(best_gap_pos), len(reads_ind)))
+                # sort the reads by the length of the gaps they fill
+                ind_sort = argsort(reads_cov)[::-1] 
+                reads_ind = reads_ind[ind_sort]
+                reads_cov = reads_cov[ind_sort]
+                ref1 = get_new_ref(ref0, reads_ind[0], read_array) # get a new ref, according to the highest ranked read
+
+                Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
+                gap_pos1 = gap_pos(ref1, read_array, Cvec1, minOverlap) # positions not covered by the compatible reads (gap positions)
+                if len(gap_pos1) == 0:
+                    if verbose:
+                        sys.stdout.write("no more gaps\n")
+                    Min_tot_gap = 0
+                    best_ref = ref1
+                    best_gap_pos = gap_pos1
+                    improved = True
+                    totally_filled = True
+                    best_Cvec = Cvec1
+                    break
+                gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
+                gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
+                if sum(gap_lens1) < Min_tot_gap:
+                    improved = True
+                    Min_tot_gap = sum(gap_lens1)
+                    best_ref = ref1
+                    best_gap_pos = gap_pos1
+                    best_Cvec = Cvec1
+
+                # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
+                if (len(gap_lens) - len(gap_lens1) == gap_lens[gap_ind]) and gap_start_ind[gap_ind] in setdiff1d(gap_start_ind, gap_start_ind1) and gap_end_ind[gap_ind] in setdiff1d(gap_end_ind, gap_end_ind1):
+                    totally_filled = True
+                    Min_tot_gap = 0
+                    best_ref = ref1
+                    best_gap_pos = gap_pos1
+                    best_Cvec = Cvec1
+                    improved = True
+
+                remaining_inds = [] #  trying to find the indices in the array reads_ind that can still be tried to fill the gaps
+                for r in reads_ind:
+                    if r not in Cvec1: # delete the ones compatible with this chosen one, test these and see if the improvement is bigger. save remaining reads to check,
+                        remaining_inds.append(where(reads_ind == r)[0][0])
+                remaining_inds = array(remaining_inds)
+                #print remaining_inds # DEBUG
+                # update the list of remaining reads' information
+                if len(remaining_inds) > 0 :
+                    reads_ind = reads_ind[remaining_inds]
+                    reads_cov = reads_cov[remaining_inds]
+                else:
+                    reads_ind = []
+                    reads_cov = []
+                #sys.stdout.write("\t   reads_ind: {}\n\t   reads_cov: {} \n\n".format(str(reads_ind), str(reads_cov))) # DEBUG
+            if verbose:
+                if len(best_gap_pos) == 0:
+                    sys.stdout.write("no more gaps\n")
+                elif totally_filled:
+                    sys.stdout.write("gap totally filled\n")
+                elif len(reads_ind) == 0:
+                    sys.stdout.write("all reads tried\n")
+                else:
+                    sys.stdout.write("gap positions: {}, remaining reads: {}, continue\n".format(len(best_gap_pos), len(reads_ind)))
+            gap_ind += 1
+
+        if verbose:
+            seq1 = array_to_seq(best_ref)[-1] # gap position will be written in lower case instead of upper case
+            print best_gap_pos
             for i in best_gap_pos:
                 seq1 = seq1[:i] + seq1[i].lower() + seq1[(i+1):] 
             sys.stdout.write("newly proposed sequence is:\n{}\n".format(re.sub('-','',seq1)))

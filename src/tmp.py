@@ -90,8 +90,8 @@ from numpy import *
 from Bio import pairwise2
 from Bio.pairwise2 import format_alignment
 
-samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409.sam"
-ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409.fasta"
+samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 reload(metalrec_lib)
@@ -103,11 +103,11 @@ samIn = open(samfile,'r')
 for i in xrange(4):
     a = samIn.readline()
 
-while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:1:1210:16645:76315':
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2103:15782:7240e':
     a = samIn.readline()
 
 
-r1 = samread.SamRead(a) # SamRead object
+r = samread.SamRead(a) # SamRead object
 samIn.close()
 
 r1 = samread.SamRead(a) # SamRead object
@@ -122,8 +122,8 @@ new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel 
 #print format_alignment(*new_align) # for DEBUG
 pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
 
-ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=10, maxDel=100, maxIns=100, maxSubRate=0.05, maxInDelRate=0.3, verbose=True)
-good_regions, cov_bps, avg_cov_depthgood_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=100, minCV=1)
+ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=-1, maxDel=-1, maxIns=-1, maxSubRate=0.05, maxInDelRate=0.3, verbose=True)
+good_regions, cov_bps, avg_cov_depth= metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=500, minCV=1)
 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[0])
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, print_width=70, verbose=True)
 poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
@@ -134,7 +134,7 @@ short_r, long_r = metalrec_lib.array_to_seq(ar) # get the read sequence from its
 read_array, read_counts = metalrec_lib.make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
 ref0, tot_gap, Cvec = metalrec_lib.greedy_fill_gap(read_array, ref0=None, verbose=True)
 overlap_mat = metalrec_lib.get_overlapLen(ref0, read_array, Cvec=Cvec)
-ref_new = metalrec_lib.fill_gap(read_array, 15, "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/EC/goodreads.fasta", "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100034__10519_13409/EC/region0", readinfo, verbose=True)
+ref_new = metalrec_lib.fill_gap(read_array, 15, "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/EC/goodreads.fasta", "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/EC/region0", readinfo, verbose=True)
 ref_new = metalrec_lib.fill_gap(read_array, "/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta", "/Users/cjg/Work/PacBio/metalrec/test", readinfo, verbose=False)
 ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new)
 new_ref = metalrec_lib.fill_gap(read_array, outFastaFile="/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta", outDir=None, readinfo=readinfo, verbose=True)
