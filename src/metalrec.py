@@ -42,16 +42,14 @@ parser.add_argument("--width",help="print width for sequences in verbose output"
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
 parser.add_argument("--minOverlapRatio",help="minimum ratio of average overlap length between reads",dest='minOverlapRatio',default=0.1, type=float)
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=-1, type=int)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=1, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
-parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.05, type=float)
+parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.03, type=float)
 parser.add_argument("--indelRate",help="maximum insertion rate allowed",dest='maxInDelRate',default=0.30, type=float)
 parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
 parser.add_argument("--minPacBioLen",help="minimum PacBio length to be considered",dest='minPacBioLen',default=1000, type=int)
 parser.add_argument("--minGoodLen",help="minimum contiguous well covered region length",dest='minGoodLen',default=400, type=int)
-parser.add_argument("--polyN",help="minimum number of read support for a base to be considered",dest='minReads',default=3, type=int)
-parser.add_argument("--polyR",help="minimum proportion of read support for a base to be considered",dest='minPercent',default=0.3, type=float)
 ## =================================================================
 ## main function
 ## =================================================================
@@ -72,7 +70,7 @@ def main(argv=None):
     ## output file and directories, optional
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
         args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/EC.fasta'
-        shortSeqFile = args.oSeqFile + '.short'
+    shortSeqFile = args.oSeqFile + '.short'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
         os.remove(args.oSeqFile)
         sys.stdout.write("Output sequence file already exists, overwrite.\n")
@@ -116,7 +114,7 @@ def main(argv=None):
         for good_region_index in xrange(len(good_regions)):
             sys.stdout.write("====\nworking on region {}\n".format(good_region_index))
             # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
-            poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index], minReads=args.minReads, minPercent=args.minPercent)
+            poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index])
             # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences
             newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=good_regions[good_region_index],print_width=args.width, verbose=args.verbose)
             # step 3 - update consensus and polymorphic positions according to the new positons in the extended sequence
@@ -140,11 +138,11 @@ def main(argv=None):
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
+            refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
             if len(contiguous_seqs) > 1:
                 for i in xrange(len(contiguous_seqs)):
                     if i != max_ind:
-                        shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[i]))
+                        shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
 
         refOut.close()
         shortOut.close()

@@ -12,7 +12,17 @@ from Bio.pairwise2 import format_alignment
 import mycolor # print with color in terminal
 import samread # for manipulating sam record
 alphabet = 'ACGTD'
-revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence
+def minCover(cv):
+    ''' Get minimum read support for a base call to be considered correct
+        Input:  cv - coverage depth at a position
+        Output: min_cover - minimum read support
+    '''
+    if cv <= 2:
+        return 1
+    elif cv == 3 or cv == 4:
+        return 2
+    else:
+        return 3
 ## ======================================================================
 def dict_to_string(dictionary):
     ''' Convert dictionary to a string, key value all concatenated. Dictionary is first sorted by keys '''
@@ -167,26 +177,13 @@ def is_record_bad(alignRecord, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, 
         return True
     else: # read is NOT unmapped and cigar string is available
         cigar_info = cigar(cigarstring)
-        #left_clip_len = 0 # clipped part should not be counted towards error, and the type of error won't be known
-        #right_clip_len = 0
-        #if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0: # there is clipping on either end
-        #    try: # 1-based leftmost mapping position
-        #        rstart = int(fields[3]) # leftmost mapping position
-        #    except ValueError:
-        #        sys.stderr.write('alignRecord is bad: \n {} \n'.format(alignRecord))
-        #        return True
-        #    if cigar_info['left_clip_len'] > 0: # if the read is clipped because of aligning to the end of PacBio read, only consider the clipped part up to the end of the PacBio sequence
-        #        left_clip_len = min(rstart - 1, cigar_info['left_clip_len'])
-        #    if cigar_info['right_clip_len'] > 0:
-        #        right_clip_len = min( refLen - rstart - cigar_info['ref_len'] + 1, cigar_info['right_clip_len'])
-
         indel_len = cigar_info['ins_len'] + cigar_info['del_len']
         # if consecutive sub or indels is longer than the threshold, treat as bad
         if (maxIns != -1 and cigar_info['max_ins'] > maxIns) or (maxSub != -1 and cigar_info['max_sub'] > maxSub) or (maxDel != -1 and cigar_info['max_del'] > maxDel):
             return True
         # substitution rate is relative to the aligned region length on the PacBio sequence
         # indelRate is relative to the total length of the mapped segment of the Illumina sequence
-        elif cigar_info['sub_len'] > maxSubRate * cigar_info['ref_len'] or indel_len > maxInDelRate * cigar_info['seq_len']: # subRate * mapped ref region; indelRate * seqLen 
+        elif cigar_info['sub_len'] > maxSubRate * cigar_info['seq_len'] or indel_len > maxInDelRate * cigar_info['seq_len']: # subRate * mapped ref region; indelRate * seqLen 
             #print "sub_len: ", cigar_info['sub_len'], ", indel len: ", indel_len #DEBUG
             return True
         # Finally, if it passes all the thresholds, it's a good record
@@ -356,9 +353,9 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                 record = line
                 myread = samread.SamRead(record)
                 #print myread.qname # DEBUG
-                if not myread.is_record_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
+                if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                     #sys.stdout.write("realign\n") # DEBUG
-                    pos_dict, ins_dict = myread.re_align(rseq) # realign read to PacBio sequence
+                    pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
                     if len(pos_dict) + len(ins_dict) > 0:
                         keepRec += 1
                         if verbose:
@@ -678,11 +675,10 @@ def get_good_regions(ref_bps, rSeq, minGoodLen=1000, minCV=1):
             good_regions.append((low_CV_pos[i-1]+1, low_CV_pos[i])) # found a good region (begin, end) where rSeq[begin:end] is long enough and covered well
     return good_regions, cov_bps, avg_cov_depth
 ## ======================================================================
-def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):
+def get_poly_pos(ref_bps, ref_ins_dict, region=None):
     ''' Get the consensus and polymorphic positions where the insertion happened, in the specified region, return as dictionaries
         Input:  ref_bps, ref_ins_dict - output objects from read_and_process_sam, noninsertion and insertion information for all the positions from the Illumina reads
                 region - (begin, end) tuple of a region to consider
-                minReads, minPercent - minimum number of read support for a base call to be considered as possible for the genome
         Output: poly_bps - polymorphic non-insertion positions
                 poly_ins - polymorphic insertion positions
                 consensus_bps - nonpolymorphic non-insertion positions, get the consensus
@@ -704,14 +700,7 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         # check the match/mismatch/deletion first
         cv = sum(ref_bps[pos]) # coverage depth
         cvs.append(cv) # vector of coverage depths, for each position in the region
-        # At least 3 or 30% of the read support for a base call to be considered, otherwise the base call will be treated as an error. e.g. for low coverage bases:
-        # cv = 1: >= 1 (1) has to have at least 1 read support, otherwise cv 1 bases will always be polymorphic !!
-        # cv = 2: >= 1 (1)
-        # cv = 3: >= 1 (1)
-        # cv = 4: >= 1 (1)
-        # cv = 5: >= 2 (2)
-        # when cv < 5, consider every possible base call as possible/valid
-        base_calls = [ alphabet[i] for i in xrange(5) if (ref_bps[pos][i] >= minReads or ref_bps[pos][i] >= max(1, round(cv * minPercent))) ]
+        base_calls = [ alphabet[i] for i in xrange(5) if ref_bps[pos][i] >= minCover(cv) ]
         if len(base_calls) > 1: # more than 1 base call with enough read support
             poly_bps[pos] =  base_calls
         elif len(base_calls) == 1:
@@ -728,13 +717,12 @@ def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3)
         if pos in ref_ins_dict: 
             for i in xrange(len(ref_ins_dict[pos])): # look at all the bases inserted at this position
                 pos_list = ref_ins_dict[pos][i]
-                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minReads or pos_list[j] >= max(1, round(cv * minPercent)) ]
+                base_calls = [ alphabet[j] for j in xrange(4) if pos_list[j] >= minCover(cv) ]
                 if len(base_calls) > 1: # polymorphic insertion position
                     poly_ins[ (pos,i) ] =  base_calls
                 elif len(base_calls) == 1: # consensus insertion position
                     consensus_ins[ (pos,i) ] =  base_calls[0]
-                #else do not consider there is insertion at this position
-
+                # if none of them passes the threshold, the insertion position won't be considered existent
     return poly_bps, poly_ins, consensus_bps, consensus_ins, cvs
 ## ======================================================================
 def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None, print_width = 100, verbose=False):
@@ -1151,6 +1139,9 @@ def get_overlapLen(ref_array, read_array, Cvec=None):
             overlap_mat[j,i] = - overlap_mat[i,j]
     return overlap_mat
 ## ======================================================================
+def cov_vec(read_array1d):
+    return apply_along_axis(max, 1, read_array1d.reshape(-1,5))
+## ======================================================================
 def get_overlapMat(read_array):
     ''' Given read array, get the overlap length matrix between all the reads. If two reads are not compatible, their overlap length will be set to 0
         Too slow...
@@ -1159,32 +1150,31 @@ def get_overlapMat(read_array):
     '''
     nreads = read_array.shape[0] # number of reads in the read_array
     overlap_Mat = zeros(shape=(nreads,nreads),dtype=int32) # initialize the overlap length matrix, with each read having one row and one column
-    start_pos_vec = zeros(nreads,dtype=int32)
-    end_pos_vec = zeros(nreads,dtype=int32)
+    cov_mat = apply_along_axis(cov_vec, 1, read_array) # coverage matrix
+
+    # reads that cover at least 1 bp
     cov_reads = where(sum(read_array,1) != 0)[0]
-    for i in cov_reads: # starting and ending positions of the read
-        start_pos_vec[i] = where(read_array[i,:] > 0)[0][0]/5
-        end_pos_vec[i] = where(read_array[i,:] > 0)[0][-1]/5
-    for i in xrange(nreads - 1):
-        for j in xrange(i + 1, nreads):
-            if i not in cov_reads:
-                overlap_Mat[i,:] = 0
-                overlap_Mat[:,i] = 0
-            elif j not in cov_reads:
-                overlap_Mat[j,:] = 0
-                overlap_Mat[:,j] = 0
-            elif are_reads_compatible(read_array[i,:], read_array[j,:]): # only get overlap length if two reads are compatible
-                overlap_len = dot(read_array[i,:], read_array[j,:]) # take dot product
-                multiple_call_pos = where((read_array[i,:] + read_array[j,:]) == 2)[0]
-                overlap_len = overlap_len - len(multiple_call_pos) + len(unique(multiple_call_pos)) 
-                if start_pos_vec[i] < start_pos_vec[j] and end_pos_vec[i] < end_pos_vec[j]: # positive if the first read's starting position is smaller than the second read's starting position
-                    overlap_Mat[i,j] = overlap_len
-                elif start_pos_vec[i] > start_pos_vec[j] and end_pos_vec[i] > end_pos_vec[j]:
-                    overlap_Mat[i,j] = -overlap_len
-                overlap_Mat[j,i] = - overlap_Mat[i,j]
+    # start and end positions of each read
+    start_pos_vec = zeros(len(cov_reads),dtype=int32)
+    end_pos_vec = zeros(len(cov_reads),dtype=int32)
+    for i in xrange(len(cov_reads)): # starting and ending positions of the read
+        start_pos_vec[i] = where(cov_mat[cov_reads[i],:] > 0)[0][0]
+        end_pos_vec[i] = where(cov_mat[cov_reads[i],:] > 0)[0][-1]
+    start_sort = argsort(start_pos_vec) # indices when sorted by start of covered positions
+    # put the corresponding vectors in this order
+    start_pos_vec = start_pos_vec[start_sort]
+    end_pos_vec = end_pos_vec[start_sort]
+    cov_reads = cov_reads[start_sort]
+    for i in xrange(len(start_sort) - 1):
+        for j in xrange( i+1, len(start_sort)):
+            overlap_len = sum(logical_and(cov_mat[cov_reads[i],], cov_mat[cov_reads[j],])) # overlap length
+            agree_len = len(unique(where(logical_and(cov_mat[cov_reads[i],], cov_mat[cov_reads[j],]))[0])) # number of bps where they agree
+            if overlap_len == 0:
+                continue
             else:
-                overlap_Mat[i,j] = 0
-                overlap_Mat[j,i] = 0
+                if end_pos_vec[j] > start_pos_vec[i] and overlap_len == agree_len: # only when one is not included in the other and they are compatible
+                    overlap_Mat[cov_reads[i],cov_reads[j]] = overlap_len
+                    overlap_Mat[cov_reads[j],cov_reads[i]] = -overlap_len
     #sys.stdout.write("average overlap length is {}\n".format(mean(abs(overlap_Mat)[where(abs(overlap_Mat)>0)]))) ## DEBUG, for soft minOverlap cutoff shortly
     return overlap_Mat
 ## ======================================================================
@@ -1608,10 +1598,12 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
         sys.stdout.write("Try to fill the gap in this sequence. \n")
     Cvec = get_compatible_reads(ref0, read_array) # indices of reads that are compatible with ref0
     Gap_pos = gap_pos(ref0, read_array, Cvec, minOverlap, minOverlapRatio) # positions not covered by the compatible reads (gap positions)
-    # starting sequence in string format for the
+    # starting sequence in string format
     seq0 = array_to_seq(ref0)[-1] # with - for positions to delete
-    if len(Gap_pos) == 0:
+    if len(Gap_pos) == 0: # If already covering the whole sequence
         return ref0, len(seq0)-seq0.count('-'), Gap_pos, Cvec
+
+    ## If there is still room to improve the sequence
     for i in Gap_pos: # gap position will be written in lower case instead of upper case
         seq0 = seq0[:i] + seq0[i].lower() + seq0[(i+1):] 
     gap_start_ind, gap_end_ind = get_gaps(Gap_pos) # starting and ending positions of all the gaps, in left to right order
@@ -1622,12 +1614,6 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
     gap_end_ind = gap_end_ind[ind_gap_sort]
     gap_lens = gap_lens[ind_gap_sort]
     
-    if verbose: # log message
-        sys.stdout.write("\nGaps in starting sequence:\n")
-        for i in xrange(len(gap_lens)):
-            sys.stdout.write("({}, {}): {}\t".format(gap_start_ind[i], gap_end_ind[i], gap_lens[i]))
-        sys.stdout.write("\n=== Maximum gap length is {}: ({}, {}).\n".format(gap_lens[0], gap_start_ind[0], gap_end_ind[0]))
-
     # initialize the best solutions, and switches of ending conditions
     best_ref = ref0.copy()
     best_gap_pos = Gap_pos.copy()
@@ -1636,6 +1622,14 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
     best_max_len = old_max_len
     improved = False
     gap_ind = 0
+
+    if verbose: # log message
+        sys.stdout.write("\nGaps in starting sequence:\n")
+        for i in xrange(len(gap_lens)):
+            sys.stdout.write("({}, {}): {}\t".format(gap_start_ind[i], gap_end_ind[i], gap_lens[i]))
+        sys.stdout.write("\nMaximum length is: {}\n".format(old_max_len))
+        sys.stdout.write("=== Maximum gap length is {}: ({}, {}).\n".format(gap_lens[0], gap_start_ind[0], gap_end_ind[0]))
+
 
     while not improved and gap_ind < len(gap_lens): # until gap length improved, or all the gaps have been investigated
         if verbose:
@@ -1669,7 +1663,7 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
                 gap_start_ind1, gap_end_ind1 = get_gaps(gap_pos1) # starting and ending positions of all the gaps, in left to right order
                 gap_lens1 = gap_end_ind1 - gap_start_ind1 + 1 # gap lengths
                 # if this step decreased the number of gaps by at least 1, and maximum gap is among them, then stop iteration
-                if len(setdiff1d(gap_pos1,Gap_pos)) == 0 and sum(gap_lens1) < sum(gap_lens):
+                if len(setdiff1d(gap_pos1,Gap_pos)) == 0 and (sum(gap_lens1) - sum(gap_lens)) == gap_lens[gap_ind]:
                     if verbose:
                         sys.stdout.write("This one gap is totally filled\n")
                     totally_filled = True
@@ -1695,7 +1689,7 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
                         sys.stdout.write("maximum length: {}, remaining reads: {}, continue\n".format(best_max_len, len(reads_ind)))
         gap_ind += 1
         if verbose:
-            sys.stdout.write("Next read: {}\n".format(gap_ind))
+            sys.stdout.write("Next gap index: {}\n".format(gap_ind))
 
     if verbose:
         if improved:
@@ -1752,7 +1746,7 @@ def fill_gap(read_array, minOverlap=10, minOverlapRatio = 0.1, outFastaFile=None
         if print_tmp_files:
             sys.stdout.write("iteration number {}\n".format(iter_number))
             ref0_seq = array_to_seq(ref0[0])[0]
-            cur_dir = outDir + '/round_' + str(iter_number)
+            cur_dir = outDir + '/round' + str(iter_number)
             if not os.path.exists(cur_dir):
                 os.makedirs(cur_dir)
             seqOut = open(cur_dir + '/seq.fasta','w') # error corrected PacBio sequence at this point
@@ -1766,7 +1760,7 @@ def fill_gap(read_array, minOverlap=10, minOverlapRatio = 0.1, outFastaFile=None
         if len(ref0[2]) > 0:
             ref1 = greedy_fill_gap(read_array, ref0[0], minOverlap, minOverlapRatio, verbose=verbose)
             max_len = ref1[1]
-            if max_len < Max_len:
+            if max_len > Max_len:
                 Max_len = max_len
                 ref0 = ref1
                 iter_number += 1
@@ -1780,8 +1774,9 @@ def fill_gap(read_array, minOverlap=10, minOverlapRatio = 0.1, outFastaFile=None
             break
 
     ## DEBUG -- figure out how many reads are compatible and non-compatible with the resulted PacBio sequence
-    compatible_reads = get_compatible_reads(ref0[0], read_array)
-    sys.stdout.write("number of compatible reads is {}, and the total number of reads is {}\n".format(len(compatible_reads), read_array.shape[0]))
+    if verbose:
+        compatible_reads = get_compatible_reads(ref0[0], read_array)
+        sys.stdout.write("number of compatible reads is {}, and the total number of reads is {}\n".format(len(compatible_reads), read_array.shape[0]))
     return ref0
 ## ======================================================================
 ### Functions to generate sam files (or alignment in text) with updated PacBio sequence ###

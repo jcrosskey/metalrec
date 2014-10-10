@@ -109,7 +109,7 @@ extract_from_allFR	merge_stat.py	/^def extract_from_allFR(read_stat_file, read_d
 fileCount	cpp_MPI_wrapper/directoryStructure.hpp	/^        size_t fileCount;$/;"	m	class:DirectoryStructure
 fileList	cpp_MPI_wrapper/directoryStructure.hpp	/^		vector<string> fileList;$/;"	m	class:DirectoryStructure
 fileListItr	cpp_MPI_wrapper/directoryStructure.hpp	/^		vector<string>::iterator fileListItr;$/;"	m	class:DirectoryStructure
-fill_gap	metalrec_lib.py	/^def fill_gap(read_array, minOverlap=10, outFastaFile=None, outDir=None, readinfo=None, verbose=False):$/;"	f
+fill_gap	metalrec_lib.py	/^def fill_gap(read_array, minOverlap=10, minOverlapRatio = 0.1, outFastaFile=None, outDir=None, readinfo=None, verbose=False):$/;"	f
 find_maxOverlap	metalrec_lib.py	/^def find_maxOverlap(overlap_mat):$/;"	f
 firstX_rSeq	unused.py	/^firstX_rSeq = firstX_rSeq  - left_one$/;"	v
 for	metalrec_lib.py	/^import samread # for manipulating sam record$/;"	i
@@ -141,7 +141,7 @@ fromfile_prefix_chars	test.py	/^                                 fromfile_prefix
 gap_A_fn	samread.py	/^def gap_A_fn(gap_index, gap_len, maxLen=1000):$/;"	f
 gap_lens	tmp.py	/^gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap$/;"	v
 gap_lens	tmp.py	/^gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)$/;"	v
-gap_pos	metalrec_lib.py	/^def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10):$/;"	f
+gap_pos	metalrec_lib.py	/^def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRatio=0.1):$/;"	f
 gap_pos0	tmp.py	/^gap_pos0 = metalrec_lib.gap_pos(ref0, read_array, Cvec0)$/;"	v
 gap_pos1	tmp.py	/^gap_pos1 = metalrec_lib.gap_pos(ref1, read_array, Cvec1)$/;"	v
 gap_pos2	tmp.py	/^gap_pos2 = metalrec_lib.gap_pos(ref2, read_array, Cvec2)$/;"	v
@@ -173,6 +173,7 @@ get_length	merge_stat.py	/^def get_length(lengthFile, trim=""):$/;"	f
 get_muscle_cmd_and_log	multi_proc_metalrec.py	/^def get_muscle_cmd_and_log(inputfile,outputdir='.\/'):$/;"	f
 get_new_ref	metalrec_lib.py	/^def get_new_ref(ref_array, read_ind, read_array):$/;"	f
 get_overlapLen	metalrec_lib.py	/^def get_overlapLen(ref_array, read_array, Cvec=None):$/;"	f
+get_overlapMat	metalrec_lib.py	/^def get_overlapMat(read_array):$/;"	f
 get_poly_pos	metalrec_lib.py	/^def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):$/;"	f
 get_read_seq	samread.py	/^    def get_read_seq(self, keep_orientation=False):$/;"	m	class:SamRead
 get_reads_for_gap	metalrec_lib.py	/^def get_reads_for_gap(read_array, gap, skip_reads=[]):$/;"	f
@@ -187,7 +188,8 @@ glob	find_good_regions.py	/^import glob$/;"	i
 glob	get_bbmap_time.py	/^import glob$/;"	i
 glob	multi_proc_metalrec.py	/^import glob$/;"	i
 good_regions	tmp.py	/^good_regions = metalrec_lib.get_good_regions(ref_bps, rseq, minPacBioLen=1000, minCV=1)$/;"	v
-greedy_fill_gap	metalrec_lib.py	/^def greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=False):$/;"	f
+greedy_fill_gap	metalrec_lib.py	/^def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, verbose=False):$/;"	f
+greedy_fill_gap_1	metalrec_lib.py	/^def greedy_fill_gap_1(read_array, ref0=None, minOverlap=10,minOverlapRatio=0.1, verbose=False):$/;"	f
 group	multi_proc_metalrec.py	/^group = parser.add_mutually_exclusive_group()$/;"	v
 ifFileEmptyRemove	cpp_MPI_wrapper/utils.cpp	/^    void ifFileEmptyRemove(const std::string & filename)$/;"	f	namespace:Utils
 ifFileExistRemove	cpp_MPI_wrapper/utils.cpp	/^    void ifFileExistRemove(const std::string & filename)$/;"	f	namespace:Utils
@@ -218,6 +220,7 @@ last_line	cpp_MPI_wrapper/utils.cpp	/^    std::string last_line(const std::strin
 left_one	unused.py	/^left_one = max([rSeq.rfind(x,0,rstart-1) for x in diff_chars]) # position of the first different character to the left$/;"	v
 leftmost_char	unused.py	/^leftmost_char = rSeq[rstart - 1] # leftmost character of the aligned region on the reference sequence$/;"	v
 locate_in_compress	unused.py	/^def locate_in_compress(string, pos):$/;"	f
+longest_seg	metalrec_lib.py	/^def longest_seg(ref_array, read_array, minOverlap=10, minOverlapRatio=0.1):$/;"	f
 main	align_tmp.py	/^def main(argv=None):$/;"	f
 main	check_PBReads.py	/^def main(argv=None):$/;"	f
 main	clean_sam.py	/^def main(argv=None):$/;"	f
@@ -258,6 +261,7 @@ mycolor	metalrec_lib.py	/^import mycolor # print with color in terminal$/;"	i
 mycolor	mycolor.py	/^class mycolor:$/;"	c
 new_align	tmp.py	/^new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively$/;"	v
 new_ref	tmp.py	/^new_ref = metalrec_lib.fill_gap(read_array, outFastaFile="\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/good_reads.fasta", outDir=None, readinfo=readinfo, verbose=True)$/;"	v
+numpy	metalrec.py	/^import numpy$/;"	i
 os	align_tmp.py	/^import os$/;"	i
 os	check_PBReads.py	/^import os$/;"	i
 os	correct_PBReads.py	/^import sys, os$/;"	i

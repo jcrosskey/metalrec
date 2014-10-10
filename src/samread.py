@@ -8,13 +8,6 @@ import math
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
 
-def gap_A_fn(gap_index, gap_len, maxLen=1000):
-    score = 0
-    for i in xrange(gap_len):
-        score += (0.099/6.91)*(math.log(1-((gap_index+i)/(maxLen)))) - 0.9
-    #print score
-    return score
-
 ''' reverse complement function '''
 revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence
 
@@ -98,7 +91,7 @@ class SamRead:
         return self.flag & 0x800 == 0x800 # 0x800: supplementary alignment (part of a chimeric alignment)
     
     # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
-    def is_record_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):
+    def is_read_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):
         is_bad = metalrec_lib.is_record_bad(self.alignRecord, maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)
         if is_bad and not self.is_unmapped():
             self.flag += 0x4 # change its own "unmapped" flag
@@ -199,12 +192,12 @@ class SamRead:
     def generate_sam_record(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
         # [0] qname stays the same
         # [1] new flag: mapped/unmapped status might change
-        if (not self.is_unmapped()) and (self.mate is not None) and (self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)): # read was originally mapped but didn't pass the threshold
+        if (not self.is_unmapped()) and (self.mate is not None) and (self.is_read_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate)): # read was originally mapped but didn't pass the threshold
             self.flag += 0x4 # change its own "unmapped" flag
             if self.mate is not None:
                 self.mate.flag += 0x8 # change mate's "mate_unmapped" flag
                 self.cigarstring = '*'
-        if self.is_paired() and self.mate is not None and not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
+        if self.is_paired() and self.mate is not None and not self.mate_is_unmapped() and self.mate.is_read_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
             self.mate.flag += 0x8 # if mate record is bad, mark its mate as unmapped
             if self.mate is not None:
                 self.flag += 0x4 # if mate record is bad, mark its mate as unmapped
@@ -224,7 +217,7 @@ class SamRead:
             self.mate.fields[5] = self.mate.cigarstring
         # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
         # [7] PNEXT Position of the mate/next read: might change because of re-mapping
-        if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
+        if self.is_paired() and self.mate is not None and  not self.mate_is_unmapped() and self.mate.is_read_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate): # mate was originally mapped but didn't pass the threshold
             self.fields[7] = self.mate.rstart
         if self.mate is not None:
             self.mate.fields[7] = self.rstart
@@ -314,7 +307,7 @@ class SamRead:
                     done = True
 
             # check if there are already too many errors, if so, mark the read to be bad, and return empty dictionaries 
-            if self.is_record_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate):
+            if self.is_read_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate):
                 #print "too many errors, discard"
                 done = True
                 return dict(), dict()
