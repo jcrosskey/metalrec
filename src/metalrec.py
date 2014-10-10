@@ -10,6 +10,7 @@ Created on Wed, Aug 20, 14:06:18 2014
 import sys, os
 import argparse
 import metalrec_lib
+import numpy
 import time
 import re
 
@@ -40,6 +41,7 @@ parser.add_argument("--width",help="print width for sequences in verbose output"
 
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
+parser.add_argument("--minOverlapRatio",help="minimum ratio of average overlap length between reads",dest='minOverlapRatio',default=0.1, type=float)
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=-1, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
@@ -70,9 +72,12 @@ def main(argv=None):
     ## output file and directories, optional
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
         args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/EC.fasta'
+        shortSeqFile = args.oSeqFile + '.short'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
         os.remove(args.oSeqFile)
         sys.stdout.write("Output sequence file already exists, overwrite.\n")
+    if os.path.exists(shortSeqFile): # overwrite the output file if it already exists
+        os.remove(shortSeqFile)
     elif not os.path.exists(os.path.dirname(os.path.abspath(args.oSeqFile))): # make sure the directory for the output file exists
         os.makedirs(os.path.dirname(os.path.abspath(args.oSeqFile)))
 
@@ -103,6 +108,7 @@ def main(argv=None):
         sys.stdout.write('\n')
 
         refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
+        shortOut = open(shortSeqFile,'a')
 
         seqName = os.path.basename(args.seqFile).split('.')[0] # e.g. m130828_041445_00123_c100564312550000001823090912221381_s1_p0__58103__7045_8127.fasta
         seqName = re.sub('__','/',seqName) # change __ back to /
@@ -122,16 +128,26 @@ def main(argv=None):
             # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
             if args.verbose:
                 region_outdir = args.outDir+'region' + str(good_region_index)
+                fastaFile = args.outDir + 'goodreads.fasta'
             else:
-                region_outdir = ''
-            ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap, args.outDir + 'goodreads.fasta', region_outdir, read_info, verbose=args.verbose)
+                region_outdir = None
+                fastaFile = None
+            ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap,args.minOverlapRatio, fastaFile, region_outdir, read_info, verbose=args.verbose)
             # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            ref_new_short, ref_new_long = metalrec_lib.array_to_seq(ref_new[0])
+            contiguous_seqs = metalrec_lib.split_at_gap(ref_new[2], ref_new[0])
+            contiguous_lengths = numpy.array(map(len, contiguous_seqs))
+            max_ind = numpy.argmax(contiguous_lengths)
             # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
             ## write the newly corrected sequence to the output sequence file
             # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{}/{} ({}, {}) gap length: {}\n{}\n'.format(seqName, good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], ref_new_short))
+            refOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
+            if len(contiguous_seqs) > 1:
+                for i in xrange(len(contiguous_seqs)):
+                    if i != max_ind:
+                        shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[i]))
+
         refOut.close()
+        shortOut.close()
     sys.stdout.write("total time :" + str(time.time() - start_time) +  "seconds")
     sys.stdout.write("\n===========================================================\nDone\n")
 ##==============================================================

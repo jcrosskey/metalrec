@@ -132,7 +132,7 @@ type_array, ext_region = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext
 ar = metalrec_lib.make_read_array1d(readinfo.keys()[0], bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext) 
 short_r, long_r = metalrec_lib.array_to_seq(ar) # get the read sequence from its array
 read_array, read_counts = metalrec_lib.make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)
-ref0, tot_gap, Cvec = metalrec_lib.greedy_fill_gap(read_array, ref0=None, verbose=True)
+ref0, max_len, Cvec = metalrec_lib.greedy_fill_gap(read_array, ref0=None, minOverlap=10, verbose=True)
 overlap_mat = metalrec_lib.get_overlapLen(ref0, read_array, Cvec=Cvec)
 ref_new = metalrec_lib.fill_gap(read_array, 15, "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/EC/goodreads.fasta", "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/EC/region0", readinfo, verbose=True)
 ref_new = metalrec_lib.fill_gap(read_array, "/Users/cjg/Work/PacBio/metalrec/test/good_reads.fasta", "/Users/cjg/Work/PacBio/metalrec/test", readinfo, verbose=False)
