@@ -351,43 +351,44 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
             # mapping record lines
             else:
                 record = line
-                myread = samread.SamRead(record)
-                #print myread.qname # DEBUG
-                if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
-                    #sys.stdout.write("realign\n") # DEBUG
-                    pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
-                    if len(pos_dict) + len(ins_dict) > 0:
-                        keepRec += 1
-                        if verbose:
-                            newsam.write(myread.generate_sam_record())
-                            outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
+                if '\t' in line:
+                    myread = samread.SamRead(record)
+                    #print myread.qname # DEBUG
+                    if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
+                        #sys.stdout.write("realign\n") # DEBUG
+                        pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
+                        if len(pos_dict) + len(ins_dict) > 0:
+                            keepRec += 1
+                            if verbose:
+                                newsam.write(myread.generate_sam_record())
+                                outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
 
-                        # update string dictionary for the read information
-                        # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
-                        read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-                        # single end reads, different reads don't have same names
-                        if read_string not in readinfo: # new read_string(key) in the dictionary
-                            readinfo[read_string] = []
-                        readinfo[read_string].append(myread.qname)
+                            # update string dictionary for the read information
+                            # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
+                            read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                            # single end reads, different reads don't have same names
+                            if read_string not in readinfo: # new read_string(key) in the dictionary
+                                readinfo[read_string] = []
+                            readinfo[read_string].append(myread.qname)
 
-                        for pos in pos_dict: # all the matching/mismatching/deletion positions
-                            ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
+                            for pos in pos_dict: # all the matching/mismatching/deletion positions
+                                ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
-                        for ins in ins_dict: # all the insertion positions
-                            ins_chars = ins_dict[ins]
-                            if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
-                                ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
-                            elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
-                                ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
-                            for i in xrange(len(ins_chars)):
-                                ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
+                            for ins in ins_dict: # all the insertion positions
+                                ins_chars = ins_dict[ins]
+                                if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                                    ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
+                                elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
+                                    ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
+                                for i in xrange(len(ins_chars)):
+                                    ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
 
-                        if verbose and keepRec % 1000 == 0:
-                            sys.stdout.write('  processed {} good records\n'.format(keepRec))
+                            if verbose and keepRec % 1000 == 0:
+                                sys.stdout.write('  processed {} good records\n'.format(keepRec))
+                        else:
+                            discardRec += 1
                     else:
                         discardRec += 1
-                else:
-                    discardRec += 1
     
     if verbose:
         newsam.close()
@@ -1236,7 +1237,10 @@ def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRa
         sub_read_array = read_array[compatible_ind,:]
         if minOverlap != -1 and minOverlapRatio != 0: # check minOverlap
             overlap_mat = get_overlapLen(ref_array, read_array, compatible_ind)
-            avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
+            if max(abs(overlap_mat)) == 0:
+                avgOverlap = 0
+            else:
+                avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
             minOverlap = max(minOverlap, avgOverlap * minOverlapRatio) # hard cutoff and soft ratio cutoff, whichever is larger
             maxOverlap_mat = find_maxOverlap(overlap_mat)
             # check if any read need clipping because of small overlap length
@@ -1336,7 +1340,10 @@ def longest_seg(ref_array, read_array, minOverlap=10, minOverlapRatio=0.1):
         gaps = gap_pos(ref_array, read_array, Cvec, minOverlap=minOverlap,minOverlapRatio=minOverlapRatio)
         contiguous_seqs = split_at_gap(gaps, ref_array)
         contiguous_lengths = map(len, contiguous_seqs) # get length for each contiguous segment
-        return max(contiguous_lengths)
+        if len(contiguous_lengths) != 0:
+            return max(contiguous_lengths)
+        else:
+            return 0
 ## ======================================================================
 def get_reads_for_gap(read_array, gap, skip_reads=[]):
     ''' Given a gap (start, end), find reads that cover any base in the gap region and number of bases covered by them.
@@ -1347,18 +1354,21 @@ def get_reads_for_gap(read_array, gap, skip_reads=[]):
                 reads_cov - corresponding numbers of bps covered by all the reads in reads_ind
     '''
     if len(skip_reads) > 0:
-        keep_reads = array( [ i for i in arange(read_array.shape[0]) if i not in skip_reads ] ) # indices of the reads that are kept (not skipped)
+        keep_reads = array( [ i for i in arange(read_array.shape[0]) if i not in skip_reads ], dtype=int32 ) # indices of the reads that are kept (not skipped)
         read_array = read_array[keep_reads,:] # slicing the read_array
     else:
         keep_reads = arange(read_array.shape[0])
 
-    gap_start = gap[0]
-    gap_end = gap[1] + 1
-    read_array = read_array[:, gap_start*5:gap_end*5 ] # only look at the particular positions
-    coverages = apply_along_axis(cov_bps, axis=1, arr=read_array) # apply function cov_bps to find the coverage of all the other reads
-    reads_ind = keep_reads[ where(coverages!=0)[0] ] # indices of reads that have nonzero coverage in this region
-    reads_cov = coverages[ where(coverages!=0)[0] ] # their corresponding coverage
-    return reads_ind, reads_cov # return both the indices and the corresponding coverage of the specified region
+    if len(keep_reads) == 0:
+        return array([],dtype=int32), array([],dtype=int32)
+    else:
+        gap_start = gap[0]
+        gap_end = gap[1] + 1
+        read_array = read_array[:, gap_start*5:gap_end*5 ] # only look at the particular positions
+        coverages = apply_along_axis(cov_bps, axis=1, arr=read_array) # apply function cov_bps to find the coverage of all the other reads
+        reads_ind = keep_reads[ where(coverages!=0)[0] ] # indices of reads that have nonzero coverage in this region
+        reads_cov = coverages[ where(coverages!=0)[0] ] # their corresponding coverage
+        return reads_ind, reads_cov # return both the indices and the corresponding coverage of the specified region
 ## ======================================================================
 def get_new_ref(ref_array, read_ind, read_array):
     ''' from the previous ref_array, and the newly added read_array1d to fill the gap, find a new ref_array
@@ -1618,7 +1628,11 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
     best_ref = ref0.copy()
     best_gap_pos = Gap_pos.copy()
     best_Cvec = Cvec.copy()
-    old_max_len =  max(map(len, split_at_gap(Gap_pos, ref0)))
+    try:
+        old_max_len =  max(map(len, split_at_gap(Gap_pos, ref0)))
+    except ValueError:
+        old_max_len = 0
+
     best_max_len = old_max_len
     improved = False
     gap_ind = 0
@@ -1649,7 +1663,10 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
             ref1 = get_new_ref(ref0, reads_ind[0], read_array) # get a new ref, according to the highest ranked read
             Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
             gap_pos1 = gap_pos(ref1, read_array, Cvec1, minOverlap, minOverlapRatio) # positions not covered by the compatible reads (gap positions)
-            max_len = max(map(len, split_at_gap(gap_pos1, ref1)))
+            try:
+                max_len = max(map(len, split_at_gap(gap_pos1, ref1)))
+            except ValueError:
+                max_len = 0
             if len(gap_pos1) == 0: # by luck, all the gaps are filled!
                 if verbose:
                     sys.stdout.write("no more gaps\n")

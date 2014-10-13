@@ -45,7 +45,7 @@ parser.add_argument("--minOverlapRatio",help="minimum ratio of average overlap l
 parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=1, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
-parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.03, type=float)
+parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.05, type=float)
 parser.add_argument("--indelRate",help="maximum insertion rate allowed",dest='maxInDelRate',default=0.30, type=float)
 parser.add_argument("--minCV",help="minimum coverage depth",dest='minCV',default=1, type=int)
 parser.add_argument("--minPacBioLen",help="minimum PacBio length to be considered",dest='minPacBioLen',default=1000, type=int)
