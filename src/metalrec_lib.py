@@ -1237,7 +1237,7 @@ def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRa
         sub_read_array = read_array[compatible_ind,:]
         if minOverlap != -1 and minOverlapRatio != 0: # check minOverlap
             overlap_mat = get_overlapLen(ref_array, read_array, compatible_ind)
-            if max(abs(overlap_mat)) == 0:
+            if amax(abs(overlap_mat)) == 0:
                 avgOverlap = 0
             else:
                 avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
