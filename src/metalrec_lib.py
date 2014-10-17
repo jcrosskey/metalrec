@@ -17,9 +17,9 @@ def minCover(cv):
         Input:  cv - coverage depth at a position
         Output: min_cover - minimum read support
     '''
-    if cv <= 2:
+    if cv <= 3:
         return 1
-    elif cv == 3 or cv == 4:
+    elif cv == 5 or cv == 4:
         return 2
     else:
         return 3
