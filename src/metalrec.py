@@ -42,7 +42,7 @@ parser.add_argument("--width",help="print width for sequences in verbose output"
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
 parser.add_argument("--minOverlapRatio",help="minimum ratio of average overlap length between reads",dest='minOverlapRatio',default=0.1, type=float)
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=1, type=int)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
 parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.05, type=float)
@@ -87,6 +87,18 @@ def main(argv=None):
         if not os.path.exists(args.outDir):
             os.makedirs(args.outDir)
         sys.stdout.write("verbose output directory: {}.\n".format(args.outDir))
+
+    if args.verbose:
+        sys.stdout.write("minimum overlap length: {}\n".format(args.minOverlap))
+        sys.stdout.write("minimum overlap length ratio: {}\n".format(args.minOverlapRatio))
+        sys.stdout.write("maximum stretch of substitution: {}\n".format(args.maxSub))
+        sys.stdout.write("maximum stretch of insertion: {}\n".format(args.maxIns))
+        sys.stdout.write("maximum stretch of deletion: {}\n".format(args.maxDel))
+        sys.stdout.write("maximum substitution rate allowed: {}\n".format(args.maxSubRate))
+        sys.stdout.write("maximum indel rate allowed: {}\n".format(args.maxInDelRate))
+        sys.stdout.write("minimum coverage depth: {}\n".format(args.minCV))
+        sys.stdout.write("minimum PacBio read length to be considered: {}\n".format(args.minPacBioLen))
+        sys.stdout.write("minimum good region length: {}\n".format(args.minGoodLen))
 
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)

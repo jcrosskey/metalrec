@@ -7,6 +7,7 @@ sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.
 import math
 from Bio import pairwise2 # pairwise alignment using dynamic programming
 from Bio.pairwise2 import format_alignment
+from numpy import *
 
 ''' reverse complement function '''
 revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence
@@ -145,34 +146,6 @@ class SamRead:
                         seg = seg[:-(cigar_info['right_clip_len'] - keep_right)]
         #print "after clipping: ", seg
         return keep_left, keep_right, seg
-    ## trim query sequences, with clipped part in consideration. This function does not change cigar string.
-    ## It takes care of soft clipping, not hard clipping
-    ## Retrieve the clipped part as long as it's still inside the long PacBio sequence.
-    def trim_qseq_clip(self, rseq):
-        ''' This function alters the qSeq of the read. Get the segment for realigning to PacBio sequence, considering the clipped part.
-            Input:  rseq - reference sequence (PacBio)
-            Output: keep_left, keep_right - number of clipped bases kept to the left and right of the mapped segment of Illumina read
-        '''
-        keep_left = 0
-        keep_right = 0
-        if 'S' in self.cigarstring: # if it's hard clipping, the sequence information is not available in sam file
-            cigar_info = metalrec_lib.cigar(self.cigarstring)
-            #print "before clipping: ", self.seg #DEBUG
-            #print "starting position on the ref sequence is ", self.rstart
-            #print "left clip: ", cigar_info['left_clip_len']
-            #print "right clip: ", cigar_info['right_clip_len']
-            if cigar_info['left_clip_len'] > 0 or cigar_info['right_clip_len'] > 0:
-                if cigar_info['left_clip_len'] > 0:
-                    keep_left = min( self.rstart - 1, cigar_info['left_clip_len'])
-                    #print "keep_left: ", keep_left
-                    self.seg = self.seg[(cigar_info['left_clip_len'] - keep_left):] # change the segment sequence, instead of the whole read sequence
-                if cigar_info['right_clip_len'] > 0:
-                    keep_right = min(len(rseq) - self.get_rend(), cigar_info['right_clip_len'])
-                    #print "keep_right: ", keep_right
-                    if keep_right < cigar_info['right_clip_len']:
-                        self.seg = self.seg[:-(cigar_info['right_clip_len'] - keep_right)]
-        #print "after clipping: ", self.seg
-        return keep_left, keep_right
 
     # get the read segment, could be hard clipped or not, depending on if the clip function has been called
     def get_read_seq(self, keep_orientation=False):
@@ -226,11 +199,11 @@ class SamRead:
         # The leftmost segment has a plus sign and the rightmost has a minus sign. The sign of segments in the middle is undefined. It is set as 0 for single-segment template or when the information is unavailable. 
         # TODO: this could have changed
         # [9] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
-        self.trim_qseq()
-        self.fields[5], self.fields[9] = self.cigarstring, self.qSeq
+        #self.trim_qseq()
+        self.fields[9] = self.qSeq
         if self.mate is not None:
-            self.mate.trim_qseq()
-            self.mate.fields[5], self.mate.fields[9] = self.mate.cigarstring, self.mate.qSeq
+            #self.mate.trim_qseq()
+            self.mate.fields[9] = self.mate.qSeq
         # [10] QUAL stays the same
 
         ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
@@ -244,7 +217,7 @@ class SamRead:
         return record
 
     # re-align read to PacBio sequence and shift indels to the leftmost possible positions
-    def re_align(self, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10):
+    def re_align(self, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10,checkEnds=True):
         ''' realign the read to PacBio sequence, including retrieving clipped parts and scrubbing '''
         #print self.qname
         done = False # indicator of whether realigning is done
@@ -312,6 +285,92 @@ class SamRead:
                 done = True
                 return dict(), dict()
         #print "Done"        
-        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, ref_region_start + align_start)
+        if checkEnds:
+            left_trim, right_trim, rstart_shift = self.check_ends(maxSubRate=maxSubRate)
+            #sys.stdout.write("left_trim: {}; right_trim: {},  rstart_shift: {}\n\n".format(left_trim, right_trim, rstart_shift))
+            seq1 = new_align1[0][left_trim:]
+            seq2 = new_align1[1][left_trim:]
+            if right_trim > 0:
+                seq1 = seq1[:-right_trim]
+                seq2 = seq2[:-right_trim]
+            new_align1 = (seq1, seq2, 0, len(seq1), new_align1[-1])
+            # change the starting position on ref sequence
+            self.rstart = self.rstart + rstart_shift
+            self.fields[3] = str(self.rstart)
+
+        pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, self.rstart)
 
         return pos_dict, ins_dict
+
+    # check the ends of read and see if there are too many errors
+    def check_ends(self, maxSubRate=0.05):
+        cigar_info = metalrec_lib.cigar(self.cigarstring)
+        left_trim_len = 0
+        left_clip_len = 0
+        right_trim_len = 0
+        right_clip_len = 0
+        rstart_shift = 0
+        if cigar_info['sub_len'] > 1: # only do this if there is more than 1 substitution errors
+            if maxSubRate is None:
+                maxSubRate = cigar_info['sub_len'] / float(cigar_info['seq_len']) # average substitution rate in this read
+            all_Nums = array(map(int,re.findall('\d+',self.cigarstring)))
+            all_Chars = array(re.findall('\D+',self.cigarstring))
+            non_clip_chars = where(all_Chars!='S')[0]
+            Nums = all_Nums[non_clip_chars]
+            Chars = all_Chars[non_clip_chars]
+            sub_Inds = where(Chars=='X')[0] # index of substitutions in Chars
+            if len(sub_Inds) > 1:
+                # left end
+                subs = cumsum(Nums[sub_Inds]) # cumulative number of substitutions
+                bases = cumsum(Nums)[sub_Inds[1:] - 1] # number of bases corresponding to the number of substitutions
+
+                subRate = true_divide(subs[:-1], bases) # substitution rates up to each substitution error place
+                ManySubInds = where(subRate > maxSubRate*1.15)[0] # indices where subRate is too high
+                if len(ManySubInds) > 0:
+                    leftmost_ind = sub_Inds[amax(ManySubInds)]
+                    left_trim_len = cumsum(Nums)[leftmost_ind]
+                    left_clip_len = left_trim_len - sum(Nums[where(Chars[:leftmost_ind] =='D')[0]])
+                    rstart_shift = left_trim_len - sum(Nums[where(Chars[:leftmost_ind] =='I')[0]])
+
+                # right end
+                rNums = Nums[::-1]
+                rChars = Chars[::-1]
+                rsub_Inds = where(rChars=='X')[0] # index of substitutions in Chars
+                subs = cumsum(rNums[rsub_Inds]) # cumulative number of substitutions
+                bases = cumsum(rNums)[rsub_Inds[1:] - 1] # number of bases corresponding to the number of substitutions
+
+                subRate = true_divide(subs[:-1], bases) # substitution rates up to each substitution error place
+                ManySubInds = where(subRate > maxSubRate*1.15)[0] # indices where subRate is too high
+                if len(ManySubInds) > 0:
+                    rightmost_ind = rsub_Inds[amax(ManySubInds)]
+                    right_trim_len = cumsum(rNums)[ rightmost_ind ]
+                    right_clip_len = right_trim_len - sum(rNums[where(rChars[:rightmost_ind ] =='D')[0]])
+            #sys.stdout.write("left_clip_len: {} right_clip_len: {}\n".format(left_clip_len, right_clip_len))
+            if left_trim_len > 0:
+                Nums = Nums[(leftmost_ind + 1):]
+                Chars = Chars[(leftmost_ind + 1):]
+            if right_trim_len > 0:
+                Nums = Nums[: -(rightmost_ind+1)]
+                Chars = Chars[ : -(rightmost_ind+1)]
+            Nums = Nums.tolist()
+            Chars = Chars.tolist()
+            if all_Chars[0] == 'S':
+                Nums.insert(0, left_clip_len + all_Nums[0])
+                Chars.insert(0, 'S')
+            elif left_clip_len > 0:
+                Nums.insert(0, left_clip_len)
+                Chars.insert(0, 'S')
+
+            if all_Chars[-1] == 'S':
+                Nums.append(right_clip_len + all_Nums[-1])
+                Chars.append('S')
+            elif right_clip_len > 0:
+                Nums.append(right_clip_len)
+                Chars.append('S')
+
+            res = [None] * (len(Nums) + len(Chars))
+            res[::2] = map(str,Nums)
+            res[1::2] = Chars
+            self.cigarstring = ''.join(res)
+            self.fields[5] = self.cigarstring
+        return left_trim_len, right_trim_len, rstart_shift

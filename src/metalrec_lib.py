@@ -19,10 +19,8 @@ def minCover(cv):
     '''
     if cv <= 3:
         return 1
-    elif cv == 5 or cv == 4:
-        return 2
     else:
-        return 3
+        return 2
 ## ======================================================================
 def dict_to_string(dictionary):
     ''' Convert dictionary to a string, key value all concatenated. Dictionary is first sorted by keys '''

@@ -90,8 +90,8 @@ from numpy import *
 from Bio import pairwise2
 from Bio.pairwise2 import format_alignment
 
-samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720.sam"
-ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720.fasta"
+samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 reload(metalrec_lib)
@@ -103,7 +103,7 @@ samIn = open(samfile,'r')
 for i in xrange(4):
     a = samIn.readline()
 
-while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2103:15782:7240e':
+while a.split('\t')[0] != 'HISEQ11:285:H987LADXX:2:2104:15628:91916':
     a = samIn.readline()
 
 
