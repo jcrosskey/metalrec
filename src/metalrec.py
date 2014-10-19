@@ -38,7 +38,7 @@ parser.add_argument("-od","--outDir",help="directory for the intermediate files"
 #parser.add_argument("-m",help="read mode, s(ingle) or p(air)",dest='rMode',default='p',choices=['s','p'])
 parser.add_argument("-v","--verbose",help="verbose, more output",action='store_true',dest='verbose')
 parser.add_argument("--width",help="print width for sequences in verbose output",dest='width', default = 100, type = int)
-parser.add_argument("--checkEnds",help="check the substitution errors at the ends",dest='checkEnds', action='store_true')
+parser.add_argument("--checkEnds",help="check the substitution errors at the ends",dest='checkEnds', action='store_false')
 
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)

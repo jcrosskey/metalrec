@@ -25,10 +25,11 @@ using namespace std;
 void usage()
 {
     cout << " [Usage]" << endl
-    << "  metalrec_mpi [options] -fd <fastaDir> -sd <samDir> -od <outDir> -path <py_path> " << endl
+    << "  metalrec_mpi [options] -f <readNameFile> -fd <fastaDir> -sd <samDir> -od <outDir> -path <py_path> " << endl
     << endl
     
     << " [Inputs]" << endl
+    << "   -f <readNameFile> File including base names of read/sam files" << endl
     << "   -fd <fastaDir> directories with fasta files including PacBio sequences to correct" << endl
     << "   -sd <samDir> directory with sam files including mapping results for each PacBio sequence" << endl
     << "   -path <py_path> full path of python script metalred.py" << endl
@@ -58,6 +59,7 @@ int initializeArguments(int argc, char ** argv,
 	while(argc--)
 		Arguments.push_back(*argv++);
 
+	string baseNameFile = ""; /* File including base names of read/sam files */
 	string fastaDir = ""; /*input directory for the fasta files of PacBio sequences */
 	string outDir = ""; /* output directory */
 
@@ -66,8 +68,18 @@ int initializeArguments(int argc, char ** argv,
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
+		// File including base names of read/sam files, one name on each row
+		if (Arguments[i] == "-f") {
+			try{
+			    baseNameFile = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				baseNameFile = "";
+			}
+		}
+
 		// input directory for the fasta files of PacBio sequences
-		if (Arguments[i] == "-fd") {
+		else if (Arguments[i] == "-fd") {
 			try{
 			    fastaDir = Arguments.at(++i);
 			}
@@ -121,7 +133,7 @@ int initializeArguments(int argc, char ** argv,
 	}
 	/* check required arguments
 	* 1. fastaDir; 2. samDir 3. python command path */
-	if ((fastaDir== "") || (py_cmd_path == "") || (samDir == ""))
+	if ( ((baseNameFile == "") && (fastaDir== "")) || (py_cmd_path == "") || (samDir == ""))
 	{
 		cerr << "missing necessary parameter(s)"<<endl;
 		cerr << "use -h/--help for help" << endl;
@@ -136,8 +148,17 @@ int initializeArguments(int argc, char ** argv,
 	//cout << "input fasta directory is: " << fastaDir << endl;
 	//cout << "input sam file directory is: " << samDir << endl;
 
+	// first check if starting from a file, instead of scanning a directory
+	if (baseNameFile != "") {
+		ifstream baseIn;
+		baseIn.open(baseNameFile.c_str());
+		string line;
+		while (getline(baseIn, line)){
+			fastaFilenames.push_back(line + ".fasta");
+		}
+	}
 	// find all the fasta files in the input directory, ends with .fa or .fasta
-	if (fastaDir != "") {
+	else if (fastaDir != "") {
 		DirectoryStructure fasta_dir(fastaDir);
 
 		fasta_dir.setPattern(".fa");
@@ -250,11 +271,11 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
 		string py_cmd = "python " + py_cmd_path + " -i " + fastaFile + " -s " + samFile + " -o " + outFile + " > " + logFile;
-		cout << py_cmd << endl;
-		//const int res = system(py_cmd.c_str());
-		//if(res != 0){
-		//	cout << "   *** Failed command " << py_cmd << endl;
-		//}
+		//cout << py_cmd << endl;
+		const int res = system(py_cmd.c_str());
+		if(res != 0){
+			cout << "   *** Failed command " << py_cmd << endl;
+		}
 	}
 	// else just print message
 	else{
