@@ -80,6 +80,7 @@ array_a	tmp.py	/^array_a = metalrec_lib.make_read_array1d(a, bp_pos_dict, ins_po
 array_b	tmp.py	/^array_b = metalrec_lib.make_read_array1d(read_info.keys()[0], bp_pos_dict, ins_pos_dict, type_array,poly_bps, poly_ins, consensus_bps, consensus_ins)$/;"	v
 array_to_seq	metalrec_lib.py	/^def array_to_seq(seq_array, miss_char='.'):$/;"	f
 check_call	multi_proc_metalrec.py	/^from subprocess import Popen, PIPE, check_call, STDOUT$/;"	i
+check_ends	samread.py	/^    def check_ends(self, maxSubRate=0.05):$/;"	m	class:SamRead
 cigar	metalrec_lib.py	/^def cigar(cigar_string):$/;"	f
 color	metalrec_lib.py	/^import mycolor # print with color in terminal$/;"	i
 commaStringToVector	cpp_MPI_wrapper/utils.cpp	/^    std::vector<std::string> commaStringToVector(std::string & comma_string, const char & delimit)$/;"	f	namespace:Utils
@@ -97,6 +98,7 @@ conflict_handler	multi_proc_metalrec.py	/^    conflict_handler='resolve', # for 
 conflict_handler	samStat.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 conflict_handler	test.py	/^                                 conflict_handler='resolve', # for handling conflict options$/;"	v
 cov_bps	metalrec_lib.py	/^def cov_bps(read_array1d):$/;"	f
+cov_vec	metalrec_lib.py	/^def cov_vec(read_array1d):$/;"	f
 currentDateTime	cpp_MPI_wrapper/utils.cpp	/^    std::string currentDateTime() $/;"	f	namespace:Utils
 datetime	multi_proc_metalrec.py	/^from datetime import datetime$/;"	i
 dict_to_string	metalrec_lib.py	/^def dict_to_string(dictionary):$/;"	f
@@ -138,7 +140,6 @@ fromfile_prefix_chars	metalrec.py	/^                                 fromfile_pr
 fromfile_prefix_chars	multi_proc_metalrec.py	/^    fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	samStat.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
 fromfile_prefix_chars	test.py	/^                                 fromfile_prefix_chars='@', # if options are read from file, '@args.txt'$/;"	v
-gap_A_fn	samread.py	/^def gap_A_fn(gap_index, gap_len, maxLen=1000):$/;"	f
 gap_lens	tmp.py	/^gap_lens = concatenate( (gap_lens, array([len(gaps) - gap_starts[-1] - 1]) )) # append the length of the last gap$/;"	v
 gap_lens	tmp.py	/^gap_lens = gap_starts -  concatenate(( array([0]), gap_starts[:-1] )) # length of the gaps ( not including the last gap)$/;"	v
 gap_pos	metalrec_lib.py	/^def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRatio=0.1):$/;"	f
@@ -174,7 +175,7 @@ get_muscle_cmd_and_log	multi_proc_metalrec.py	/^def get_muscle_cmd_and_log(input
 get_new_ref	metalrec_lib.py	/^def get_new_ref(ref_array, read_ind, read_array):$/;"	f
 get_overlapLen	metalrec_lib.py	/^def get_overlapLen(ref_array, read_array, Cvec=None):$/;"	f
 get_overlapMat	metalrec_lib.py	/^def get_overlapMat(read_array):$/;"	f
-get_poly_pos	metalrec_lib.py	/^def get_poly_pos(ref_bps, ref_ins_dict, region=None, minReads=3, minPercent=0.3):$/;"	f
+get_poly_pos	metalrec_lib.py	/^def get_poly_pos(ref_bps, ref_ins_dict, region=None):$/;"	f
 get_read_seq	samread.py	/^    def get_read_seq(self, keep_orientation=False):$/;"	m	class:SamRead
 get_reads_for_gap	metalrec_lib.py	/^def get_reads_for_gap(read_array, gap, skip_reads=[]):$/;"	f
 get_reads_name	metalrec_lib.py	/^def get_reads_name(readinfo, compatible_ind):$/;"	f
@@ -208,9 +209,9 @@ is_proper_pair	samread.py	/^    def is_proper_pair(self):$/;"	m	class:SamRead
 is_qcfail	samread.py	/^    def is_qcfail(self):$/;"	m	class:SamRead
 is_read1	samread.py	/^    def is_read1(self):$/;"	m	class:SamRead
 is_read2	samread.py	/^    def is_read2(self):$/;"	m	class:SamRead
+is_read_bad	samread.py	/^    def is_read_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):$/;"	m	class:SamRead
 is_read_compatible	metalrec_lib.py	/^def is_read_compatible(ref_array, read_array1d):$/;"	f
 is_record_bad	metalrec_lib.py	/^def is_record_bad(alignRecord, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):$/;"	f
-is_record_bad	samread.py	/^    def is_record_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):$/;"	m	class:SamRead
 is_reverse	samread.py	/^    def is_reverse(self):$/;"	m	class:SamRead
 is_secondary	samread.py	/^    def is_secondary(self):$/;"	m	class:SamRead
 is_supplementary	samread.py	/^    def is_supplementary(self):$/;"	m	class:SamRead
@@ -255,6 +256,7 @@ metalrec_lib	metalrec.py	/^import metalrec_lib$/;"	i
 metalrec_lib	samread.py	/^import metalrec_lib$/;"	i
 metalrec_lib	test.py	/^import metalrec_lib$/;"	i
 metalrec_lib	tmp.py	/^import metalrec_lib$/;"	i
+minCover	metalrec_lib.py	/^def minCover(cv):$/;"	f
 mkdirIfNonExist	cpp_MPI_wrapper/utils.cpp	/^    void mkdirIfNonExist(const std::string & dirname)$/;"	f	namespace:Utils
 muscleAlign	multi_proc_metalrec.py	/^def muscleAlign(args):$/;"	f
 mycolor	metalrec_lib.py	/^import mycolor # print with color in terminal$/;"	i
@@ -330,9 +332,9 @@ re	merge_stat.py	/^import re$/;"	i
 re	metalrec.py	/^import re$/;"	i
 re	metalrec_lib.py	/^import re$/;"	i
 re	samread.py	/^import re$/;"	i
-re_align	samread.py	/^    def re_align(self, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10):$/;"	m	class:SamRead
+re_align	samread.py	/^    def re_align(self, rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10,checkEnds=True):$/;"	m	class:SamRead
 read_EC_stat	merge_stat.py	/^def read_EC_stat(read_stat_file):$/;"	f
-read_and_process_sam_samread	metalrec_lib.py	/^def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, minPacBioLen=1000, outDir=None, verbose=False):$/;"	f
+read_and_process_sam_samread	metalrec_lib.py	/^def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, minPacBioLen=1000, checkEnds = True, outDir=None, verbose=False):$/;"	f
 read_fasta	metalrec_lib.py	/^def read_fasta(fasta_file,trim=True,reverse=False):$/;"	f
 read_sam	unused.py	/^def read_sam(samFile, maxSub=3, maxIns=3, maxDel=3,maxSubRate=0.02, maxInsRate=0.2, maxDelRate=0.2):$/;"	f
 read_single_seq	metalrec_lib.py	/^def read_single_seq(fastaFile):$/;"	f
@@ -344,15 +346,14 @@ ref1	tmp.py	/^ref1 = metalrec_lib.get_new_ref(ref0, 10, read_array) # get a new 
 ref2	tmp.py	/^ref2 = metalrec_lib.get_new_ref(ref0, 319, read_array) # get a new ref$/;"	v
 ref_consensus	unused.py	/^def ref_consensus(ref_bps, ref_ins_dict, rSeq):$/;"	f
 ref_extension	metalrec_lib.py	/^def ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=None, print_width = 100, verbose=False):$/;"	f
-ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.fasta"$/;"	v
+ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982.fasta"$/;"	v
 ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/Results\/Wetlands\/subreads_with_good_regions\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430.fasta"$/;"	v
 ref_fasta	tmp.py	/^ref_fasta = "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__54536__2157_4456.fasta"$/;"	v
 ref_new	tmp.py	/^ref_new = metalrec_lib.fill_gap(read_array, "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/good_reads.fasta", "\/Users\/cjg\/Work\/PacBio\/metalrec\/test", readinfo, verbose=False)$/;"	v
-ref_new	tmp.py	/^ref_new = metalrec_lib.fill_gap(read_array, 15, "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954\/EC\/goodreads.fasta", "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954\/EC\/region0", readinfo, verbose=True)$/;"	v
+ref_new	tmp.py	/^ref_new = metalrec_lib.fill_gap(read_array, 15, "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720\/EC\/goodreads.fasta", "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100124__481_2720\/EC\/region0", readinfo, verbose=True)$/;"	v
 ref_region_end	tmp.py	/^ref_region_end = min(r1.get_rend() + 5, rLen)$/;"	v
 ref_region_start	tmp.py	/^ref_region_start = max( r1.rstart - 5, 1)$/;"	v
 resetListIterator	cpp_MPI_wrapper/directoryStructure.cpp	/^void DirectoryStructure::resetListIterator()$/;"	f	class:DirectoryStructure
-revcompl	metalrec_lib.py	/^revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}[B] for B in x][::-1]) # find reverse complement of a DNA sequence$/;"	v
 revcompl	samread.py	/^revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence$/;"	v
 rseq	tmp.py	/^rseq = 'CCGTTCGGCGTCAAAGCCCACGCGCAGCTCTTCAGCGGTCCGCGTGGCGCGGGCGCAGCATGGGTGGCGGTCGCTACGGAAGGCACTACTAGCTACTAGCGGCGAGAGCGAGGGTAGGCGGGGCGAGCTGGCAGGTTGGCGGGTACGCGCGCCGCCATTGCAATACGCTTGCCGTCGCGGCGGGCCTTCGAGCGTGGCATG'$/;"	v
 rseq	tmp.py	/^rseq = metalrec_lib.read_single_seq(ref_fasta)$/;"	v
@@ -360,7 +361,7 @@ sam	metalrec_lib.py	/^import samread # for manipulating sam record$/;"	i
 samIn	tmp.py	/^samIn = open(samfile,'r')$/;"	v
 samStat	samStat.py	/^def samStat(samFile, outputFile):$/;"	f
 sam_record_gen	metalrec_lib.py	/^def sam_record_gen(read_array1d, ref, qname, rname):$/;"	f
-samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.sam"$/;"	v
+samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/Results\/MockCommunity\/02_Debug\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982\/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100629__3955_5982.sam"$/;"	v
 samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/Results\/Wetlands\/subreads_with_good_regions\/m131016_052225_00123_c100575992550000001823095504021421_s1_p0__54538__13380_14430\/a.sam"$/;"	v
 samfile	tmp.py	/^samfile = "\/Users\/cjg\/Work\/PacBio\/metalrec\/test\/bbmap_red.sam"$/;"	v
 samfile_gen	metalrec_lib.py	/^def samfile_gen(read_array, ref, readinfo, rname, rLen, out, Cvec=None):$/;"	f
@@ -374,7 +375,6 @@ shift_ends	unused.py	/^def shift_ends(samFile, rSeq, samNew):$/;"	f
 shift_to_left	metalrec_lib.py	/^def shift_to_left(align):$/;"	f
 shift_to_left_chop	metalrec_lib.py	/^def shift_to_left_chop(align, matchLen=1):$/;"	f
 shutil	find_good_regions.py	/^import shutil$/;"	i
-simplify_read_string	unused.py	/^def simplify_read_string(read_string):$/;"	f
 split_at_gap	metalrec_lib.py	/^def split_at_gap(gaps, ref_array):$/;"	f
 stringToDouble	cpp_MPI_wrapper/utils.cpp	/^    double stringToDouble( const std::string& input_string ) $/;"	f	namespace:Utils
 stringToFloat	cpp_MPI_wrapper/utils.cpp	/^    float stringToFloat( const std::string& input_string ) $/;"	f	namespace:Utils
@@ -403,7 +403,6 @@ time	merge_stat.py	/^import time$/;"	i
 time	metalrec.py	/^import time$/;"	i
 time	multi_proc_metalrec.py	/^import time$/;"	i
 trim_qseq	samread.py	/^    def trim_qseq(self):$/;"	m	class:SamRead
-trim_qseq_clip	samread.py	/^    def trim_qseq_clip(self, rseq):$/;"	m	class:SamRead
 type_array	tmp.py	/^type_array = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext)$/;"	v
 unsignedIntToString	cpp_MPI_wrapper/utils.cpp	/^    std::string unsignedIntToString( const unsigned int & input_value )$/;"	f	namespace:Utils
 update_pos_info	metalrec_lib.py	/^def update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict):$/;"	f

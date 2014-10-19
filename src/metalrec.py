@@ -38,6 +38,7 @@ parser.add_argument("-od","--outDir",help="directory for the intermediate files"
 #parser.add_argument("-m",help="read mode, s(ingle) or p(air)",dest='rMode',default='p',choices=['s','p'])
 parser.add_argument("-v","--verbose",help="verbose, more output",action='store_true',dest='verbose')
 parser.add_argument("--width",help="print width for sequences in verbose output",dest='width', default = 100, type = int)
+parser.add_argument("--checkEnds",help="check the substitution errors at the ends",dest='checkEnds', action='store_true')
 
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
@@ -99,11 +100,13 @@ def main(argv=None):
         sys.stdout.write("minimum coverage depth: {}\n".format(args.minCV))
         sys.stdout.write("minimum PacBio read length to be considered: {}\n".format(args.minPacBioLen))
         sys.stdout.write("minimum good region length: {}\n".format(args.minGoodLen))
+        sys.stdout.write("verbose mode: {}\n".format(args.verbose))
+        sys.stdout.write("check substitution error rate at ends: {}\n".format(args.checkEnds))
 
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
-    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, outDir=args.outDir, verbose=args.verbose)
+    ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, checkEnds=args.checkEnds, outDir=args.outDir, verbose=args.verbose)
 
     good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
     sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))

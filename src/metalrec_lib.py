@@ -287,7 +287,7 @@ def get_bases_from_align(align, start_pos):
 
     return pos_dict, ins_dict
 ## ======================================================================
-def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, minPacBioLen=1000, outDir=None, verbose=False):
+def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, minPacBioLen=1000, checkEnds = True, outDir=None, verbose=False):
     ''' Get consensus sequence from alignments of short reads to a long read, in the process, filter out bad reads and improve mapping
         Uses SamRead class instead of calling all the functions
 
@@ -354,7 +354,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                     #print myread.qname # DEBUG
                     if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                         #sys.stdout.write("realign\n") # DEBUG
-                        pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
+                        pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate, checkEnds) # realign read to PacBio sequence
                         if len(pos_dict) + len(ins_dict) > 0:
                             keepRec += 1
                             if verbose:
