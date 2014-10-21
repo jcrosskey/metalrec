@@ -1150,9 +1150,10 @@ def get_overlapLen(ref_array, read_array, Cvec=None):
             overlap_len = dot(new_array[i,:], new_array[j,:])
             if start_pos_vec[i] < start_pos_vec[j] and end_pos_vec[i] < end_pos_vec[j]: # positive if the first read's starting position is smaller than the second read's starting position
                 overlap_mat[i,j] = overlap_len
+                overlap_mat[j,i] = - overlap_mat[i,j]
             elif start_pos_vec[i] > start_pos_vec[j] and end_pos_vec[i] > end_pos_vec[j]:
                 overlap_mat[i,j] = -overlap_len
-            overlap_mat[j,i] = - overlap_mat[i,j]
+                overlap_mat[j,i] = - overlap_mat[i,j]
     return overlap_mat
 ## ======================================================================
 def cov_vec(read_array1d):
@@ -1252,24 +1253,33 @@ def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRa
         sub_read_array = copy(read_array[compatible_ind,:]) # read array with only the compatible reads
         cvec = arange(len(compatible_ind),dtype=int32)
         if minOverlap != -1 or minOverlapRatio != 0: # check minOverlap if at least one of the minOverlap and minOverlapRatio is specified
-            treat_zero = False
             iter_count = 1
+            trimmed_reads = zeros(shape=(len(compatible_ind),2),dtype=int32)
             while True: # iteratively change the read array if necessary
                 overlap_mat = get_overlapLen(ref_array, sub_read_array, cvec)
                 if amax(abs(overlap_mat)) == 0:
                     avgOverlap = 0
                 else:
                     avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
-                minOverlap = max(minOverlap, avgOverlap * minOverlapRatio) # hard cutoff and soft ratio cutoff, whichever is larger will be used
-                #print "minimum overlap length: ", minOverlap
+                cutOverlap = max(minOverlap, avgOverlap * minOverlapRatio) # hard cutoff and soft ratio cutoff, whichever is larger will be used
+                #print "iteration ", iter_count
+                #print "minimum overlap length: ", cutOverlap
 
                 maxOverlap_mat = find_maxOverlap(overlap_mat)
-                small_ind = where( maxOverlap_mat <= minOverlap) # check if any read need clipping because of small overlap length
-                if (len(small_ind[0]) > 0 and amax(maxOverlap_mat[small_ind]) > 0) or not treat_zero : # some reads have problem
+                small_ind = where( maxOverlap_mat <= cutOverlap) # check if any read need clipping because of small overlap length
+                #print small_ind
+                #print trimmed_reads
+                #print "trim status: ", trimmed_reads[small_ind]
+                if len(small_ind[0]) == 0 or all(trimmed_reads[small_ind] == 1):
+                #if len(small_ind[0]) == 0 or iter_count > 4:
+                    #print "all problematic reads trimmed already"
+                    break
+                else: # some reads have problem
+                    iter_count += 1
                     for i in xrange(len(small_ind[0])):
                         #print i, "==>", small_ind[0][i], ",", small_ind[1][i]
-                        if small_ind[1][i] == 0: # left overlap problem
-                            #print "left overlap"
+                        if small_ind[1][i] == 0 and trimmed_reads[small_ind[0][i],0] == 0: # left overlap problem
+                            trimmed_reads[small_ind[0][i],0] = 1 # mark that this read has been trimmed for the overlap checking
                             if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0: # if the positions where there are base calls in this read is greater than 0
                                 first_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][0]/5 # first covered position of this read
                                 if first_pos > 0 : # if the read is not mapped to the beginning of the region, decrease its coverage accordingly
@@ -1277,17 +1287,14 @@ def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRa
                                     #sys.stdout.write("left: index {} has maximum overlap length {}\n".format(i, length)) #DEBUG
                                     sub_read_array[small_ind[0][i], first_pos*5 : (first_pos + length + 1)*5] = 0 
 
-                        if small_ind[1][i] == 1: # right overlap problem
-                            #print "right overlap"
+                        if small_ind[1][i] == 1 and trimmed_reads[small_ind[0][i],1] == 0: # right overlap problem
+                            trimmed_reads[small_ind[0][i],1] = 1
                             if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0:
                                 last_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][-1]/5 # last covered position of this read
                                 if last_pos < (len(ref_array)/5 - 1) : # if the read is not mapped to the end of the region, decrease its coverage accordingly
                                     length = maxOverlap_mat[small_ind[0][i], small_ind[1][i]]
                                     #sys.stdout.write("right: index {} has maximum overlap length {}\n".format(i, length))
                                     sub_read_array[small_ind[0][i],(last_pos - length)*5 : (last_pos + 1)*5] = 0 
-                    treat_zero = True
-                else:
-                    break
         base_cov = sub_read_array[ : , base_pos]
         base_cov = base_cov.sum(axis=0) # pick the compatible rows and the correct columns, sum over the columns
         #print "gap positions: ", where(base_cov == 0)[0]
