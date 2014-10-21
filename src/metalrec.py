@@ -43,7 +43,7 @@ parser.add_argument("--checkEnds",help="check the substitution errors at the end
 ## setting thresholds
 parser.add_argument("--minOverlap",help="minimum overlap length between reads",dest='minOverlap',default=10, type=int)
 parser.add_argument("--minOverlapRatio",help="minimum ratio of average overlap length between reads",dest='minOverlapRatio',default=0.1, type=float)
-parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=3, type=int)
+parser.add_argument("--maxSub",help="maximum stretch of substitution",dest='maxSub',default=-1, type=int)
 parser.add_argument("--maxIns",help="maximum stretch of insertion",dest='maxIns',default=-1, type=int)
 parser.add_argument("--maxDel",help="maximum stretch of deletion",dest='maxDel',default=-1, type=int)
 parser.add_argument("--subRate",help="maximum substitution rate allowed",dest='maxSubRate',default=0.05, type=float)
@@ -108,59 +108,61 @@ def main(argv=None):
     # process sam file and save the read info
     ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, checkEnds=args.checkEnds, outDir=args.outDir, verbose=args.verbose)
 
-    good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
-    sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
-    if len(good_regions) == 0 :
-        sys.stdout.write("PacBio read does not have any good region covered by the Illumina reads")
-        sys.exit(0)
-    else: # examine good regions one by one
-        # first print out all good regions
-        sys.stdout.write("Good regions:\n")
-        for i in good_regions:
-            sys.stdout.write('({}, {}): {}\t'.format(i[0], i[1], i[1] - i[0])) # (start_pos, end_pos): length of this good region
-        sys.stdout.write('\n')
+    if len(ref_bps) == 0: # empty sam file, or nothing
+        sys.stdout.write("PacBio read does not have any coverage from Illumina reads\n")
+    else:
+        good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
+        sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
+        if len(good_regions) == 0 :
+            sys.stdout.write("PacBio read does not have any good region covered by the Illumina reads")
+        else: # examine good regions one by one
+            # first print out all good regions
+            sys.stdout.write("Good regions:\n")
+            for i in good_regions:
+                sys.stdout.write('({}, {}): {}\t'.format(i[0], i[1], i[1] - i[0])) # (start_pos, end_pos): length of this good region
+            sys.stdout.write('\n')
 
-        refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
-        shortOut = open(shortSeqFile,'a')
+            refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
+            shortOut = open(shortSeqFile,'a')
 
-        seqName = os.path.basename(args.seqFile).split('.')[0] # e.g. m130828_041445_00123_c100564312550000001823090912221381_s1_p0__58103__7045_8127.fasta
-        seqName = re.sub('__','/',seqName) # change __ back to /
-        # try to correct PacBio sequence at each good region
-        for good_region_index in xrange(len(good_regions)):
-            sys.stdout.write("====\nworking on region {}\n".format(good_region_index))
-            # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
-            poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index])
-            # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences
-            newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=good_regions[good_region_index],print_width=args.width, verbose=args.verbose)
-            # step 3 - update consensus and polymorphic positions according to the new positons in the extended sequence
-            poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
-            # step 4 - make array to indicate the type for each position on the extended PacBio sequence
-            type_array, coordinates = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext,verbose=args.verbose)
-            # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
-            read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
-            # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-            if args.verbose:
-                region_outdir = args.outDir+'region' + str(good_region_index)
-                fastaFile = args.outDir + 'goodreads.fasta'
-            else:
-                region_outdir = None
-                fastaFile = None
-            ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap,args.minOverlapRatio, fastaFile, region_outdir, read_info, verbose=args.verbose)
-            # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-            contiguous_seqs = metalrec_lib.split_at_gap(ref_new[2], ref_new[0])
-            contiguous_lengths = numpy.array(map(len, contiguous_seqs))
-            max_ind = numpy.argmax(contiguous_lengths)
-            # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
-            ## write the newly corrected sequence to the output sequence file
-            # header format: >1 (0, 1048) gap length: 16
-            refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
-            if len(contiguous_seqs) > 1:
-                for i in xrange(len(contiguous_seqs)):
-                    if i != max_ind:
-                        shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
+            seqName = os.path.basename(args.seqFile).split('.')[0] # e.g. m130828_041445_00123_c100564312550000001823090912221381_s1_p0__58103__7045_8127.fasta
+            seqName = re.sub('__','/',seqName) # change __ back to /
+            # try to correct PacBio sequence at each good region
+            for good_region_index in xrange(len(good_regions)):
+                sys.stdout.write("====\nworking on region {}\n".format(good_region_index))
+                # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
+                poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index])
+                # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences
+                newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, region=good_regions[good_region_index],print_width=args.width, verbose=args.verbose)
+                # step 3 - update consensus and polymorphic positions according to the new positons in the extended sequence
+                poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
+                # step 4 - make array to indicate the type for each position on the extended PacBio sequence
+                type_array, coordinates = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext,verbose=args.verbose)
+                # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
+                read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
+                # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
+                if args.verbose:
+                    region_outdir = args.outDir+'region' + str(good_region_index)
+                    fastaFile = args.outDir + 'goodreads.fasta'
+                else:
+                    region_outdir = None
+                    fastaFile = None
+                ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap,args.minOverlapRatio, fastaFile, region_outdir, read_info, verbose=args.verbose)
+                # step 7 - convert the array for the new PacBio sequence to string of nucleotides
+                contiguous_seqs = metalrec_lib.split_at_gap(ref_new[2], ref_new[0])
+                contiguous_lengths = numpy.array(map(len, contiguous_seqs))
+                max_ind = numpy.argmax(contiguous_lengths)
+                # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
+                ## write the newly corrected sequence to the output sequence file
+                # header format: >1 (0, 1048) gap length: 16
+                refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
+                if len(contiguous_seqs) > 1:
+                    for i in xrange(len(contiguous_seqs)):
+                        if i != max_ind:
+                            shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
 
-        refOut.close()
-        shortOut.close()
+            refOut.close()
+            shortOut.close()
     sys.stdout.write("total time :" + str(time.time() - start_time) +  "seconds")
     sys.stdout.write("\n===========================================================\nDone\n")
 ##==============================================================

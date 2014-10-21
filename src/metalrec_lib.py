@@ -326,6 +326,9 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
         newsam = open(outsamFile,'w')
         outFasta = open(outFastaFile, 'w')
 
+    ref_bps = []
+    ref_ins_dict = dict() # global insertion dictionary for the reference sequence
+    readinfo = dict() # dictionary storing read information (base call for the mapped read)
     with open(samFile, 'r') as mysam:
         for line in mysam:
             lineNum += 1 
@@ -343,8 +346,6 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                             sys.stdout.write("Reference is shorter than threshold {}.\n".format(minPacBioLen))
                         return 0 
                     ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list(length 5) corresponding to each position on the reference sequence
-                    ref_ins_dict = dict() # global insertion dictionary for the reference sequence
-                    readinfo = dict() # dictionary storing read information (base call for the mapped read)
             #####################################
             # mapping record lines
             else:
@@ -393,6 +394,7 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
         outFasta.close()
         sys.stdout.write("discarded {} reads, kept {} reads.\n".format(discardRec, keepRec))
         sys.stdout.write("number of unique reads: {}\n".format(len(readinfo)))
+    
     return ref_bps, ref_ins_dict, readinfo
 ## ======================================================================
 def shift_to_left(align):
@@ -924,6 +926,7 @@ def print_seqs(seq1, seq2, print_width = 100):
 def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):
     ''' Make 1d array for a particular read from its string (key of dictionary readinfo).
         Incorporate the base calling from other reads at the same position.
+        Considering how many bases a read need to change to comply with the consensus calls, if too many, keep its own base calls (or discard it)
 
         Input:  read_string - read string (key of dictionary readinfo)
                 bp_pos_dict, ins_pos_dict - correspondence between positions from original to extended ref sequence
@@ -963,6 +966,8 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
         start_pos = min(map_positions) # start and end positions of the covered region for this read
         end_pos = max(map_positions)
 
+        changed_bases = 0
+
         # If this read covers some non-insertion positions, do the following:
         if len(bpstring) > 0:
             positions = map(int, re.findall('\d+',bpstring)) # positions
@@ -975,6 +980,8 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                     if type_array[relative_pos] == 0: # consensus non-inseriton position, read's call should be the same as the consensus call
                         c_bp = consensus_bps_ext[position] # consensus base
                         read_array1d[ (relative_pos)*5 + alphabet.index(c_bp) ] = 1
+                        if bases[i] != c_bp:
+                            changed_bases += 1
                     if type_array[relative_pos] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
                         p_bps = poly_bps_ext[position] # polymorphic base
                         if bases[i] in p_bps: # if read's call is one of the possible calls, do not change it
@@ -982,6 +989,7 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                         else: # if read's call is not among the possible calls, it's considered as an error, so it could be either of the possible calls
                             for p_bp in p_bps:
                                 read_array1d[ (position-start)*5 + alphabet.index(p_bp) ] = 1
+                            changed_bases += 1
                             
         # If this read covers some insertion positions, do the following:            
         if len(insstring) > 0:
@@ -997,6 +1005,8 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                             if type_array[ins_position - start] == 1: # consensus insertion position
                                 c_bp = consensus_ins_ext[ins_position]
                                 read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
+                                if bases[i] != c_bp:
+                                    changed_bases += 1
 
                             if type_array[ins_position - start] == 3: # polymorphic insertion position
                                 p_bps = poly_ins_ext[ins_position]
@@ -1005,14 +1015,18 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                                 else:
                                     for p_bp in p_bps:
                                         read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
+                                    changed_bases += 1
         #print ins_positions
 
-        # check if this read missed any insertion position
-        for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
-            if ins_pos >= start_pos-start and ins_pos <= end_pos-start and ins_pos not in ins_positions: # if there is no insertion for this read at the insertion position, put a deletion
-                read_array1d[ins_pos * 5 + 4 ] = 1
+        if changed_bases >= 5: # if this read has at least 5 disagreements with the consensus/polymorphic calls, discard it (set the coverage to nothing)
+            return zeros( len(type_array) * 5, dtype=int32 )
+        else:
 
-        return read_array1d
+            # check if this read missed any insertion position
+            for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
+                if ins_pos >= start_pos-start and ins_pos <= end_pos-start and ins_pos not in ins_positions: # if there is no insertion for this read at the insertion position, put a deletion
+                    read_array1d[ins_pos * 5 + 4 ] = 1
+            return read_array1d
 ## ======================================================================
 def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array,  poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=None):
     ''' Make 2d array for all reads from readinfo dictionary, dim1 of the array is equal to the length of the dictionary
@@ -1232,38 +1246,46 @@ def gap_pos(ref_array, read_array, compatible_ind, minOverlap = 10, minOverlapRa
     if len(compatible_ind) == 0: # no compatible reads, all positions are gap positions
         return arange(ref_array.shape[0]/5)
     else:
-        sub_read_array = read_array[compatible_ind,:]
-        if minOverlap != -1 and minOverlapRatio != 0: # check minOverlap
-            overlap_mat = get_overlapLen(ref_array, read_array, compatible_ind)
-            if amax(abs(overlap_mat)) == 0:
-                avgOverlap = 0
-            else:
-                avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
-            minOverlap = max(minOverlap, avgOverlap * minOverlapRatio) # hard cutoff and soft ratio cutoff, whichever is larger
-            maxOverlap_mat = find_maxOverlap(overlap_mat)
-            # check if any read need clipping because of small overlap length
-            small_ind = where( maxOverlap_mat <= minOverlap)
-            #print small_ind
-            if len(small_ind[0]) > 0 and len(small_ind[1]) > 0: # some reads have problem
-                for i in xrange(len(small_ind[0])):
-                    #print i, "==>", small_ind[0][i], ",", small_ind[1][i]
-                    if small_ind[1][i] == 0: # left overlap problem
-                        if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0:
-                            first_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][0]/5 # first covered position of this read
-                            if first_pos > 0 : # if the read is not mapped to the beginning of the region, decrease its coverage accordingly
-                                length = maxOverlap_mat[small_ind[0][i], small_ind[1][i]]
-                                #sys.stdout.write("left: index {} has maximum overlap length {}\n".format(i, length)) #DEBUG
-                                sub_read_array[small_ind[0][i], first_pos*5 : (first_pos + length + 1)*5] = 0 
+        sub_read_array = copy(read_array[compatible_ind,:]) # read array with only the compatible reads
+        cvec = arange(len(compatible_ind),dtype=int32)
+        if minOverlap != -1 or minOverlapRatio != 0: # check minOverlap if at least one of the minOverlap and minOverlapRatio is specified
+            treat_zero = False
+            iter_count = 1
+            while True: # iteratively change the read array if necessary
+                overlap_mat = get_overlapLen(ref_array, sub_read_array, cvec)
+                if amax(abs(overlap_mat)) == 0:
+                    avgOverlap = 0
+                else:
+                    avgOverlap = mean(abs(overlap_mat)[where(abs(overlap_mat)>0)]) # average overlap length
+                minOverlap = max(minOverlap, avgOverlap * minOverlapRatio) # hard cutoff and soft ratio cutoff, whichever is larger will be used
+                #print "minimum overlap length: ", minOverlap
 
-                    if small_ind[1][i] == 1: # right overlap problem
-                        if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0:
-                            last_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][-1]/5 # last covered position of this read
-                            if last_pos < (len(ref_array)/5 - 1) : # if the read is not mapped to the end of the region, decrease its coverage accordingly
-                                length = maxOverlap_mat[small_ind[0][i], small_ind[1][i]]
-                                #sys.stdout.write("right: index {} has maximum overlap length {}\n".format(i, length))
-                                sub_read_array[small_ind[0][i],(last_pos - length)*5 : (last_pos + 1)*5] = 0 
-                    #print where(sub_read_array!=0)[0]/5
-        base_cov = sub_read_array[ : , base_pos].reshape(-1,len(base_pos))
+                maxOverlap_mat = find_maxOverlap(overlap_mat)
+                small_ind = where( maxOverlap_mat <= minOverlap) # check if any read need clipping because of small overlap length
+                if (len(small_ind[0]) > 0 and amax(maxOverlap_mat[small_ind]) > 0) or not treat_zero : # some reads have problem
+                    for i in xrange(len(small_ind[0])):
+                        #print i, "==>", small_ind[0][i], ",", small_ind[1][i]
+                        if small_ind[1][i] == 0: # left overlap problem
+                            #print "left overlap"
+                            if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0: # if the positions where there are base calls in this read is greater than 0
+                                first_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][0]/5 # first covered position of this read
+                                if first_pos > 0 : # if the read is not mapped to the beginning of the region, decrease its coverage accordingly
+                                    length = maxOverlap_mat[small_ind[0][i], small_ind[1][i]]
+                                    #sys.stdout.write("left: index {} has maximum overlap length {}\n".format(i, length)) #DEBUG
+                                    sub_read_array[small_ind[0][i], first_pos*5 : (first_pos + length + 1)*5] = 0 
+
+                        if small_ind[1][i] == 1: # right overlap problem
+                            #print "right overlap"
+                            if len(where(sub_read_array[small_ind[0][i],:] != 0)[0]) > 0:
+                                last_pos = where(sub_read_array[small_ind[0][i],:] != 0)[0][-1]/5 # last covered position of this read
+                                if last_pos < (len(ref_array)/5 - 1) : # if the read is not mapped to the end of the region, decrease its coverage accordingly
+                                    length = maxOverlap_mat[small_ind[0][i], small_ind[1][i]]
+                                    #sys.stdout.write("right: index {} has maximum overlap length {}\n".format(i, length))
+                                    sub_read_array[small_ind[0][i],(last_pos - length)*5 : (last_pos + 1)*5] = 0 
+                    treat_zero = True
+                else:
+                    break
+        base_cov = sub_read_array[ : , base_pos]
         base_cov = base_cov.sum(axis=0) # pick the compatible rows and the correct columns, sum over the columns
         #print "gap positions: ", where(base_cov == 0)[0]
         return where(base_cov == 0)[0]
