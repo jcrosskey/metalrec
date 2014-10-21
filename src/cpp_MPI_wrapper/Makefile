@@ -13,7 +13,7 @@ CFLAGS= -c
 
 all: metalrec_mpi
 
-metalrec_mpi: metalrec_mpi.cpp utils.cpp directoryStructure.cpp
+viper: metalrec_mpi.cpp utils.cpp directoryStructure.cpp
 	$(MPICC) -o metalrec_mpi metalrec_mpi.cpp utils.cpp directoryStructure.cpp
 titan: metalrec_mpi.cpp utils.cpp directoryStructure.cpp
 	$(titanCC) -o metalrec_mpi metalrec_mpi.cpp utils.cpp directoryStructure.cpp
