@@ -325,7 +325,7 @@ int main(int argc, char ** argv){
 	    return 0;
     }
     else{
-	    double start_time, finish_time, elapsed_time;
+	    double start_time, finish_time;
 	    int fileNum = (int) fastaFilenames.size();
 	    
 	    if (myid == 0) {

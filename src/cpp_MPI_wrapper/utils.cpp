@@ -6,7 +6,7 @@
  * Created by JJ Chai on 10/17/2013 based on Ted's script.
  * Copyright (c) 2013 JJ Chai (ORNL). Allrights reserved.
 ********************************************************************/
-
+#include <ctime>
 #include "utils.hpp"
 
 using namespace std;
@@ -380,6 +380,7 @@ namespace Utils
         // return 
         return buf;
     }
+
 
     /** string vector to comma separated string **/
     std::string vectorToCommaString(const std::vector<std::string> & input_vector)
