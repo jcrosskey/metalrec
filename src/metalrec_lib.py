@@ -981,6 +981,7 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                         c_bp = consensus_bps_ext[position] # consensus base
                         read_array1d[ (relative_pos)*5 + alphabet.index(c_bp) ] = 1
                         if bases[i] != c_bp:
+                            #sys.stdout.write("{} is not {}, changed_bases plus 1\n".format(bases[i], c_bp))
                             changed_bases += 1
                     if type_array[relative_pos] == 2: # polymorphic non-insertion position, check if read's call is one of the possible calls
                         p_bps = poly_bps_ext[position] # polymorphic base
@@ -989,6 +990,7 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                         else: # if read's call is not among the possible calls, it's considered as an error, so it could be either of the possible calls
                             for p_bp in p_bps:
                                 read_array1d[ (position-start)*5 + alphabet.index(p_bp) ] = 1
+                            #sys.stdout.write("{} is not in {}, changed_bases plus 1\n".format(bases[i], ''.join(p_bps)))
                             changed_bases += 1
                             
         # If this read covers some insertion positions, do the following:            
@@ -1005,7 +1007,8 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                             if type_array[ins_position - start] == 1: # consensus insertion position
                                 c_bp = consensus_ins_ext[ins_position]
                                 read_array1d[ (ins_position-start)*5 + alphabet.index(c_bp) ] = 1
-                                if bases[i] != c_bp:
+                                if bases[i][j] != c_bp:
+                                    #sys.stdout.write("{} is not {}, changed_bases plus 1\n".format(bases[i][j], c_bp))
                                     changed_bases += 1
 
                             if type_array[ins_position - start] == 3: # polymorphic insertion position
@@ -1016,7 +1019,7 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
                                     for p_bp in p_bps:
                                         read_array1d[ (ins_position-start)*5 + alphabet.index(p_bp) ] = 1
                                     changed_bases += 1
-        #print ins_positions
+        #print changed_bases
 
         if changed_bases >= 5: # if this read has at least 5 disagreements with the consensus/polymorphic calls, discard it (set the coverage to nothing)
             return zeros( len(type_array) * 5, dtype=int32 )

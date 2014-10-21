@@ -122,9 +122,6 @@ def main(argv=None):
                 sys.stdout.write('({}, {}): {}\t'.format(i[0], i[1], i[1] - i[0])) # (start_pos, end_pos): length of this good region
             sys.stdout.write('\n')
 
-            refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
-            shortOut = open(shortSeqFile,'a')
-
             seqName = os.path.basename(args.seqFile).split('.')[0] # e.g. m130828_041445_00123_c100564312550000001823090912221381_s1_p0__58103__7045_8127.fasta
             seqName = re.sub('__','/',seqName) # change __ back to /
             # try to correct PacBio sequence at each good region
@@ -140,29 +137,35 @@ def main(argv=None):
                 type_array, coordinates = metalrec_lib.make_type_array(poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext,verbose=args.verbose)
                 # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
                 read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
-                # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
-                if args.verbose:
-                    region_outdir = args.outDir+'region' + str(good_region_index)
-                    fastaFile = args.outDir + 'goodreads.fasta'
+                if not numpy.any(read_array != 0): # if all read calls for 0
+                    sys.stdout.write("PacBio read does not have any good reads covering the region.\n")
                 else:
-                    region_outdir = None
-                    fastaFile = None
-                ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap,args.minOverlapRatio, fastaFile, region_outdir, read_info, verbose=args.verbose)
-                # step 7 - convert the array for the new PacBio sequence to string of nucleotides
-                contiguous_seqs = metalrec_lib.split_at_gap(ref_new[2], ref_new[0])
-                contiguous_lengths = numpy.array(map(len, contiguous_seqs))
-                max_ind = numpy.argmax(contiguous_lengths)
-                # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
-                ## write the newly corrected sequence to the output sequence file
-                # header format: >1 (0, 1048) gap length: 16
-                refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
-                if len(contiguous_seqs) > 1:
-                    for i in xrange(len(contiguous_seqs)):
-                        if i != max_ind:
-                            shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
+                    refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
+                    shortOut = open(shortSeqFile,'a')
 
-            refOut.close()
-            shortOut.close()
+                    # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
+                    if args.verbose:
+                        region_outdir = args.outDir+'region' + str(good_region_index)
+                        fastaFile = args.outDir + 'goodreads.fasta'
+                    else:
+                        region_outdir = None
+                        fastaFile = None
+                    ref_new = metalrec_lib.fill_gap(read_array,args.minOverlap,args.minOverlapRatio, fastaFile, region_outdir, read_info, verbose=args.verbose)
+                    # step 7 - convert the array for the new PacBio sequence to string of nucleotides
+                    contiguous_seqs = metalrec_lib.split_at_gap(ref_new[2], ref_new[0])
+                    contiguous_lengths = numpy.array(map(len, contiguous_seqs))
+                    max_ind = numpy.argmax(contiguous_lengths)
+                    # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
+                    ## write the newly corrected sequence to the output sequence file
+                    # header format: >1 (0, 1048) gap length: 16
+                    refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
+                    if len(contiguous_seqs) > 1:
+                        for i in xrange(len(contiguous_seqs)):
+                            if i != max_ind:
+                                shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
+
+                    refOut.close()
+                    shortOut.close()
     sys.stdout.write("total time :" + str(time.time() - start_time) +  "seconds")
     sys.stdout.write("\n===========================================================\nDone\n")
 ##==============================================================

@@ -90,8 +90,8 @@ from numpy import *
 from Bio import pairwise2
 from Bio.pairwise2 import format_alignment
 
-samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/round1/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.sam"
-ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/round1/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954/m130828_015813_00123_c100564312550000001823090912221380_s1_p0__100052__1427_3954.fasta"
+samfile = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__11340__1867_3497/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__11340__1867_3497.sam"
+ref_fasta = "/Users/cjg/Work/PacBio/Results/MockCommunity/02_Debug/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__11340__1867_3497/m130828_041445_00123_c100564312550000001823090912221381_s1_p0__11340__1867_3497.fasta"
 rseq = metalrec_lib.read_single_seq(ref_fasta)
 
 reload(metalrec_lib)
@@ -123,7 +123,7 @@ new_align = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel 
 pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align, ref_region_start + new_align[3])
 
 ref_bps, ref_ins_dict, readinfo = metalrec_lib.read_and_process_sam_samread(samfile, rseq, maxSub=-1, maxDel=-1, maxIns=-1, maxSubRate=0.05, maxInDelRate=0.3, verbose=True)
-good_regions, cov_bps, avg_cov_depth= metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=500, minCV=1)
+good_regions, cov_bps, avg_cov_depth= metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=400, minCV=1)
 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[0])
 newSeq, bp_pos_dict, ins_pos_dict = metalrec_lib.ref_extension(poly_bps, poly_ins, consensus_bps, consensus_ins, rseq, print_width=70, verbose=True)
 poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext = metalrec_lib.update_pos_info(poly_bps, poly_ins, consensus_bps, consensus_ins, bp_pos_dict, ins_pos_dict)
