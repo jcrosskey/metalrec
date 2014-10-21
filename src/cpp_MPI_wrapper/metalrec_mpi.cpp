@@ -156,6 +156,7 @@ int initializeArguments(int argc, char ** argv,
 		while (getline(baseIn, line)){
 			fastaFilenames.push_back(line + ".fasta");
 		}
+		baseIn.close();
 	}
 	// find all the fasta files in the input directory, ends with .fa or .fasta
 	else if (fastaDir != "") {
