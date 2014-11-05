@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import metalrec_lib
+import time
 import re
 import sys
 sys.path.append("/lustre/atlas/scratch/chaij1/csc124/biopython-1.64/lib/python2.7/site-packages")
@@ -10,7 +11,7 @@ from Bio.pairwise2 import format_alignment
 from numpy import *
 
 ''' reverse complement function '''
-revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence
+revcompl = lambda x: ''.join([{'A':'T','C':'G','G':'C','T':'A','-':'-'}.get(B,'N') for B in x ][::-1]) # find reverse complement of a DNA sequence
 
 
 ''' Class SamRead '''
@@ -233,7 +234,11 @@ class SamRead:
             #print "sequence B: ", self.qSeq
             #print "\n"
             ## global pairwise alignment, 1 penalty for mismatch and 0.9 penalty for indels, opening and ending gaps in Illumina reads don't get penalized
+            s_time = time.time()
             realign_res = pairwise2.align.globalms(rseq[(ref_region_start-1):ref_region_end], seg, 0, -1, -0.9, -0.9, penalize_end_gaps=[True, False])
+            e_time = time.time()
+            sys.stdout.write("align time :" + str(e_time - s_time) +  " seconds\n")
+            
             #print len(realign_res), " equivalent good mappings, after extending the Illumina read"
             #print format_alignment(*realign_res[0])
             new_align, align_start, align_end = metalrec_lib.pick_align(realign_res) # pick the best mapping: indel positions are the leftmost collectively
@@ -241,6 +246,7 @@ class SamRead:
             #print format_alignment(*new_align) # for DEBUG
             new_align1 = metalrec_lib.shift_to_left_chop(new_align)
             rounds = 0
+            s_time = time.time()
             while new_align1[:2] != new_align[:2] and rounds < max_round:
                 #print "realign round ", rounds
                 #print format_alignment(*new_align1) # for DEBUG
@@ -251,6 +257,8 @@ class SamRead:
                 #print format_alignment(*new_align1)
                 rounds += 1
                 
+            e_time = time.time()
+            sys.stdout.write("shuffle time :" + str(e_time - s_time) +  " seconds\n")
             #print "done"
             #print format_alignment(*new_align) # for DEBUG
 
@@ -374,3 +382,108 @@ class SamRead:
             self.cigarstring = ''.join(res)
             self.fields[5] = self.cigarstring
         return left_trim_len, right_trim_len, rstart_shift
+
+class BlasrRead:
+    ''' Class representing an aligned read, particularly from sam file, instead of bam file '''
+    def __init__(self, BlasrRecord):
+        self.BlasrRecord = BlasrRecord.strip('\n')
+        fields = BlasrRecord.split()
+        self.fields = fields
+        self.qname = fields[0] # Query template name
+        self.qLen = int(fields[1])
+        self.qStart = int(fields[2])
+        self.qEnd = int(fields[3])
+        self.qStrand = fields[4]
+        self.rName = fields[5]
+        self.rLength = int(fields[6])
+        self.rStart = int(fields[7])
+        self.rEnd = int(fields[8])
+        self.rStrand = fields[9]
+        self.score = int(fields[10])
+        self.nMatch = int(fields[11])
+        self.nMisMatch = int(fields[12])
+        self.nIns = int(fields[13])
+        self.nDel = int(fields[14])
+        self.mapQV = int(fields[15])
+        self.qSeq = fields[16] if self.rStrand == '+' else revcompl(fields[16])
+        self.rSeq = fields[18] if self.rStrand == '+' else revcompl(fields[18])
+        self.mapLen = self.qEnd - self.qStart + self.nDel
+        self.percentSimilarity = float(self.nMatch) / float(self.mapLen) # percent similarity
+
+
+    # check and see if this mapping is too noisy to be included, if so, change the flag indicating if the read was mapped
+    def is_read_bad(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3):
+        indel_len = self.nIns + self.nDel
+        # substitution rate is relative to the aligned region length on the PacBio sequence
+        # indelRate is relative to the total length of the mapped segment of the Illumina sequence
+        if self.nMisMatch > maxSubRate * self.mapLen or indel_len > maxInDelRate * self.mapLen: # subRate * mapped ref region; indelRate * seqLen 
+            #print "sub_len: ", cigar_info['sub_len'], ", indel len: ", indel_len #DEBUG
+            return True
+        # Finally, if it passes all the thresholds, it's a good record
+        else:
+            return False
+
+    # re-align read to PacBio sequence and shift indels to the leftmost possible positions
+    def re_align(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.05, maxInDelRate=0.3, max_round = 10,checkEnds=True):
+        ''' realign the read to PacBio sequence, including retrieving clipped parts and scrubbing '''
+        new_align = (self.rSeq, self.qSeq, 0, 0, len(self.qSeq)) # same format as output of pairwise... tuple of 5 entries
+        #print format_alignment(*new_align) # for DEBUG
+        new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+        rounds = 0
+        #s_time = time.time()
+        while new_align1[:2] != new_align[:2] and rounds < max_round:
+            #print "realign round ", rounds
+            #print format_alignment(*new_align1) # for DEBUG
+            new_align = list(new_align1)
+            #print "before realign: ", new_align
+            new_align1 = metalrec_lib.shift_to_left_chop(new_align)
+            #print "after  realign: ", new_align1
+            #print format_alignment(*new_align1)
+            rounds += 1
+                
+        #e_time = time.time()
+        #sys.stdout.write("shuffle time :" + str(e_time - s_time) +  " seconds\n")
+        #print "done"
+        #print format_alignment(*new_align) # for DEBUG
+        self.qSeq = new_align1[1]
+        self.rSeq = new_align1[0]
+
+        # check if there are already too many errors, if so, mark the read to be bad, and return empty dictionaries 
+        if self.is_read_bad(maxSub, maxIns, maxDel,maxSubRate, maxInDelRate):
+            #print "too many errors, discard"
+            return dict(), dict()
+        else:
+            pos_dict, ins_dict = metalrec_lib.get_bases_from_align(new_align1, self.rStart + 1)
+            return pos_dict, ins_dict
+
+
+    def generate_sam_record(self, maxSub=-1, maxIns=-1, maxDel=-1,maxSubRate=0.1, maxInDelRate=0.3):
+        # [0] qname stays the same
+        # [1] new flag: mapped/unmapped status might change
+        self.flag = 0
+        if self.qStrand != self.rStrand:
+            self.flag += 0x8 # reverse complement, other flag bits are not set for now (only for single end reads)
+        # [2] rname stays the same
+        # [3] pos: 1-based leftmost mapping POSition might change after re-mapping 
+        # [4] MAPQ stays the same
+        # [5] CIGAR string might have changed after re-mapping to PacBio sequence
+        self.cigar, first_non_gap, last_non_gap = metalrec_lib.get_cigar(self.rSeq, self.qSeq)
+        #print self.cigar, first_non_gap, last_non_gap
+        if first_non_gap != 0:
+            self.rStart += first_non_gap
+        #if self.qStart != 0:
+        #    self.cigar = str(self.qStart) + 'S' + self.cigar
+        #if self.qEnd != self.qLen:
+        #    self.cigar = self.cigar + str(self.qLen - self.qEnd) + 'S'
+        # [6] RNEXT Ref. name of the mate/next read: should always be = since there is only 1 PacBio sequence 
+        # [7] PNEXT Position of the mate/next read: might change because of re-mapping
+            # will be set to 0 now
+        # [8] TLEN stays the same. signed observed Template LENgth. set to 0 for now
+        # If all segments are mapped to the same reference, the unsigned observed template length equals the number of bases from the leftmost mapped base to the rightmost mapped base. 
+        # The leftmost segment has a plus sign and the rightmost has a minus sign. The sign of segments in the middle is undefined. It is set as 0 for single-segment template or when the information is unavailable. 
+        # [9] SEQ segment SEQuence: trimmed original sequence (only the part mapped to PacBio sequence)
+        # [10] QUAL stays the same
+
+        ## Paste all fields together, separated by tabs, if at least one read of the pair is mapped. 
+        record = '\t'.join([self.qname, str(self.flag), self.rName, str(self.rStart + 1), str(self.mapQV), self.cigar, "=", "0", "0", re.sub('-', '',self.qSeq),'*']) + '\n'
+        return record
