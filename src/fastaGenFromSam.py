@@ -10,7 +10,6 @@ Created on Tue Oct 28 09:10:01 EDT 2014
 """
 import sys
 import argparse
-sys.path.append('/Users/cjg/Work/PacBio/metalrec/src/')
 import samread 
 
 ## =================================================================
