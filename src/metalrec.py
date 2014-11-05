@@ -106,7 +106,10 @@ def main(argv=None):
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
     # process sam file and save the read info
+    s_time = time.time()
     ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, checkEnds=args.checkEnds, outDir=args.outDir, verbose=args.verbose)
+    e_time = time.time()
+    sys.stdout.write("processing sam file time :" + str(e_time - s_time) +  " second\n")
 
     if len(ref_bps) == 0: # empty sam file, or nothing
         sys.stdout.write("PacBio read does not have any coverage from Illumina reads\n")
@@ -166,7 +169,7 @@ def main(argv=None):
 
                     refOut.close()
                     shortOut.close()
-    sys.stdout.write("total time :" + str(time.time() - start_time) +  "seconds")
+    sys.stdout.write("total time :" + str(time.time() - start_time) +  " seconds")
     sys.stdout.write("\n===========================================================\nDone\n")
 ##==============================================================
 ## call from command line (instead of interactively)

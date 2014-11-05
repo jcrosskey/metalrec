@@ -329,6 +329,9 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
     ref_bps = []
     ref_ins_dict = dict() # global insertion dictionary for the reference sequence
     readinfo = dict() # dictionary storing read information (base call for the mapped read)
+    rLen = len(rseq)
+    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list(length 5) corresponding to each position on the reference sequence
+    header_written = False
     with open(samFile, 'r') as mysam:
         for line in mysam:
             lineNum += 1 
@@ -345,22 +348,29 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                         if verbose:
                             sys.stdout.write("Reference is shorter than threshold {}.\n".format(minPacBioLen))
                         return 0 
-                    ref_bps = [ [0] * 5 for x in xrange(rLen) ]  # list of lists, one list(length 5) corresponding to each position on the reference sequence
             #####################################
             # mapping record lines
             else:
                 record = line
-                if '\t' in line:
-                    myread = samread.SamRead(record)
+                if ' ' in line:
+                    myread = samread.BlasrRead(record)
                     #print myread.qname # DEBUG
+                    if rname == '':
+                        rname = myread.rName
+                    if verbose and not header_written: # write header lines for the scrubbed sam file
+                        newsam.write("@HD\tVN:1.4\tSO:unsorted\n")
+                        newsam.write("@SQ\tSN:{}\tLN:{}\n".format(rname, rLen))
+                        newsam.write("@RG\tID:1\n")
+                        newsam.write("@PG\tID:metalrec\n")
+                        header_written = True
                     if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
                         #sys.stdout.write("realign\n") # DEBUG
-                        pos_dict, ins_dict = myread.re_align(rseq, maxSub, maxIns, maxDel, maxSubRate, maxInDelRate, checkEnds) # realign read to PacBio sequence
+                        pos_dict, ins_dict = myread.re_align(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
                         if len(pos_dict) + len(ins_dict) > 0:
                             keepRec += 1
                             if verbose:
                                 newsam.write(myread.generate_sam_record())
-                                outFasta.write('>{}\n{}\n'.format(myread.qname, myread.get_read_seq()))
+                                outFasta.write('>{}\n{}\n'.format(myread.qname, re.sub('-', '', myread.qSeq)))
 
                             # update string dictionary for the read information
                             # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
@@ -1024,7 +1034,6 @@ def make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_b
         if changed_bases >= 5: # if this read has at least 5 disagreements with the consensus/polymorphic calls, discard it (set the coverage to nothing)
             return zeros( len(type_array) * 5, dtype=int32 )
         else:
-
             # check if this read missed any insertion position
             for ins_pos in hstack((where(type_array==3)[0], where(type_array==1)[0])):
                 if ins_pos >= start_pos-start and ins_pos <= end_pos-start and ins_pos not in ins_positions: # if there is no insertion for this read at the insertion position, put a deletion
@@ -1045,7 +1054,10 @@ def make_read_array(readinfo, bp_pos_dict, ins_pos_dict, type_array,  poly_bps_e
         read_array[i,:] = make_read_array1d(read_string, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region)
         read_counts[i] = len(readinfo[read_string])
         i += 1
-    return read_array, read_counts
+    read_array = read_array[where(read_array.sum(axis=1) !=0)[0],:] # only the reads that cover some bases of the region
+    base_count = read_array.sum(axis=0).reshape(-1,5)
+    covered_bases = where(base_count.sum(axis=1) != 0)[0]
+    return read_array[where(read_array.sum(axis=1) !=0)[0],amin(covered_bases)*5:amax(covered_bases+1)*5], read_counts
 ## ======================================================================
 def is_compatible(array1, array2):
     ''' Find out if the base calls of 2 reads at a certain position are compatible or not, given the 0-1 vectors representing the base calls. For now, the length of the vectors is the same (5 for ACGTD).
@@ -1630,6 +1642,14 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
         if verbose:
             sys.stdout.write("Initial sequence not specified, use consensus sequence as starting sequence instead. \n")
         ref0 = get_consensus_from_array(read_array) # start with consensus sequence, summarized from all the reads
+        
+        #for i in xrange(read_array.shape[0]):
+        #    print "read ", i+1
+        #    print array_to_seq(read_array[i,:])[-1] # gap position will be written in lower case instead of upper case
+        #    print "\n"
+
+        #print "consensus sequence:"
+        #print array_to_seq(ref0)[-1] # gap position will be written in lower case instead of upper case
 
     # if a start sequence is provided, try to fill the gap introduced by this sequence with the following iterations
     # Stop whenever the length of longest contiguous segment increases, or this length won't increase at all
@@ -1691,6 +1711,8 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
         while len(best_gap_pos) > 0 and (not totally_filled) and len(reads_ind) > 0 :
             # sort the reads by the length of the gaps they fill
             ref1 = get_new_ref(ref0, reads_ind[0], read_array) # get a new ref, according to the highest ranked read
+            #print array_to_seq(ref0)[-1] # gap position will be written in lower case instead of upper case
+            #print array_to_seq(ref1)[-1] # gap position will be written in lower case instead of upper case
             Cvec1 = get_compatible_reads(ref1, read_array) # indices of reads that are compatible with ref1
             gap_pos1 = gap_pos(ref1, read_array, Cvec1, minOverlap, minOverlapRatio) # positions not covered by the compatible reads (gap positions)
             try:
@@ -1734,6 +1756,7 @@ def greedy_fill_gap(read_array, ref0=None, minOverlap=10, minOverlapRatio=0.1, v
                     reads_ind = delete(reads_ind,array(delete_ind))
                     if verbose:
                         sys.stdout.write("maximum length: {}, remaining reads: {}, continue\n".format(best_max_len, len(reads_ind)))
+                #print array_to_seq(best_ref)[-1] # gap position will be written in lower case instead of upper case
         gap_ind += 1
         if verbose:
             sys.stdout.write("Next gap index: {}\n".format(gap_ind))
