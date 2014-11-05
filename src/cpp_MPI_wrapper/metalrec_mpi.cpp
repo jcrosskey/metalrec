@@ -156,11 +156,11 @@ int initializeArguments(int argc, char ** argv,
 	if (outDir == "")
 	    outDir = Utils::get_cwd(); /* output directory, default: current directory */
 
-	cout << "python command's path is: " << py_cmd_path << endl;
-	cout << "omega executable file's path is: " << omega_cmd_path << endl;
-	cout << "output directory is: " << outDir << endl;
-	cout << "input fasta directory is: " << fastaDir << endl;
-	cout << "input sam file directory is: " << samDir << endl;
+	//cout << "python command's path is: " << py_cmd_path << endl;
+	//cout << "omega executable file's path is: " << omega_cmd_path << endl;
+	//cout << "output directory is: " << outDir << endl;
+	//cout << "input fasta directory is: " << fastaDir << endl;
+	//cout << "input sam file directory is: " << samDir << endl;
 
 	// first check if starting from a file, instead of scanning a directory
 	if (baseNameFile != "") {
@@ -288,7 +288,8 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
 		// Step 1: extract reads from the alignment file
-		string py_get_reads_cmd = "time python " + py_cmd_path + "/fastaGenFromSam.py" + " -i " + samFile + " -o " + reads_file;
+		string py_get_reads_cmd = "python " + py_cmd_path + "/fastaGenFromSam.py" + " -i " + samFile + " -o " + reads_file;
+		//cout << py_get_reads_cmd << endl;
 		int res = system(py_get_reads_cmd.c_str());
 		if(res != 0){
 			cout << "   *** Failed command " << py_get_reads_cmd << endl;
@@ -296,7 +297,8 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 		}
 
 		// Step 2: use omega to do mini-assembly of the reads that aligned to the pacbio read. Output file: 1_contigs.fasta
-		string omega_cmd = "time " + omega_cmd_path + " -ec " + reads_file + " -l 40 -f " + omega_prefix + " -noMP -noCV -log ERROR";
+		string omega_cmd = omega_cmd_path + " -se " + reads_file + " -l 40 -f " + omega_prefix + " -noMP -noCV -log ERROR";
+		//cout << omega_cmd << endl;
 		res = system(omega_cmd.c_str());
 		if(res != 0){
 			cout << "   *** Failed command " << omega_cmd << endl;
@@ -336,13 +338,15 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 
 				// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and do scrubbing
 				string blasr_m5 = Utils::getFilebase(outFile) + "_blasr.m5"; // prefix for omega's output files
-				string blasr_cmd = "time blasr " + omega_fasta + " " + fastaFile + " -noSplitSubreads -m 5 -out " + blasr_m5;
+				string blasr_cmd = "blasr " + omega_fasta + " " + fastaFile + " -noSplitSubreads -m 5 -out " + blasr_m5;
+				//cout << blasr_cmd << endl;
 				res = system(blasr_cmd.c_str());
 				if(res != 0){
 					cout << "   *** Failed command " << blasr_cmd << endl;
 					exit(0);
 				}
-				string ec_cmd = "time python " + py_cmd_path + "/metalrec.py -i " + fastaFile + " -s " + blasr_m5 + " -o " + outFile + " > " + logFile;
+				string ec_cmd = "python " + py_cmd_path + "/metalrec.py -i " + fastaFile + " -s " + blasr_m5 + " -o " + outFile + " > " + logFile;
+				//cout << ec_cmd << endl;
 				res = system(ec_cmd.c_str());
 				if(res != 0){
 					cout << "   *** Failed command " << ec_cmd << endl;
