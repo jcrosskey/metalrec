@@ -16,7 +16,7 @@ import samread
 ## =================================================================
 ## samStat function with SamRead class
 ## =================================================================
-def samStat(samFile, outputFile):
+def samStat(samFile, outputFile, trimSlash=0):
     ''' From resulted sam or bam file of mapping, find information of reference sequences and reads.
         For reference sequences: 
         1. coverage percentage
@@ -31,7 +31,7 @@ def samStat(samFile, outputFile):
         Input:
         1. samFile: sam (bam) file name
         2. outputFile: file for writing output
-        3. fileformat: sam for now (should be either sam or bam, should do auto detect..)
+        3. trimSlash: whether to remove the characters in the read names from the last slash sign
     '''
     nReferences = 0 # number of reference sequences
     refLens = [] # list of reference length
@@ -57,23 +57,28 @@ def samStat(samFile, outputFile):
                 line = line.strip()            
                 count += 1 # number of read record increased by 1
                 myread = samread.SamRead(line) # parse the alignment record, using SamRead class 
+                qname = myread.qname
+                trim = trimSlash
+                while trim > 0 and qname.find('/') != -1:
+                    qname = qname[:(qname.rfind('/'))]
+                    trim= trim- 1
 
                 if myread.cigarstring == '*' or myread.is_unmapped(): # read is not mapped
                     continue
                 
-                # if this reference sequence is not in the dictionary, initiate it
+                # if this reference sequence is not in the dictionary, initialize it
                 if not refSeq_dict.has_key(myread.rname):
                     refLen = refLens[refNames.index(myread.rname)] # length of the reference sequence
                     refSeq_dict[myread.rname] = {'refLen':refLen, 'nReads':0, 'nReadsBp':0, 'nMatchBp':0,'nInsBp':0, 'nDelBp':0, 'nSubBp':0, 'nEdit':0,'coverage':[0]*refLen}
 
-                if not readSeq_dict.has_key(myread.qname):
-                    readSeq_dict[myread.qname] = {'nMapping':0, 'mapInfo':[]}
+                if not readSeq_dict.has_key(qname):
+                    readSeq_dict[qname] = {'nMapping':0, 'mapInfo':[]}
 
                 #print qname, '\t', rname, '\t', refLen
 
                 ## update the dictionary corresponding to the reference sequence
                 refSeq_dict[myread.rname]['nReads'] += 1 # update number of mapped reads
-                readSeq_dict[myread.qname]['nMapping'] += 1 # update number of mappings
+                readSeq_dict[qname]['nMapping'] += 1 # update number of mappings
 
                 ## get CIGAR info
                 cigarInfo = myread.get_cigar_info()
@@ -102,7 +107,7 @@ def samStat(samFile, outputFile):
                 # start and end positions for both the query read and the ref seq
                 # is this a secondary alignment?
                 # is this a reverse complement?
-                readSeq_dict[myread.qname]['mapInfo'].append([cigarInfo['match_len'], cigarInfo['ins_len'], cigarInfo['del_len'], cigarInfo['sub_len'], myread.NM, myread.rstart, myread.get_rend(), myread.is_secondary(), myread.is_reverse(),myread.rname])
+                readSeq_dict[qname]['mapInfo'].append([cigarInfo['seq_len'], cigarInfo['read_len'], cigarInfo['ref_len'],cigarInfo['match_len'], cigarInfo['ins_len'], cigarInfo['del_len'], cigarInfo['sub_len'], cigarInfo['left_clip_len'],cigarInfo['right_clip_len'],myread.NM, myread.rstart, myread.get_rend(), myread.is_secondary(), myread.is_reverse(),myread.rname])
 
                 if count % 10000 == 0:
                     sys.stdout.write('  scanned {} records\n'.format(count))
@@ -122,14 +127,14 @@ def samStat(samFile, outputFile):
 
     # print out statistics information for the reads
     myout2 = open(outputFile+".read", 'w')
-    myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format('readName', 'Mappings','nMatchBp', 'nInsBp', 'nDelBp', 'nSubBp', 'nEdit', 'rstart','rend', 'is_secondary','is_revcomp','rname'))
+    myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format('readName', 'Mappings','seqLen','readLen','mapLen','mapRatio','nMatchBp', 'nInsBp', 'nDelBp', 'nSubBp', 'left_clip','right_clip','nEdit', 'rstart','rend', 'is_secondary','is_revcomp','rname'))
     for key in sorted(readSeq_dict):
         d = readSeq_dict[key]
         #myout2.write("{}\t{}\t".format(key, d['nMapping']))
         for i in xrange(d['nMapping']):
             thismap = d['mapInfo'][i]
             # qstart, qend # rstart, rend # secondary # forward/backward @  edit distance, refName
-            myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(key,i,thismap[0],thismap[1],thismap[2],thismap[3],thismap[4], thismap[5], thismap[6], thismap[7], thismap[8], thismap[9].split()[0]))
+            myout2.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(key,i,thismap[0],thismap[1],thismap[2],float(thismap[2])/float(thismap[1]),thismap[3],thismap[4], thismap[5], thismap[6], thismap[7], thismap[8], thismap[9], thismap[10], thismap[11],thismap[12], thismap[13], thismap[14].split()[0]))
 
     myout2.close()
     return readSeq_dict
@@ -148,6 +153,9 @@ parser = argparse.ArgumentParser(description="parse sam file and get summary sta
 ## input files and directories
 parser.add_argument("-i","--in",help="input sam file",dest='samFile',required=True)
 
+## options
+parser.add_argument("-t","--trimSlash",help="trim read name from the last slash, 2 if from second last slash",type=int,default=0)
+
 ## output directory
 parser.add_argument("-o","--out",help="output statistics file",dest='outputFile',required=True)
 
@@ -159,7 +167,7 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    readSeq_dict = samStat(args.samFile,args.outputFile)
+    readSeq_dict = samStat(args.samFile,args.outputFile,args.trimSlash)
 
 ##==============================================================
 ## call from command line (instead of interactively)
