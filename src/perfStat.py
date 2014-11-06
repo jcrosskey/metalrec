@@ -9,7 +9,21 @@ Created on Fri May 23 13:14:18 2014
 @author: cjg
 """
 import sys
+import re
 import argparse
+## =================================================================
+## trim_name
+## =================================================================
+def trim_name(name):
+    '''
+    trim a read's name so that it corresponds to the name of the filtered subread from which the sequence was generated.
+    '''
+    m = re.search('\/\d+_\d+',name)
+    if m is None:
+        sys.stdout.write("read name {} does not have the right format\n".format(name))
+        return name
+    else:
+        return m.string[:m.end()]
 ## =================================================================
 ## perfstat
 ## =================================================================
@@ -30,7 +44,7 @@ def perfStat(statFile, outFile, delta=0):
             nEdit = int(line[12])
             Mapping = int(line[1])
             if Mapping == 0 and abs(mapRatio-1) <= delta: # perfect primary mapping
-                FR = readName[:readName.rfind('/')] # filtered subread name
+                FR = trim_name(readName) # filtered subread name
                 if FR not in perf_dict:
                     perf_dict[FR] = {'region':0, 'maxLen':0, 'totLen':0, 'mapRatio':0}
                 perf_dict[FR]['region'] += 1
