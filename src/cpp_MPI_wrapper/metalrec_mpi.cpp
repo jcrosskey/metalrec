@@ -243,16 +243,19 @@ void MasterProcess(const int & fileNum)
         while (currentWorkID < fileNum) { /* currentWorkID starts at 0, fileNum is the total number */
             // receive message from any process that finishes its job
             MPI_Recv(&result, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+	    //cout << "Master: received signal from " << status.MPI_SOURCE << endl;
             // send it a new job
             MPI_Send(&currentWorkID, 1, MPI_INT, status.MPI_SOURCE, WORKTAG, MPI_COMM_WORLD);
+	    //cout << "Master: send job id " << currentWorkID << " to " << status.MPI_SOURCE << endl;
             // another job is being done!
             currentWorkID++;
         }
     }
     
+    int finish = 0;
     // when all jobs are done, send signal everybody to quit (BROADCAST?)
     for (i = 1; i <= num_slave; i++) {
-        MPI_Send(0, 0, MPI_INT, i, DIETAG, MPI_COMM_WORLD);
+        MPI_Send(&finish, 1, MPI_INT, i, DIETAG, MPI_COMM_WORLD);
     }
     //cout << "Master process is done." << endl;
 }
@@ -263,12 +266,14 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 {
     MPI_Status status;
     int currentWorkID, myid;
+    int finish = 0;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     
     // do jobs until master tells to stop
     while (true) {
         MPI_Recv(&currentWorkID, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+	cout << myid << ": receive workID " << currentWorkID << endl;
         
         if (status.MPI_TAG == DIETAG) {
             break;
@@ -279,6 +284,15 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 	string outFile = outFilenames[currentWorkID]; // output corrected fasta file
 	string logFile = Utils::getFilebase(outFile) + ".log"; // log file
 
+	string readName;
+
+	ifstream fastaIn(fastaFile.c_str());
+	if(fastaIn.good())
+	{
+		getline(fastaIn, readName);
+	}
+	fastaIn.close();
+	cout << myid << ": working on " << readName << endl;
 	unsigned slash_pos = basename.find_last_of("/");
 	basename = basename.substr(slash_pos + 1);
 	string samFile = samDir  + "/" + basename + ".sam"; // sam file
@@ -293,64 +307,113 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 		int res = system(py_get_reads_cmd.c_str());
 		if(res != 0){
 			cout << "   *** Failed command " << py_get_reads_cmd << endl;
-			exit(0);
-		}
-
-		// Step 2: use omega to do mini-assembly of the reads that aligned to the pacbio read. Output file: 1_contigs.fasta
-		string omega_cmd = omega_cmd_path + " -se " + reads_file + " -l 40 -f " + omega_prefix + " -noMP -noCV -log ERROR";
-		//cout << omega_cmd << endl;
-		res = system(omega_cmd.c_str());
-		if(res != 0){
-			cout << "   *** Failed command " << omega_cmd << endl;
-			exit(0);
-		}
-		string omega_fasta = omega_prefix + "_contigs.fasta"; // could also delete the flow files - TODO
-
-		// Step 3: check if there is more than 1 contigs in 1_contigs.fasta
-		ifstream omega_in;
-		omega_in.open(omega_fasta.c_str());
-		if(!omega_in.is_open())
-		{
-			cout << "Unable to open file: " << omega_fasta << endl;
-			exit(0);
 		}
 		else
 		{
-			int num_reads = 0;
-			string s;
-			while(getline(omega_in, s))
+			int num_reads;
+			ifstream reads_in;
+			reads_in.open(reads_file.c_str());
+			if(!reads_in.is_open())
 			{
-				if ( s[0] == ">"[0])
-					num_reads = num_reads + 1;
-				if (num_reads > 1)
-					break;
-			}
-			omega_in.close();
-			if(num_reads == 1)
-			{
-				cout << "omega assembly generated only 1 contig, No scrubbing.\nDone.\n";
-				rename(omega_fasta.c_str(), outFile.c_str()); // rename omega's output to output File
-				// also need to change the header of the output sequence, so that they are all consistent
+				cout << "Unable to open file: " << reads_file << endl;
 			}
 			else
 			{
-				cout << "omega generated more than 1 contig\n";
-
-				// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and do scrubbing
-				string blasr_m5 = Utils::getFilebase(outFile) + "_blasr.m5"; // prefix for omega's output files
-				string blasr_cmd = "blasr " + omega_fasta + " " + fastaFile + " -noSplitSubreads -m 5 -out " + blasr_m5;
-				//cout << blasr_cmd << endl;
-				res = system(blasr_cmd.c_str());
-				if(res != 0){
-					cout << "   *** Failed command " << blasr_cmd << endl;
-					exit(0);
+				num_reads = 0;
+				string s;
+				while(getline(reads_in, s))
+				{
+					if ( s[0] == ">"[0])
+						num_reads = num_reads + 1;
+					if (num_reads > 0)
+						break;
 				}
-				string ec_cmd = "python " + py_cmd_path + "/metalrec.py -i " + fastaFile + " -s " + blasr_m5 + " -o " + outFile + " > " + logFile;
-				//cout << ec_cmd << endl;
-				res = system(ec_cmd.c_str());
-				if(res != 0){
-					cout << "   *** Failed command " << ec_cmd << endl;
-					exit(0);
+				reads_in.close();
+				if(num_reads == 0 )
+				{
+					cout << "There is no read mapped to this pacbio read. " << fastaFile << " Done." << endl;
+				}
+
+				else
+				{
+					// Step 2: use omega to do mini-assembly of the reads that aligned to the pacbio read. Output file: 1_contigs.fasta
+					string omega_cmd = omega_cmd_path + " -se " + reads_file + " -l 40 -f " + omega_prefix + " -noMP -noCV -log ERROR > /dev/null";
+					//cout << omega_cmd << endl;
+					res = system(omega_cmd.c_str());
+					if(res != 0){
+						cout << "   *** Failed command " << omega_cmd << endl;
+					}
+					else
+					{
+						remove( reads_file.c_str() );
+						string omega_fasta = omega_prefix + "_contigs.fasta"; // could also delete the flow files - TODO
+
+						// Step 3: check if there is more than 1 contigs in 1_contigs.fasta
+						ifstream omega_in;
+						omega_in.open(omega_fasta.c_str());
+						if(!omega_in.is_open())
+						{
+							cout << "Unable to open file: " << omega_fasta << endl;
+						}
+						else
+						{
+							string s;
+							stringstream ss;
+							num_reads = 0;
+							while(getline(omega_in, s))
+							{
+								if ( s[0] == ">"[0])
+									num_reads = num_reads + 1;
+								else
+									ss << s << "\n";
+
+								if (num_reads > 1)
+									break;
+							}
+							omega_in.close();
+							if(num_reads == 1)
+							{
+								ofstream omega_out;
+								omega_out.open(outFile.c_str());
+								omega_out << readName << "_0 omega" << endl << ss.str();
+								omega_out.close();
+								cout << "omega assembly generated only 1 contig, No scrubbing. Done.\n";
+								remove( omega_fasta.c_str() );
+								remove( (omega_prefix + "_flow.input").c_str() );
+								remove( (omega_prefix + "_flow.output").c_str() );
+							}
+							else
+							{
+								cout << "omega generated more than 1 contig\n";
+
+								// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and do scrubbing
+								string blasr_m5 = Utils::getFilebase(outFile) + "_blasr.m5"; // prefix for omega's output files
+								string blasr_cmd = "blasr " + omega_fasta + " " + fastaFile + " -noSplitSubreads -m 5 -out " + blasr_m5 + " > /dev/null";
+								//cout << blasr_cmd << endl;
+								res = system(blasr_cmd.c_str());
+								if(res != 0){
+									cout << "   *** Failed command " << blasr_cmd << endl;
+								}
+								else
+								{
+									remove( omega_fasta.c_str() );
+									remove( (omega_prefix + "_flow.input").c_str() );
+									remove( (omega_prefix + "_flow.output").c_str() );
+									string ec_cmd = "python " + py_cmd_path + "/metalrec.py -i " + fastaFile + " -s " + blasr_m5 + " -o " + outFile + " > " + logFile;
+									//cout << ec_cmd << endl;
+									res = system(ec_cmd.c_str());
+									if(res != 0){
+										cout << "   *** Failed command " << ec_cmd << endl;
+									}
+									else
+									{
+										cout << "EC finished. Done.\n";
+										remove( blasr_m5.c_str() );
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -361,9 +424,10 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
 	}
         
         // signal master when done
-        MPI_Send(0, 0, MPI_INT, 0, 0, MPI_COMM_WORLD);
+        MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
         
     }
+    return;
     
 }
 
