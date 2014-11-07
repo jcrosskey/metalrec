@@ -1,0 +1,66 @@
+/*
+ * Common.h
+ *
+ * Created on: April 22, 2013
+ * Author: Md. Bahlul Haider
+ */
+
+
+#ifndef COMMON_H_
+#define COMMON_H_
+
+#include <iomanip>
+#include <stdlib.h>
+#include <stdio.h>
+#include <cstdlib>
+#include <time.h>
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+#include <math.h>
+#include <streambuf>
+#include <sys/stat.h>
+#include <map>
+#include <ctype.h>
+
+#ifdef LOG1
+#include "logcpp/log1.h"
+#else
+#include "logcpp/log.h"
+#endif
+using namespace std;
+
+typedef unsigned char UINT8;
+typedef unsigned short UINT16;
+typedef short INT16;
+typedef unsigned long UINT32;
+typedef long INT32;
+typedef unsigned long long UINT64;
+typedef long long INT64;
+
+
+//static int loglevel = 2;
+extern int loglevel;
+#define aStatisticsThreshold 3
+#define minDelta 1000
+#define deadEndLength 10
+#define deadEndBp 500
+#define minimumSupport 1
+#define loopLimit 15
+
+// Exit code that displays the place of exit and message.
+#define MYEXIT(a) { FILE_LOG(logERROR) << "Exit from File: " << __FILE__ << " Line: " << __LINE__ << " Function: " << __FUNCTION__ << "()" << endl << "Message: " << a; exit(0);}
+// Print which function is currently executing. Only for functions that take long time
+
+
+// To keep time information of functions.
+#define CLOCKSTART clock_t begin = clock(); FILE_LOG(logDEBUG4) <<"Currently in file: " << __FILE__ << " Function: "<< __FUNCTION__ << "()";
+#define CLOCKSTOP clock_t end = clock(); FILE_LOG(logDEBUG4)  << "Function " << __FUNCTION__ << "() finished in " << double(end - begin) / CLOCKS_PER_SEC<< " Seconds." << endl;
+
+// To change the log level
+
+#endif /* COMMON_H_ */
