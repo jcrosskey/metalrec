@@ -51,15 +51,15 @@ extern int loglevel;
 #define deadEndBp 500
 #define minimumSupport 1
 #define loopLimit 15
-
+#define maxCharInLine 10000
 // Exit code that displays the place of exit and message.
 #define MYEXIT(a) { FILE_LOG(logERROR) << "Exit from File: " << __FILE__ << " Line: " << __LINE__ << " Function: " << __FUNCTION__ << "()" << endl << "Message: " << a; exit(0);}
 // Print which function is currently executing. Only for functions that take long time
 
 
 // To keep time information of functions.
-#define CLOCKSTART clock_t begin = clock(); FILE_LOG(logDEBUG4) <<"Currently in file: " << __FILE__ << " Function: "<< __FUNCTION__ << "()";
-#define CLOCKSTOP clock_t end = clock(); FILE_LOG(logDEBUG4)  << "Function " << __FUNCTION__ << "() finished in " << double(end - begin) / CLOCKS_PER_SEC<< " Seconds." << endl;
+#define CLOCKSTART clock_t begin = clock(); FILE_LOG(logDEBUG2) <<"Currently in file: " << __FILE__ << " Function: "<< __FUNCTION__ << "()";
+#define CLOCKSTOP clock_t end = clock(); FILE_LOG(logDEBUG2)  << "Function " << __FUNCTION__ << "() finished in " << double(end - begin) / CLOCKS_PER_SEC<< " Seconds." << endl;
 
 // To change the log level
 

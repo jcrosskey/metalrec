@@ -142,7 +142,7 @@ namespace Utils
         exit(EXIT_FAILURE);
     }
 
-    /** method to convert string to unsigned int **/
+    /** method to convert string to int **/
     int stringToInt( const std::string &input_string ) 
     {
         std::istringstream input_string_stream(input_string);
@@ -391,7 +391,7 @@ namespace Utils
         std::size_t delimiter_pos = str.find(delimit,pos);	// position of the delimiter
         string field;	// extract field
         while (delimiter_pos != std::string::npos) {
-            str = str.substr(pos, delimiter_pos-pos);
+            field = str.substr(pos, delimiter_pos-pos);
             strVec.push_back(field);
             pos = delimiter_pos + 1;
             delimiter_pos = str.find(delimit,pos);
