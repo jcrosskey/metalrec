@@ -50,6 +50,7 @@ class Dataset
 		Read * getReadFromCoord(const INT32 & coord);	// Find a read in the database given the start mapping coord. Uses binary search in the list of reads.
 		Read * getReadFromID(UINT64 ID);	// Find a read in the database given the ID in constant time.
 		void saveReads(string fileName);	// Save all the sorted unique reads in a text file. Used for debugging.
+		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
 
 };
 
