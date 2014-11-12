@@ -324,3 +324,34 @@ void Dataset::saveReads(string fileName)
 	}
 	outputFile.close();
 }
+
+/**********************************************************************************************************************
+ * This function prints the reads in tiling format, for checking the overlap alignment, and debugging.
+ **********************************************************************************************************************/
+void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling format. Used for checking the overlap (debugging)
+{
+	ofstream outputFile;
+	outputFile.open(fileName.c_str());
+	if(!outputFile.is_open())
+		MYEXIT("Unable to open file: " + fileName);
+	Read * read0 = reads->at(0);	// Read with leftmost mapping start coordinate
+	int LeftMostCoord = read0->getStartCoord();
+	if (LeftMostCoord < 0 )
+	{
+		string overHang(0-LeftMostCoord, '.');
+		outputFile << overHang;
+	}
+	string PacBioSeq(1000,'*');
+	outputFile << PacBioSeq << endl;
+	for(UINT64 i = 0; i < numberOfUniqueReads; i++)
+	{
+		Read * read1 = getReadFromID(i);
+		if (read1->getStartCoord() > LeftMostCoord)
+		{
+			string OffsetString(read1->getStartCoord() - LeftMostCoord, '.');
+			outputFile << OffsetString;
+		}
+		outputFile << read1->getStringForward() << endl;
+	}
+	outputFile.close();
+}
