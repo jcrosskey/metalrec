@@ -1,27 +1,57 @@
-# Add inputs and outputs from these tool invocations to the build variables 
-CPP_SRCS +=  Utils.cpp Read.cpp Dataset.cpp main.cpp 
+#  -c : not to run the linker
+#  -W -Wall -pedantic : maximal sensitivity of compiler against possible problems
+#  -Wno-variadic-macros : do not warn variadic macros usage (from C90 was turned on by default)
+#  -fmessage-length=0 : no line wrapping for error messages, each error message appears on a single line
+#  -MP : add a phony target for each dependency other than the main file, causing each to depend on nothing
+#  -MMD : dependency and header file options
 
-OBJS += Utils.o Read.o Dataset.o main.o 
-
+# compiler
 CC = g++
-PROG = metalrec
-CLFAGS = -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP
 
-all: metalrec
-metalrec: $(OBJS)
-		$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
-%.o: ../%.cpp
-	@echo 'Building file: $<'
-	@echo 'Invoking: GCC C++ Compiler'
-	g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
-	@echo 'Finished building: $<'
-	@echo ' '
+# compile time flags
+CFLAGS = -O0 -g3 -W -Wall -Wno-long-long -pedantic -Wno-variadic-macros -c -fmessage-length=0 -MMD -MP
+
+# include dirs containing header files
+PATH_TO_CORE=/Users/cjg/Software/seqan/core
+PATH_TO_EXTRAS=/Users/cjg/Software/seqan/extras
+INCLUDES+=-I${PATH_TO_CORE}/include
+INCLUDES+=-I${PATH_TO_EXTRAS}/include
+INCLUDES+=-I/usr/local/include
+INCLUDES+=-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1
+
+# lib paths in addition to /usr/lib
+LFLAGS=
+
+# libs to link into executable:
+LIBS=
+
+# source files and object files
+SRCS+=Utils.cpp Read.cpp Dataset.cpp main.cpp 
+# use macro to get object files
+OBJS = $(SRCS:.cpp=.o)
+
+# program name
+PROG = metalrec
+
+.PHONY: default all clean
+
+default: all
+
+all: $(PROG)
+	@echo $(PROG) has been compiled
+
+$(PROG): $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) -o $(PROG) $(OBJS) $(LFLAGS) $(LIBS)
+
+.cpp.o:
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
 clean:
 	rm -f $(OBJS) $(PROG)
 
-depend:
-	makedepend -- $(CFLAGS) -- $(CPP_SRCS)
-# DO NOT DELETE
+depend:	$(SRCS)
+	makedepend $(INCLUDES) $^
+# DO NOT DELETE THIS LINE -- make depend needs it
 
 Utils.o: Utils.h Common.h /usr/include/stdlib.h /usr/include/Availability.h
 Utils.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
