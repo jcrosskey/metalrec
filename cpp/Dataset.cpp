@@ -73,7 +73,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 maxError
 				getline(samIn, line);
 				Read *r = new Read(line);
 				FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-				if (testRead(r->getStringForward()))
+				if (testRead(r->getDnaStringForward()))
 				{
 					UINT32 len = r->getReadLength();
 					if (len > longestReadLength)
@@ -138,7 +138,7 @@ Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 maxErr
 	//		getline(inputSamStream, line);
 	//		Read *r = new Read(line);
 	//		FILE_LOG(logDEBUG2) << "Read in read: " << r->readName;
-	//		if (testRead(r->getStringForward))
+	//		if (testRead(r->getDnaStringForward))
 	//		{
 	//			UINT32 len = r->getReadLength();
 	//			if (len > longestReadLength)
@@ -201,7 +201,7 @@ bool Dataset::removeDupicateReads(void)
 	for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequencey of the duplicated reads.
 	{
 		if(reads->at(j)->getStartCoord()!= reads->at(i)->getStartCoord() \
-				|| reads->at(j)->getStringForward() != reads->at(i)->getStringForward())	// Two reads have different start mapping coordinates, or different strings
+				|| reads->at(j)->getDnaStringForward() != reads->at(i)->getDnaStringForward())	// Two reads have different start mapping coordinates, or different strings
 		{
 			j++;	// Number of unique reads increases by 1
 			temp = reads->at(j);	// Save the read that was just checked
@@ -228,29 +228,30 @@ bool Dataset::removeDupicateReads(void)
 /**********************************************************************************************************************
   Returns true if the read contains only {A,C,G,T} and does not contain more than 80% of the same nucleotide
  **********************************************************************************************************************/
-bool Dataset::testRead(const string & readString)
+bool Dataset::testRead(const seqan::DnaString & readDnaString)
 {
 
 	UINT64 cnt[4] = {0,0,0,0};
-	UINT64 readLength = readString.length();
+	size_t readLength = seqan::length(readDnaString);
 	if ( readLength < minimumOverlapLength)
 	{
-		FILE_LOG(logDEBUG3) << "Read's length is smaller than the minimumOverlapLength " << readString;
+		FILE_LOG(logDEBUG3) << "Read's length is smaller than the minimumOverlapLength " << readDnaString;
 		return false;
 	}
+	seqan::Dna a= 'A', c = 'C', g = 'G', t = 'T';
 	for(UINT64 i = 0; i < readLength; i++) // Count the number of A's, C's , G's and T's in the string.
 	{
-		if(readString[i]!= 'A' && readString[i] != 'C' && readString[i] != 'G' && readString[i] != 'T')
+		if(readDnaString[i]!= a && readDnaString[i] != c && readDnaString[i] != g && readDnaString[i] != t)
 		{
-			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readString;
+			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
 			return false;
 		}
-		cnt[(readString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
+		cnt[(seqan::ordValue(readDnaString[i]) >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
 	}
-	UINT64 threshold = readString.length()*.8;	// 80% of the length.
+	UINT64 threshold = seqan::length(readDnaString)*.8;	// 80% of the length.
 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
 	{
-		FILE_LOG(logDEBUG3) << "More than 80\% of the read string has the same character " << readString;
+		FILE_LOG(logDEBUG3) << "More than 80\% of the read string has the same character " << readDnaString;
 		return false;	// If 80% bases are the same base.
 	}
 	return true;
@@ -311,7 +312,7 @@ void Dataset::saveReads(string fileName)
 				<< " # End coord: " << read1->getEndCoord() \
 				<< " # Length: " << read1->getReadLength() \
 				<< " # Contained in "  << read1->superReadID \
-				<< "\n" << read1->getStringForward() << endl;
+				<< "\n" << read1->getDnaStringForward() << endl;
 		}
 		else
 		{
@@ -319,7 +320,7 @@ void Dataset::saveReads(string fileName)
 				<< " # Start coord: " << read1->getStartCoord() \
 				<< " # End coord: " << read1->getEndCoord() \
 				<< " # Length: " << read1->getReadLength() \
-				<< " # Noncontained\n" << read1->getStringForward() << endl;
+				<< " # Noncontained\n" << read1->getDnaStringForward() << endl;
 		}
 	}
 	outputFile.close();
@@ -351,7 +352,7 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 			string OffsetString(read1->getStartCoord() - LeftMostCoord, '.');
 			outputFile << OffsetString;
 		}
-		outputFile << read1->getStringForward() << endl;
+		outputFile << read1->getDnaStringForward() << endl;
 	}
 	outputFile.close();
 }

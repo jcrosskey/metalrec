@@ -10,6 +10,10 @@
 #define DATASET_H_
 #include "Common.h"
 #include "Read.h"
+#include <seqan/sequence.h>
+#include <seqan/basic.h>
+#include <seqan/file.h>
+#include <seqan/modifier.h>
 
 
 /**********************************************************************************************************************
@@ -28,7 +32,7 @@ class Dataset
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
 		vector<Read *> *reads;	// List of reads in the dataset.
-		bool testRead(const string & readString);	// Test if the read is good. Contains only {A,C,G,T} and does not contain more than 80% of same base. 
+		bool testRead(const seqan::DnaString & readDnaString);	// Test if the read is good. Contains only {A,C,G,T} and does not contain more than 80% of same base. 
 	// The dataset contains only good quality reads.
 		bool removeDupicateReads(void);	// Remove duplicate reads from the dataset. Frequency is stored for each of the reads.
 		void sortReads(void);	// Sort the reads by their start mapping coordinates

@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <map>
 #include <ctype.h>
+#include "Utils.h"
 
 #ifdef LOG1
 #include "logcpp/log1.h"

@@ -104,6 +104,6 @@ namespace Utils
     /** find the last non-empty line of a file **/
     std::string last_line(const std::string & filename);
 
-};
+}
 
 #endif //UTILS.HPP
