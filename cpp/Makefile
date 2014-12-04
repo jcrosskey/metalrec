@@ -29,7 +29,7 @@ LFLAGS=
 LIBS=
 
 # source files and object files
-SRCS+=Utils.cpp Read.cpp Dataset.cpp main.cpp 
+SRCS+=Utils.cpp Read.cpp Dataset.cpp Edge.cpp OverlapGraph.cpp main.cpp 
 # use macro to get object files
 OBJS = $(SRCS:.cpp=.o)
 
@@ -357,7 +357,6 @@ Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_mapping.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_mmap.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_external.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_mmap.h
-Read.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_base.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_put.h
@@ -373,6 +372,7 @@ Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/read_auto_format.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/is.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/tokenize.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/stream/lexical_cast.h
+Read.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/align.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/score.h
@@ -779,7 +779,6 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_mapping.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_mmap.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_external.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_mmap.h
-Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_base.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_put.h
@@ -795,6 +794,7 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/read_auto_format.
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/is.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/tokenize.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/stream/lexical_cast.h
+Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/align.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/score.h
@@ -944,6 +944,853 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
+Edge.o: Common.h /usr/include/stdlib.h /usr/include/Availability.h
+Edge.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
+Edge.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
+Edge.o: /usr/include/sys/_symbol_aliasing.h
+Edge.o: /usr/include/sys/_posix_availability.h /usr/include/machine/_types.h
+Edge.o: /usr/include/i386/_types.h /usr/include/sys/wait.h
+Edge.o: /usr/include/sys/_types/_pid_t.h /usr/include/sys/_types/_id_t.h
+Edge.o: /usr/include/sys/signal.h /usr/include/sys/appleapiopts.h
+Edge.o: /usr/include/machine/signal.h /usr/include/i386/signal.h
+Edge.o: /usr/include/machine/_mcontext.h /usr/include/i386/_mcontext.h
+Edge.o: /usr/include/mach/i386/_structs.h
+Edge.o: /usr/include/sys/_types/_sigaltstack.h
+Edge.o: /usr/include/sys/_types/_ucontext.h
+Edge.o: /usr/include/sys/_types/_pthread_attr_t.h
+Edge.o: /usr/include/sys/_types/_sigset_t.h /usr/include/sys/_types/_size_t.h
+Edge.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
+Edge.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
+Edge.o: /usr/include/sys/_types/_int16_t.h /usr/include/sys/_types/_int32_t.h
+Edge.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
+Edge.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
+Edge.o: /usr/include/_types/_uint64_t.h /usr/include/sys/_types/_intptr_t.h
+Edge.o: /usr/include/sys/_types/_uintptr_t.h /usr/include/_types/_intmax_t.h
+Edge.o: /usr/include/_types/_uintmax_t.h /usr/include/sys/_types/_timeval.h
+Edge.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
+Edge.o: /usr/include/sys/_endian.h /usr/include/libkern/_OSByteOrder.h
+Edge.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
+Edge.o: /usr/include/sys/_types/_ct_rune_t.h
+Edge.o: /usr/include/sys/_types/_rune_t.h /usr/include/sys/_types/_wchar_t.h
+Edge.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
+Edge.o: /usr/include/i386/types.h /usr/include/sys/_types/___offsetof.h
+Edge.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
+Edge.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
+Edge.o: /usr/include/sys/_types/_off_t.h /usr/include/sys/_types/_ssize_t.h
+Edge.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
+Edge.o: /usr/include/time.h /usr/include/_structs.h
+Edge.o: /usr/include/sys/_structs.h /usr/include/sys/_types/_timespec.h
+Edge.o: /usr/include/sys/_types/_clock_t.h /usr/include/sys/_types/_time_t.h
+Edge.o: /usr/include/math.h /usr/include/sys/stat.h
+Edge.o: /usr/include/sys/_types/_blkcnt_t.h
+Edge.o: /usr/include/sys/_types/_blksize_t.h /usr/include/sys/_types/_ino_t.h
+Edge.o: /usr/include/sys/_types/_ino64_t.h /usr/include/sys/_types/_nlink_t.h
+Edge.o: /usr/include/sys/_types/_gid_t.h /usr/include/sys/_types/_s_ifmt.h
+Edge.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
+Edge.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h Utils.h
+Edge.o: logcpp/log.h /usr/include/sys/time.h
+Edge.o: /usr/include/sys/_types/_fd_def.h
+Edge.o: /usr/include/sys/_types/_suseconds_t.h
+Edge.o: /usr/include/sys/_types/_fd_setsize.h
+Edge.o: /usr/include/sys/_types/_fd_set.h /usr/include/sys/_types/_fd_clr.h
+Edge.o: /usr/include/sys/_types/_fd_isset.h
+Edge.o: /usr/include/sys/_types/_fd_zero.h /usr/include/sys/_types/_fd_copy.h
+Edge.o: /usr/include/sys/_select.h Edge.h Read.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
+Edge.o: /usr/include/inttypes.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
+Edge.o: /usr/include/unistd.h /usr/include/sys/unistd.h
+Edge.o: /usr/include/sys/_types/_posix_vdisable.h
+Edge.o: /usr/include/sys/_types/_seek_set.h
+Edge.o: /usr/include/sys/_types/_useconds_t.h /usr/include/sys/select.h
+Edge.o: /usr/include/sys/_types/_uuid_t.h /usr/include/gethostuuid.h
+Edge.o: /usr/include/dirent.h /usr/include/sys/dirent.h /usr/include/cxxabi.h
+Edge.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
+Edge.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
+Edge.o: /usr/include/sys/_types/_pthread_t.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_metaprogramming.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_logic.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_control.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_math.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_type.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_enable_if.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_fundamental.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/macro_deprecated.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/builtin_functions.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_metafunctions.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_tags.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_transport.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_comparison.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_conversion.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/array_construct_destruct.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/hosted_type_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/test_system.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_concept.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/boost_preprocessor_subset.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/concept_checking.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_concepts.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_alphabet.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_concept.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_math.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_adapt_builtins.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_bio.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_qualities.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_storage.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_simple_type.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue_tabs.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue_funcs.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_profile.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_memset.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_aggregate.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/aggregate_concept.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_packed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_bit_compressed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/triple_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/triple_packed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/tuple_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/tuple_bit_compressed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_allocator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_smart_pointer.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_type.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_simple.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_tristate.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/volatile_ptr.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_simple.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_singlepool.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_multipool.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_chunkpool.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_to_std.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_parallelism.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_math.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/math_functions.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/math_log_space_value.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_iterator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_concept.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_adaptor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_position.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_adapt_std.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/proxy_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/proxy_iterator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_proxy.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_container.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/container_concept.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_tangle.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_forwards.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_lexical.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_infix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_suffix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_prefix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_array.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_alloc.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_cstyle.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_block.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_packed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_shortcuts.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/iter_concat_virtual.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_concatenator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_concat_direct.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_dependent_tight.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_dependent_generous.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_owner.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_list.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_string.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_vector.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_array_pointer.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_utils.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_tags.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_macros.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_atomic_primitives.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_atomic_misc.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_splitting.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_algorithms.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_alphabet.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_alphabet_expansion.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_iterator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_string.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_functors.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_view.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_reverse.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_shortcuts.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_forwards.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/cstream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/chunk_collector.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
+Edge.o: /usr/include/pthread.h /usr/include/pthread_impl.h
+Edge.o: /usr/include/sched.h /usr/include/sys/_types/_pthread_cond_t.h
+Edge.o: /usr/include/sys/_types/_pthread_condattr_t.h
+Edge.o: /usr/include/sys/_types/_pthread_key_t.h
+Edge.o: /usr/include/sys/_types/_pthread_mutex_t.h
+Edge.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
+Edge.o: /usr/include/sys/_types/_pthread_once_t.h
+Edge.o: /usr/include/sys/_types/_pthread_rwlock_t.h
+Edge.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
+Edge.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
+Edge.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
+Edge.o: /usr/include/semaphore.h /usr/include/sys/types.h
+Edge.o: /usr/include/sys/_types/_in_addr_t.h
+Edge.o: /usr/include/sys/_types/_in_port_t.h /usr/include/sys/_types/_key_t.h
+Edge.o: /usr/include/sys/_types/_fsblkcnt_t.h
+Edge.o: /usr/include/sys/_types/_fsfilcnt_t.h /usr/include/sys/fcntl.h
+Edge.o: /usr/include/sys/_types/_o_sync.h /usr/include/sys/_types/_o_dsync.h
+Edge.o: /usr/include/sys/semaphore.h /usr/include/aio.h
+Edge.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_mutex.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
+Edge.o: /usr/include/fcntl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereader.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/stream_algorithms.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/concept_stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_fstream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_iostream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_cstdio.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_sstream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_raw.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_fasta.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_embl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_genbank.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_fasta_align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_cgviz.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_page.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_mapping.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_mmap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_external.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_mmap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_put.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_char_array.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_mmap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/file_stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_single.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_single_mmap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_double.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_double_mmap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/read_auto_format.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/is.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/tokenize.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/stream/lexical_cast.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_edit.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix_io.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix_data.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_simple.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_idmanager.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_edgestump.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_interface.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_directed.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_undirected.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_automaton.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_wordgraph.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_tree.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_fragment.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_hmm.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_vertex.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_outedge.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_adjacency.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_edge.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_property.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_oracle.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_trie.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_bfs.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_dfs.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_drawing.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_parsing.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_utility_parsing.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_mt19937.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/ext_MersenneTwister.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_uniform.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_normal.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_lognormal.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_geometric.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_beta.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_beta_kfunc.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_rng_functor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_shuffle.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_union_find.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_heap_tree.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_hmm.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_lis_his.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_impl_align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_impl_align_adapt.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_interval_tree.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_scoring.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_fragment.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_aligngraph.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_exact_iterative.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_inexact.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_annotation.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/priority_type_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/priority_type_heap.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gapped_value_type.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_config.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_traceback.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/matrix_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_array.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_array.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gap_anchor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_anchor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_anchor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_metafunctions.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_cols.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/alignment_algorithm_tags.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_profile.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_band.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_scout.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell_linear.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell_affine.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_trace_segment.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_traceback_adaptor.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_setup.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula_linear.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula_affine.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_meta_info.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_sparse.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_score_matrix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_score_matrix_sparse.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_trace_matrix.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_traceback_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_algorithm_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_hirschberg_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_myers_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_myers_hirschberg_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_waterman_eggert_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_banded_waterman_eggert_impl.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_unbanded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_banded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_unbanded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_banded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration_unbanded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration_banded.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_specialized.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/alignment_operations.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/align/evaluate_alignment.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_name_store_cache.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_io_context.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/cigar.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_alignment_record.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_header_record.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_sam_conversion.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_tags_dict.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/read_sam.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/write_sam.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_alignment_record_util.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/xam_reader.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/sam_reader.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/xam_writer.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/sam_writer.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_io_context.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_io_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_stream.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_base.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_read.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_matepair.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_library.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_contig.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_align.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_annotation.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_all.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_align_intervals.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_intervaltree.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
+Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
+OverlapGraph.o: OverlapGraph.h Common.h /usr/include/stdlib.h
+OverlapGraph.o: /usr/include/Availability.h
+OverlapGraph.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
+OverlapGraph.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
+OverlapGraph.o: /usr/include/sys/_symbol_aliasing.h
+OverlapGraph.o: /usr/include/sys/_posix_availability.h
+OverlapGraph.o: /usr/include/machine/_types.h /usr/include/i386/_types.h
+OverlapGraph.o: /usr/include/sys/wait.h /usr/include/sys/_types/_pid_t.h
+OverlapGraph.o: /usr/include/sys/_types/_id_t.h /usr/include/sys/signal.h
+OverlapGraph.o: /usr/include/sys/appleapiopts.h /usr/include/machine/signal.h
+OverlapGraph.o: /usr/include/i386/signal.h /usr/include/machine/_mcontext.h
+OverlapGraph.o: /usr/include/i386/_mcontext.h
+OverlapGraph.o: /usr/include/mach/i386/_structs.h
+OverlapGraph.o: /usr/include/sys/_types/_sigaltstack.h
+OverlapGraph.o: /usr/include/sys/_types/_ucontext.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_attr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_sigset_t.h
+OverlapGraph.o: /usr/include/sys/_types/_size_t.h
+OverlapGraph.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
+OverlapGraph.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
+OverlapGraph.o: /usr/include/sys/_types/_int16_t.h
+OverlapGraph.o: /usr/include/sys/_types/_int32_t.h
+OverlapGraph.o: /usr/include/sys/_types/_int64_t.h
+OverlapGraph.o: /usr/include/_types/_uint8_t.h
+OverlapGraph.o: /usr/include/_types/_uint16_t.h
+OverlapGraph.o: /usr/include/_types/_uint32_t.h
+OverlapGraph.o: /usr/include/_types/_uint64_t.h
+OverlapGraph.o: /usr/include/sys/_types/_intptr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_uintptr_t.h
+OverlapGraph.o: /usr/include/_types/_intmax_t.h
+OverlapGraph.o: /usr/include/_types/_uintmax_t.h
+OverlapGraph.o: /usr/include/sys/_types/_timeval.h
+OverlapGraph.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
+OverlapGraph.o: /usr/include/sys/_endian.h
+OverlapGraph.o: /usr/include/libkern/_OSByteOrder.h
+OverlapGraph.o: /usr/include/libkern/i386/_OSByteOrder.h
+OverlapGraph.o: /usr/include/alloca.h /usr/include/sys/_types/_ct_rune_t.h
+OverlapGraph.o: /usr/include/sys/_types/_rune_t.h
+OverlapGraph.o: /usr/include/sys/_types/_wchar_t.h
+OverlapGraph.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
+OverlapGraph.o: /usr/include/i386/types.h
+OverlapGraph.o: /usr/include/sys/_types/___offsetof.h
+OverlapGraph.o: /usr/include/sys/_types/_dev_t.h
+OverlapGraph.o: /usr/include/sys/_types/_mode_t.h /usr/include/stdio.h
+OverlapGraph.o: /usr/include/sys/_types/_va_list.h
+OverlapGraph.o: /usr/include/sys/_types/_off_t.h
+OverlapGraph.o: /usr/include/sys/_types/_ssize_t.h
+OverlapGraph.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
+OverlapGraph.o: /usr/include/time.h /usr/include/_structs.h
+OverlapGraph.o: /usr/include/sys/_structs.h
+OverlapGraph.o: /usr/include/sys/_types/_timespec.h
+OverlapGraph.o: /usr/include/sys/_types/_clock_t.h
+OverlapGraph.o: /usr/include/sys/_types/_time_t.h /usr/include/math.h
+OverlapGraph.o: /usr/include/sys/stat.h /usr/include/sys/_types/_blkcnt_t.h
+OverlapGraph.o: /usr/include/sys/_types/_blksize_t.h
+OverlapGraph.o: /usr/include/sys/_types/_ino_t.h
+OverlapGraph.o: /usr/include/sys/_types/_ino64_t.h
+OverlapGraph.o: /usr/include/sys/_types/_nlink_t.h
+OverlapGraph.o: /usr/include/sys/_types/_gid_t.h
+OverlapGraph.o: /usr/include/sys/_types/_s_ifmt.h
+OverlapGraph.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
+OverlapGraph.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h
+OverlapGraph.o: Utils.h logcpp/log.h /usr/include/sys/time.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_def.h
+OverlapGraph.o: /usr/include/sys/_types/_suseconds_t.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_setsize.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_set.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_clr.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_isset.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_zero.h
+OverlapGraph.o: /usr/include/sys/_types/_fd_copy.h /usr/include/sys/_select.h
+OverlapGraph.o: Dataset.h Read.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
+OverlapGraph.o: /usr/include/inttypes.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
+OverlapGraph.o: /usr/include/unistd.h /usr/include/sys/unistd.h
+OverlapGraph.o: /usr/include/sys/_types/_posix_vdisable.h
+OverlapGraph.o: /usr/include/sys/_types/_seek_set.h
+OverlapGraph.o: /usr/include/sys/_types/_useconds_t.h
+OverlapGraph.o: /usr/include/sys/select.h /usr/include/sys/_types/_uuid_t.h
+OverlapGraph.o: /usr/include/gethostuuid.h /usr/include/dirent.h
+OverlapGraph.o: /usr/include/sys/dirent.h /usr/include/cxxabi.h
+OverlapGraph.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
+OverlapGraph.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_t.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_metaprogramming.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_logic.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_control.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_math.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_type.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/metaprogramming_enable_if.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_fundamental.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/macro_deprecated.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/builtin_functions.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_metafunctions.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_tags.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_transport.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_comparison.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_conversion.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/array_construct_destruct.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/hosted_type_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/test_system.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_concept.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/boost_preprocessor_subset.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/concept_checking.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/fundamental_concepts.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_alphabet.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_concept.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_math.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_adapt_builtins.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_bio.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_qualities.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_storage.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_simple_type.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue_tabs.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue_funcs.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_residue.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/alphabet_profile.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_memset.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_aggregate.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/aggregate_concept.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_packed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/pair_bit_compressed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/triple_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/triple_packed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/tuple_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/tuple_bit_compressed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_allocator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_smart_pointer.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_type.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_simple.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/holder_tristate.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/volatile_ptr.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_simple.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_singlepool.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_multipool.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_chunkpool.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/allocator_to_std.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_parallelism.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_math.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/math_functions.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/math_log_space_value.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_iterator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_concept.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_adaptor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_position.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/iterator_adapt_std.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/proxy_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/proxy_iterator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_proxy.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_container.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/container_concept.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_tangle.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_forwards.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_lexical.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_infix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_suffix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_prefix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_array.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_alloc.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_cstyle.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_block.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_packed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_shortcuts.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/iter_concat_virtual.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/sequence_concatenator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_concat_direct.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_dependent_tight.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_dependent_generous.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/string_set_owner.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_list.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_string.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_std_vector.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/adapt_array_pointer.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence/segment_utils.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_tags.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_macros.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_atomic_primitives.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_atomic_misc.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_splitting.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/parallel/parallel_algorithms.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_alphabet.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_alphabet_expansion.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_iterator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_string.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_functors.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_view.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_reverse.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/modifier/modifier_shortcuts.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_forwards.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/cstream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/chunk_collector.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
+OverlapGraph.o: /usr/include/pthread.h /usr/include/pthread_impl.h
+OverlapGraph.o: /usr/include/sched.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_cond_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_condattr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_key_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_mutex_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_once_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_rwlock_t.h
+OverlapGraph.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
+OverlapGraph.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
+OverlapGraph.o: /usr/include/semaphore.h /usr/include/sys/types.h
+OverlapGraph.o: /usr/include/sys/_types/_in_addr_t.h
+OverlapGraph.o: /usr/include/sys/_types/_in_port_t.h
+OverlapGraph.o: /usr/include/sys/_types/_key_t.h
+OverlapGraph.o: /usr/include/sys/_types/_fsblkcnt_t.h
+OverlapGraph.o: /usr/include/sys/_types/_fsfilcnt_t.h
+OverlapGraph.o: /usr/include/sys/fcntl.h /usr/include/sys/_types/_o_sync.h
+OverlapGraph.o: /usr/include/sys/_types/_o_dsync.h
+OverlapGraph.o: /usr/include/sys/semaphore.h /usr/include/aio.h
+OverlapGraph.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_mutex.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
+OverlapGraph.o: /usr/include/fcntl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereader.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/stream_algorithms.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/concept_stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_fstream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_iostream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_cstdio.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_sstream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_raw.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_fasta.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_embl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_genbank.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_fasta_align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_cgviz.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_page.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_mapping.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_mmap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_external.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_mmap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_put.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_char_array.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/adapt_mmap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/file_stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_single.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_single_mmap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_double.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/record_reader_double_mmap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/read_auto_format.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/is.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/tokenize.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/stream/lexical_cast.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_edit.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix_io.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_matrix_data.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/score/score_simple.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_idmanager.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_edgestump.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_interface.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_directed.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_undirected.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_automaton.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_wordgraph.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_tree.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_fragment.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_hmm.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_vertex.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_outedge.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_adjacency.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_edge.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_property.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_oracle.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_impl_trie.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_bfs.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_iterator_dfs.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_drawing.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_parsing.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_types/graph_utility_parsing.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_mt19937.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/ext_MersenneTwister.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_uniform.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_normal.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_lognormal.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_geometric.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_beta.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_beta_kfunc.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_rng_functor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/random/random_shuffle.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_union_find.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_heap_tree.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_hmm.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_algorithms/graph_algorithm_lis_his.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_impl_align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_impl_align_adapt.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_interval_tree.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_scoring.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_fragment.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_aligngraph.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_exact_iterative.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_inexact.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align/graph_algorithm_refine_annotation.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/priority_type_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/priority_type_heap.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gapped_value_type.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_config.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_traceback.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/matrix_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_array.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_array.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gap_anchor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_anchor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/gaps_iterator_anchor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_metafunctions.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_cols.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/align_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/alignment_algorithm_tags.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_profile.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_band.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_scout.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell_linear.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_cell_affine.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_trace_segment.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_traceback_adaptor.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_setup.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula_linear.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_formula_affine.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_meta_info.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_sparse.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_score_matrix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_score_matrix_sparse.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_matrix_navigator_trace_matrix.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_traceback_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/dp_algorithm_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_hirschberg_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_myers_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_myers_hirschberg_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_waterman_eggert_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_banded_waterman_eggert_impl.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_unbanded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_banded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_unbanded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_banded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration_unbanded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/local_alignment_enumeration_banded.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/global_alignment_specialized.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/alignment_operations.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/align/evaluate_alignment.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/misc/misc_name_store_cache.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_io_context.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/cigar.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_alignment_record.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_header_record.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_sam_conversion.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_tags_dict.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/read_sam.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/write_sam.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_alignment_record_util.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/xam_reader.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/sam_reader.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/xam_writer.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/sam_writer.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io/bam_stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_io_context.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_io_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/gff_io/gff_stream.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_base.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_read.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_matepair.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_library.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_contig.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_align.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_annotation.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_all.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_align_intervals.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_intervaltree.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
+OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
+OverlapGraph.o: Edge.h
 main.o: Common.h /usr/include/stdlib.h /usr/include/Availability.h
 main.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
 main.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
@@ -1190,7 +2037,6 @@ main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_mapping.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_mmap.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/string_external.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_format_mmap.h
-main.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_base.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/stream_put.h
@@ -1206,6 +2052,7 @@ main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/read_auto_format.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/is.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/tokenize.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/stream/lexical_cast.h
+main.o: /Users/cjg/Software/seqan/core/include/seqan/bam_io.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/align.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/graph_align.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/score.h
@@ -1355,4 +2202,4 @@ main.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
-main.o: Dataset.h
+main.o: Dataset.h Edge.h OverlapGraph.h

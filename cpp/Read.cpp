@@ -26,7 +26,7 @@ Read::Read(void)
 }
 
 /**********************************************************************************************************************
-	Another constructor, from sam align record
+	Another constructor, from sam align record in string format
 **********************************************************************************************************************/
 Read::Read(const string & s)
 {
@@ -41,6 +41,24 @@ Read::Read(const string & s)
 	locationOnEdgesForward = new vector<UINT64>;
 	locationOnEdgesForward->resize(locationOnEdgesForward->size());	// Resize to 0 to reduce space.
 	setRead(s);
+}
+
+/**********************************************************************************************************************
+	Another constructor, from sam align record in BamAlignmentRecord format
+**********************************************************************************************************************/
+Read::Read(const seqan::BamAlignmentRecord & record)
+{
+	// Initialize the variables.
+	ID = 0;
+	frequency = 0;
+	isContainedRead = false;
+	superReadID = 0;
+
+	listOfEdgesForward = new vector<Edge *>;
+	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.
+	locationOnEdgesForward = new vector<UINT64>;
+	locationOnEdgesForward->resize(locationOnEdgesForward->size());	// Resize to 0 to reduce space.
+	setRead(record);
 }
 
 /**********************************************************************************************************************
@@ -60,6 +78,7 @@ Read::~Read(void)
 **********************************************************************************************************************/
 bool Read::setRead(const string & s)
 {
+	//FILE_LOG(logDEBUG3) << "Use generic sam record parsing\n";
 	setFrequency(1);	// Set the frequency to 1.
 	stringstream ss(s);
 	int flag;
@@ -86,6 +105,7 @@ bool Read::setRead(const string & s)
 	}
 	readReverseDnaString = readDnaString;	// Initialize the reverse complement string to be the same as forward string
 	seqan::reverseComplement(readReverseDnaString);	// Reverse and complement in place
+	startCoord = rStart - leftClip;
 	return true;
 }
 
@@ -114,17 +134,26 @@ bool Read::setRead(const seqan::BamAlignmentRecord & record) 		// Set the read f
 	else
 		seqan::extractTagValue(alignScore, tagsDict, AS_pos);
 
-	seqan::String<seqan::CigarElement<> > cigarString = record.cigar;	// cigar string of type String<CigarElement<> >
+	seqan::String<seqan::CigarElement<> > cigar_String = record.cigar;	// cigar string of type String<CigarElement<> >
+	// cigar string as string, instead of a seqan class, may not be useful at all later.
+	stringstream ss;
+	for ( size_t i = 0; i < seqan::length(cigar_String); i++)
+	{
+		ss << cigar_String[i].count;
+		ss << cigar_String[i].operation;
+	}
+	cigarString = ss.str();
 	leftClip = 0;	// Set them to 0 first
 	rightClip = 0;
-	if ( seqan::length(cigarString) > 0 )	// If cigarString is not empty, check whether there are clippings at the ends
+	if ( seqan::length(cigar_String) > 0 )	// If cigar_String is not empty, check whether there are clippings at the ends
 	{
-		if (cigarString[0].operation == 'S')
-			leftClip = cigarString[0].count;
+		if (cigar_String[0].operation == 'S')
+			leftClip = cigar_String[0].count;
 
-		if (cigarString[(int) length(cigarString) - 1].operation == 'S')
-			rightClip = cigarString[(int) length(cigarString) - 1].count;
+		if (cigar_String[(int) length(cigar_String) - 1].operation == 'S')
+			rightClip = cigar_String[(int) length(cigar_String) - 1].count;
 	}
+	startCoord = rStart - leftClip;
 	return true;
 }
 
@@ -183,17 +212,12 @@ bool Read::setFrequency(UINT32 freq)
 }
 
 /**********************************************************************************************************************
-	Return the starting and ending coordinates of the read, disregarding the alignment to PacBio read, 
+	Return the ending coordinates of the read, disregarding the alignment to PacBio read, 
 	assume that all the mismatches are substitutions in Illumina reads.
 **********************************************************************************************************************/
-INT32 Read::getStartCoord(void)
-{
-	return (rStart - leftClip);	// 0-based, position of the first bp
-}
-
 INT32 Read::getEndCoord(void)
 {
-	return ( rStart - leftClip + length(readDnaString) ); // 0-based, position after the last bp of the read
+	return ( startCoord + length(readDnaString) ); // 0-based, position after the last bp of the read
 }
 
 /**********************************************************************************************************************

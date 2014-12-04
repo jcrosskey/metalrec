@@ -5,12 +5,17 @@
  * Author: JJ Chai
  */
 
+/*** utility functions ***/
 #include "Common.h"
+/*** Read class ***/
 #include "Read.h"
+/*** Dataset class ***/
 #include "Dataset.h"
-//#include "Edge.h"
-//#include "OverlapGraph.h"
-int loglevel; // logging level in integer format
+/*** Edge class ***/
+#include "Edge.h"
+/*** OverlapGraph class ***/
+#include "OverlapGraph.h"
+int loglevel; // logging level in integer format, for different levels of verbosity
 
 void usage();
 void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT32 & maxError, float & maxErrorRate, bool & useCoverageDepth);
@@ -145,19 +150,23 @@ int main(int argc, char **argv)
 	UINT64 minimumOverlapLength;
 	UINT32 maxError;
 	float maxErrorRate;
+	UINT32 rubberPos = 10;
 	bool useCoverageDepth;
 	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, maxError, maxErrorRate, useCoverageDepth);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 	FILE_LOG(logDEBUG1) << "Parsing argument list finished";
-	//cout << "logging level is " << loglevel << endl;
+	//cout << "logging level is " << loglevel << endl;	// For debugging only
 
 	/** Declare variables **/
-	UINT64 counter;
-	UINT64 iteration = 0;
+	//UINT64 counter;
+	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
 	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength, maxError, maxErrorRate);	// now reads the .sam file, later should be able to take the string stream TODO**
 	dataSet->saveReads(allFileName + "_reads.fasta");
 	dataSet->printReadsTiling(allFileName + "_reads.tiling");
+	FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
+	//OverlapGraph *graph = new OverlapGraph();
+	OverlapGraph *graph = new OverlapGraph(dataSet, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
 	
 	CLOCKSTOP;
 }

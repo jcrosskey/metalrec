@@ -8,11 +8,15 @@
 #include "Dataset.h"
 
 /**********************************************************************************************************************
-  Function to compare two reads by their start mapping coordinate. Used for sorting.
+ * Function to compare two reads by their start mapping coordinate. Used for sorting.
+ * If two reads have same start mapping coordinate, sort by their lengths.
  **********************************************************************************************************************/
 bool compareReads (Read *read1, Read *read2)
 {
-	return read1->getStartCoord() < read2->getStartCoord();
+	if (read1 -> getStartCoord() != read2 -> getStartCoord())
+		return read1->getStartCoord() < read2->getStartCoord();
+	else
+		return seqan::length(read1->getDnaStringForward()) < seqan::length(read2->getDnaStringForward());	// string comparison of the two reads. TODO
 }
 
 /**********************************************************************************************************************
@@ -20,9 +24,10 @@ bool compareReads (Read *read1, Read *read2)
  **********************************************************************************************************************/
 Dataset::Dataset(void)
 {
-	// Initialize the variables.
-	numberOfUniqueReads = 0;
+	// Initialize the variable values.
 	numberOfReads = 0;
+	numberOfUniqueReads = 0;
+	numberOfNonContainedReads = 0;
 	minimumOverlapLength = 0;
 	maxError = 0;
 	maxErrorRate = 0.0;
@@ -32,24 +37,25 @@ Dataset::Dataset(void)
 
 
 /**********************************************************************************************************************
- * Another constructor, from BLASR generated sam file
+ * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 maxError, float maxErrorRate)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate, bool generic)
 {
 	CLOCKSTART;
 	// Initialize the variables.
 	numberOfUniqueReads = 0;
 	numberOfReads = 0;
+	numberOfNonContainedReads = 0;
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	maxError = 0;
-	maxErrorRate = 0.0;
-	UINT64 counter = 0;
-	PacBioReadName = Utils::getFilename(inputSamFile);
-	UINT64 goodReads = 0, badReads = 0;
+	maxError = max_Error;
+	maxErrorRate = max_ErrorRate;
+	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
+	//UINT64 counter = 0;
+	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
 	ifstream samIn;
 	samIn.open(inputSamFile.c_str());
@@ -98,13 +104,83 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 maxError
 	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
 	sortReads();
 	removeDupicateReads();	// Remove duplicated reads for the dataset.
+	numberOfNonContainedReads = numberOfUniqueReads;
 	CLOCKSTOP;
 }
 
 /**********************************************************************************************************************
- * Another constructor, from BLASR generated sam file in piped stream instead of reading the file
+ * Another constructor, from BLASR generated sam file, use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 maxError, float maxErrorRate)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate)
+{
+	CLOCKSTART;
+	// Initialize the variables.
+	numberOfUniqueReads = 0;
+	numberOfReads = 0;
+	numberOfNonContainedReads = 0;
+	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
+	longestReadLength = 0X0000000000000000;
+	reads = new vector<Read *>;
+	minimumOverlapLength = minOverlap;
+	maxError = max_Error;
+	maxErrorRate = max_ErrorRate;
+	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
+
+	//UINT64 counter = 0;
+	UINT64 goodReads = 0, badReads = 0;
+	/** get reads from sam file **/
+	seqan::BamStream bamStreamIn(inputSamFile.c_str());
+	seqan::BamStream bamStreamOut("-", seqan::BamStream::WRITE);	// for debug
+	bamStreamOut.header = bamStreamIn.header;	// copy header
+	seqan::BamAlignmentRecord record;
+	while(!atEnd(bamStreamIn))
+	{
+		if (seqan::readRecord(record, bamStreamIn) != 0)
+		{
+			MYEXIT("ERROR: Could not read record!\n");
+		}
+		if (!seqan::hasFlagUnmapped(record))	// Only consider mapped reads
+		{
+			if (loglevel > 6)
+			{
+				if (seqan::writeRecord(bamStreamOut, record) != 0)	// for debug
+				{
+					MYEXIT("ERROR: Could not write record!\n");
+				}
+			}
+			Read *r = new Read(record);	// Read r from BamAlignmentRecord
+			FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
+			if (testRead(r->getDnaStringForward()))
+			{
+				UINT32 len = r->getReadLength();
+				if (len > longestReadLength)
+					longestReadLength = len;
+				if (len < shortestReadLength)
+					shortestReadLength = len;
+				reads->push_back(r);
+				numberOfReads++;
+				goodReads++;
+			}
+			else
+				badReads++;
+		}
+	}
+
+	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
+	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
+	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
+	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
+	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
+	sortReads();
+	removeDupicateReads();	// Remove duplicated reads for the dataset.
+	numberOfNonContainedReads = numberOfUniqueReads;
+	CLOCKSTOP;
+}
+
+/**********************************************************************************************************************
+ * Another constructor, from BLASR generated sam file in piped stream instead of reading the file, TODO: fix this function
+ **********************************************************************************************************************/
+Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -114,9 +190,9 @@ Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 maxErr
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	maxError = 0;
-	maxErrorRate = 0.0;
-	UINT64 counter = 0;
+	maxError = max_Error;
+	maxErrorRate = max_ErrorRate;
+	//UINT64 counter = 0;
 	PacBioReadName = Utils::getFilename(inputSamFile);
 	UINT64 goodReads = 0, badReads = 0;
 
@@ -251,7 +327,7 @@ bool Dataset::testRead(const seqan::DnaString & readDnaString)
 	UINT64 threshold = seqan::length(readDnaString)*.8;	// 80% of the length.
 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
 	{
-		FILE_LOG(logDEBUG3) << "More than 80\% of the read string has the same character " << readDnaString;
+		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
 		return false;	// If 80% bases are the same base.
 	}
 	return true;
@@ -283,14 +359,14 @@ Read * Dataset::getReadFromCoord(const INT32 & coord)	// Find a read in the data
  **********************************************************************************************************************/
 Read * Dataset::getReadFromID(UINT64 ID)
 {
-	if( ID > numberOfUniqueReads)	// ID outside the range.
+	if( ID < 1 || ID > numberOfUniqueReads)	// ID outside the range.
 	{
 		stringstream ss;
 		ss << "ID " << ID << " out of bound.";
 		string s = ss.str();
 		MYEXIT(s);
 	}
-	return reads->at(ID);
+	return reads->at(ID - 1);
 }
 
 /**********************************************************************************************************************
@@ -298,11 +374,12 @@ Read * Dataset::getReadFromID(UINT64 ID)
  **********************************************************************************************************************/
 void Dataset::saveReads(string fileName)
 {
+	CLOCKSTART;
 	ofstream outputFile;
 	outputFile.open(fileName.c_str());
 	if(!outputFile.is_open())
 		MYEXIT("Unable to open file: " + fileName);
-	for(UINT64 i = 0; i < numberOfUniqueReads; i++)
+	for(UINT64 i = 1; i <= numberOfUniqueReads; i++)
 	{
 		Read * read1 = getReadFromID(i);
 		if(read1->superReadID!=0)
@@ -324,6 +401,7 @@ void Dataset::saveReads(string fileName)
 		}
 	}
 	outputFile.close();
+	CLOCKSTOP;
 }
 
 /**********************************************************************************************************************
@@ -331,6 +409,7 @@ void Dataset::saveReads(string fileName)
  **********************************************************************************************************************/
 void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling format. Used for checking the overlap (debugging)
 {
+	CLOCKSTART;
 	ofstream outputFile;
 	outputFile.open(fileName.c_str());
 	if(!outputFile.is_open())
@@ -344,7 +423,7 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 	}
 	string PacBioSeq(1000,'*');
 	outputFile << PacBioSeq << endl;
-	for(UINT64 i = 0; i < numberOfUniqueReads; i++)
+	for(UINT64 i = 1; i <= numberOfUniqueReads; i++)
 	{
 		Read * read1 = getReadFromID(i);
 		if (read1->getStartCoord() > LeftMostCoord)
@@ -355,4 +434,5 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 		outputFile << read1->getDnaStringForward() << endl;
 	}
 	outputFile.close();
+	CLOCKSTOP;
 }
