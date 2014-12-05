@@ -62,6 +62,7 @@ class OverlapGraph
 		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
+		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
 		bool mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
 		bool updateReadLocations(Edge *edge);	// Update the location of all the reads in the current edge. This function is called when a new edge is inserted.
 		bool removeReadLocations(Edge *edge);	// Remove the location of all the reads from the current edge. This function is called when an edge is removed.

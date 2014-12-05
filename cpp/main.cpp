@@ -167,6 +167,29 @@ int main(int argc, char **argv)
 	FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 	//OverlapGraph *graph = new OverlapGraph();
 	OverlapGraph *graph = new OverlapGraph(dataSet, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
+
+
+	cout << "number of non-contained reads in dataset is " << dataSet->numberOfNonContainedReads<< endl;
+	cout << "number of nodes in dataset is " << graph->getNumberOfNodes()<< endl;
+	cout << "number of edges in dataset is " << graph->getNumberOfEdges()<< endl;
+
+	for ( UINT64 id = 1; id <= dataSet->getNumberOfUniqueReads(); id++)
+	{
+		Read *read = dataSet->getReadFromID(id);
+		cout << "Read" << id << "--> contained read: " << read->isContainedRead() \
+			<< "\n\tContains reads: ";
+		for(size_t i = 0; i < read->getContainedReadIDs()->size(); i++)
+			cout << read->getContainedReadIDs()->at(i) << " ";
+		cout << endl;
+		cout << "\tOverlapping reads: ";
+		for(size_t i = 0; i < read->getOverlapReadIDs()->size(); i++)
+		{
+			Read *r1 = dataSet->getReadFromID(read->getOverlapReadIDs()->at(i));
+			if(!r1->isContainedRead())
+				cout << read->getOverlapReadIDs()->at(i) << ":" << read->getOverlapReadOffsets()->at(i) << " ";
+		}
+		cout << endl;
+	}
 	
 	CLOCKSTOP;
 }

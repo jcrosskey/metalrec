@@ -47,6 +47,8 @@ class Read
 		vector<Edge *> *listOfEdgesForward;   	// List of edges that contain the forward string of this read.
 		vector<UINT64> *locationOnEdgesForward;	// List of locations on the edges that contain the forward string of the current read.
 		vector<UINT64> *containedReadIDs;	// Pointer to vector of IDs of reads contained in this read
+		vector<UINT64> *overlapReadIDs;	// Pointer to vector of IDs of reads overlapping with this read
+		vector<UINT64> *overlapReadOffsets;	// Pointer to vector of offsets for the corresponding overlapping reads
 		bool setClip(const string & s);
 		INT32 getTag(const string & tagName, const string & alignRecord);
 
@@ -56,7 +58,6 @@ class Read
 		Read(const seqan::BamAlignmentRecord & record);	// Another constructor, from BamAlignmentRecord
 		~Read(void);	// Destructor.
 
-		bool isContainedRead;	// Whether the read is contained in another read
 		UINT64 superReadID;	// ID of the (longest) read containing this read. 
 					// 0 = not a contained read, otherwise superReadID contains the ID of the uniqe super read.
 
@@ -68,6 +69,7 @@ class Read
 		bool setStartCoord(INT32 start_coord){startCoord = start_coord; return true;}	// Set the starting coordinate
 
 		/* accessors */
+		bool isContainedRead(void){return (superReadID == 0 ? false : true);};	// Whether the read is contained in another read
 		seqan::DnaString getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
 		seqan::DnaString getDnaStringReverse(void){return readReverseDnaString;}	// Get the forward string of the current read.
 		seqan::CharString getReadName(void){return readName;}	// Get the name of the current read.
@@ -84,6 +86,8 @@ class Read
 		vector<Edge *> * getListOfEdgesForward(void){return listOfEdgesForward;}	// Get the list of edges that contain the forward string of the current read.
 		vector<UINT64> * getLocationOnEdgesForward(void){return locationOnEdgesForward;}	// Get the list of locations on the edges that contain the forward string of the current read.
 		vector<UINT64> * getContainedReadIDs(void){return containedReadIDs;}	// Get list of IDs of reads contained in this read.
+		vector<UINT64> * getOverlapReadIDs(void){return overlapReadIDs;}	// Get list of IDs of reads overlapping with this read.
+		vector<UINT64> * getOverlapReadOffsets(void){return overlapReadOffsets;}	// Get list of offsets for the corresponding overlapping reads.
 };
 
 #endif /* READS_H_ */

@@ -16,7 +16,6 @@ Read::Read(void)
 	// Initialize the variables.
 	ID = 0;
 	frequency = 0;
-	isContainedRead = false;
 	superReadID = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
@@ -26,6 +25,12 @@ Read::Read(void)
 
 	containedReadIDs = new vector<UINT64>;
 	containedReadIDs->resize(containedReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadIDs = new vector<UINT64>;
+	overlapReadIDs->resize(overlapReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadOffsets = new vector<UINT64>;
+	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 }
 
 /**********************************************************************************************************************
@@ -36,7 +41,6 @@ Read::Read(const string & s)
 	// Initialize the variables.
 	ID = 0;
 	frequency = 0;
-	isContainedRead = false;
 	superReadID = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
@@ -46,6 +50,12 @@ Read::Read(const string & s)
 
 	containedReadIDs = new vector<UINT64>;
 	containedReadIDs->resize(containedReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadIDs = new vector<UINT64>;
+	overlapReadIDs->resize(overlapReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadOffsets = new vector<UINT64>;
+	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 
 	setRead(s);
 }
@@ -58,7 +68,6 @@ Read::Read(const seqan::BamAlignmentRecord & record)
 	// Initialize the variables.
 	ID = 0;
 	frequency = 0;
-	isContainedRead = false;
 	superReadID = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
@@ -68,6 +77,12 @@ Read::Read(const seqan::BamAlignmentRecord & record)
 
 	containedReadIDs = new vector<UINT64>;
 	containedReadIDs->resize(containedReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadIDs = new vector<UINT64>;
+	overlapReadIDs->resize(overlapReadIDs->size());	// Resize to 0 to reduce space.
+
+	overlapReadOffsets = new vector<UINT64>;
+	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 
 	setRead(record);
 }
@@ -81,6 +96,8 @@ Read::~Read(void)
 	delete listOfEdgesForward;
 	delete locationOnEdgesForward;
 	delete containedReadIDs;
+	delete overlapReadIDs;
+	delete overlapReadOffsets;
 }
 
 /**********************************************************************************************************************
