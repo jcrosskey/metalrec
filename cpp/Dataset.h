@@ -21,8 +21,6 @@ class Dataset
 		UINT64 numberOfReads;	// Number of total reads present in the dataset.
 		UINT64 numberOfUniqueReads;	// number of unique reads in the dataset.
 		UINT64 minimumOverlapLength;	// Length of the shortest read in the dataset.
-		UINT32 maxError;	// maximum number of substitutions allowed in overlap between Illumina reads
-		float maxErrorRate;	// maximum error rate
 		string PacBioReadName;	// Name of the PacBio read
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
@@ -38,13 +36,19 @@ class Dataset
 		UINT64 longestReadLength;
 		UINT64 numberOfNonContainedReads;	// number of unique reads in the dataset. 0 in initialization stage, contained reads will be marked in overlapgraph building stage
 
+
+		/* Constructors and destructor */
 		Dataset(void);	// Default constructor.
-		Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate, bool generic);// another constructor, from a BLASR generated sam file, do not use BamAlignmentRecord class
-		Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate);// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
-		Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate);// anotherconstructor, uses string stream directly instead of reading the file
+		Dataset(const string & inputSamFile, UINT64 minOverlap, bool generic);// another constructor, from a BLASR generated sam file, do not use BamAlignmentRecord class
+		Dataset(const string & inputSamFile, UINT64 minOverlap );// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
+		Dataset(stringstream * inputSamStream, UINT64 minOverlap);// anotherconstructor, uses string stream directly instead of reading the file
 		~Dataset(void);	// Default destructor.
 
+		/* mutators */
 		bool setPacBioReadName(const string & name){PacBioReadName = name; return true;}	// Set the name for the PacBio filtered subread
+
+		/* accessors */
+		string getPacBioReadName(void){return PacBioReadName;}	// Get the name for the PacBio filtered subread
 		UINT64 getNumberOfReads(void){return numberOfReads;}	// Get the number of total reads in the database.
 		UINT64 getNumberOfUniqueReads(void){return numberOfUniqueReads;}	// Get the number of unique reads in the database.
 

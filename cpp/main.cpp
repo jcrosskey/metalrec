@@ -161,7 +161,7 @@ int main(int argc, char **argv)
 	//UINT64 counter;
 	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
-	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength, maxError, maxErrorRate);	// now reads the .sam file, later should be able to take the string stream TODO**
+	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength);	// now reads the .sam file, later should be able to take the string stream TODO**
 	dataSet->saveReads(allFileName + "_reads.fasta");
 	dataSet->printReadsTiling(allFileName + "_reads.tiling");
 	FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();

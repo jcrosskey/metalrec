@@ -16,7 +16,7 @@ bool compareReads (Read *read1, Read *read2)
 	if (read1 -> getStartCoord() != read2 -> getStartCoord())
 		return read1->getStartCoord() < read2->getStartCoord();
 	else
-		return seqan::length(read1->getDnaStringForward()) < seqan::length(read2->getDnaStringForward());	// string comparison of the two reads. TODO
+		return seqan::length(read1->getDnaStringForward()) < seqan::length(read2->getDnaStringForward());	// string comparison of the two reads.
 }
 
 /**********************************************************************************************************************
@@ -29,8 +29,6 @@ Dataset::Dataset(void)
 	numberOfUniqueReads = 0;
 	numberOfNonContainedReads = 0;
 	minimumOverlapLength = 0;
-	maxError = 0;
-	maxErrorRate = 0.0;
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
 }
@@ -39,7 +37,7 @@ Dataset::Dataset(void)
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate, bool generic)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, bool generic)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -50,8 +48,6 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Erro
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	maxError = max_Error;
-	maxErrorRate = max_ErrorRate;
 	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
 	//UINT64 counter = 0;
@@ -111,7 +107,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Erro
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -122,8 +118,6 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Erro
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	maxError = max_Error;
-	maxErrorRate = max_ErrorRate;
 	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
 	//UINT64 counter = 0;
@@ -180,7 +174,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, UINT32 max_Erro
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file in piped stream instead of reading the file, TODO: fix this function
  **********************************************************************************************************************/
-Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 max_Error, float max_ErrorRate)
+Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -190,8 +184,6 @@ Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap, UINT32 max_Er
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	maxError = max_Error;
-	maxErrorRate = max_ErrorRate;
 	//UINT64 counter = 0;
 	PacBioReadName = Utils::getFilename(inputSamFile);
 	UINT64 goodReads = 0, badReads = 0;
@@ -274,7 +266,7 @@ bool Dataset::removeDupicateReads(void)
 	CLOCKSTART;
 	UINT64 j = 0;	// Unique read counter
 	Read *temp;
-	for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequencey of the duplicated reads.
+	for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequency of the duplicated reads.
 	{
 		if(reads->at(j)->getStartCoord()!= reads->at(i)->getStartCoord() \
 				|| reads->at(j)->getDnaStringForward() != reads->at(i)->getDnaStringForward())	// Two reads have different start mapping coordinates, or different strings
@@ -289,10 +281,10 @@ bool Dataset::removeDupicateReads(void)
 	}
 	numberOfUniqueReads = j+1;
 	FILE_LOG(logINFO) <<"Number of unique reads: " << numberOfUniqueReads;
-	for(UINT64 i = 0 ; i < reads->size(); i++) 	// Assing ID's to the reads.
+	for(UINT64 i = 0 ; i < reads->size(); i++) 	// Assing ID to the reads.
 	{
 		if(i < getNumberOfUniqueReads())
-			reads->at(i)->setReadID(i);	// Read's ID, 0 based
+			reads->at(i)->setReadID(i+1);	// Read's ID, 1 based, 0 (superReadID default for non-contained reads)
 		else
 			delete reads->at(i); 	// Free the unused reads.
 	}

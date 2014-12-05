@@ -57,129 +57,15 @@ depend:	$(SRCS)
 	makedepend $(INCLUDES) $^
 # DO NOT DELETE THIS LINE -- make depend needs it
 
-Utils.o: Utils.h Common.h /usr/include/stdlib.h /usr/include/Availability.h
-Utils.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
-Utils.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
-Utils.o: /usr/include/sys/_symbol_aliasing.h
-Utils.o: /usr/include/sys/_posix_availability.h /usr/include/machine/_types.h
-Utils.o: /usr/include/i386/_types.h /usr/include/sys/wait.h
-Utils.o: /usr/include/sys/_types/_pid_t.h /usr/include/sys/_types/_id_t.h
-Utils.o: /usr/include/sys/signal.h /usr/include/sys/appleapiopts.h
-Utils.o: /usr/include/machine/signal.h /usr/include/i386/signal.h
-Utils.o: /usr/include/machine/_mcontext.h /usr/include/i386/_mcontext.h
-Utils.o: /usr/include/mach/i386/_structs.h
-Utils.o: /usr/include/sys/_types/_sigaltstack.h
-Utils.o: /usr/include/sys/_types/_ucontext.h
-Utils.o: /usr/include/sys/_types/_pthread_attr_t.h
-Utils.o: /usr/include/sys/_types/_sigset_t.h
-Utils.o: /usr/include/sys/_types/_size_t.h /usr/include/sys/_types/_uid_t.h
-Utils.o: /usr/include/sys/resource.h /usr/include/stdint.h
-Utils.o: /usr/include/sys/_types/_int8_t.h /usr/include/sys/_types/_int16_t.h
-Utils.o: /usr/include/sys/_types/_int32_t.h
-Utils.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
-Utils.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
-Utils.o: /usr/include/_types/_uint64_t.h /usr/include/sys/_types/_intptr_t.h
-Utils.o: /usr/include/sys/_types/_uintptr_t.h /usr/include/_types/_intmax_t.h
-Utils.o: /usr/include/_types/_uintmax_t.h /usr/include/sys/_types/_timeval.h
-Utils.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
-Utils.o: /usr/include/sys/_endian.h /usr/include/libkern/_OSByteOrder.h
-Utils.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
-Utils.o: /usr/include/sys/_types/_ct_rune_t.h
-Utils.o: /usr/include/sys/_types/_rune_t.h /usr/include/sys/_types/_wchar_t.h
-Utils.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
-Utils.o: /usr/include/i386/types.h /usr/include/sys/_types/___offsetof.h
-Utils.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
-Utils.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
-Utils.o: /usr/include/sys/_types/_off_t.h /usr/include/sys/_types/_ssize_t.h
-Utils.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
-Utils.o: /usr/include/time.h /usr/include/_structs.h
-Utils.o: /usr/include/sys/_structs.h /usr/include/sys/_types/_timespec.h
-Utils.o: /usr/include/sys/_types/_clock_t.h /usr/include/sys/_types/_time_t.h
-Utils.o: /usr/include/math.h /usr/include/sys/stat.h
-Utils.o: /usr/include/sys/_types/_blkcnt_t.h
-Utils.o: /usr/include/sys/_types/_blksize_t.h
-Utils.o: /usr/include/sys/_types/_ino_t.h /usr/include/sys/_types/_ino64_t.h
-Utils.o: /usr/include/sys/_types/_nlink_t.h /usr/include/sys/_types/_gid_t.h
-Utils.o: /usr/include/sys/_types/_s_ifmt.h
-Utils.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-Utils.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h
-Utils.o: logcpp/log.h /usr/include/sys/time.h
-Utils.o: /usr/include/sys/_types/_fd_def.h
-Utils.o: /usr/include/sys/_types/_suseconds_t.h
-Utils.o: /usr/include/sys/_types/_fd_setsize.h
-Utils.o: /usr/include/sys/_types/_fd_set.h /usr/include/sys/_types/_fd_clr.h
-Utils.o: /usr/include/sys/_types/_fd_isset.h
-Utils.o: /usr/include/sys/_types/_fd_zero.h
-Utils.o: /usr/include/sys/_types/_fd_copy.h /usr/include/sys/_select.h
-Read.o: Read.h Common.h /usr/include/stdlib.h /usr/include/Availability.h
-Read.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
-Read.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
-Read.o: /usr/include/sys/_symbol_aliasing.h
-Read.o: /usr/include/sys/_posix_availability.h /usr/include/machine/_types.h
-Read.o: /usr/include/i386/_types.h /usr/include/sys/wait.h
-Read.o: /usr/include/sys/_types/_pid_t.h /usr/include/sys/_types/_id_t.h
-Read.o: /usr/include/sys/signal.h /usr/include/sys/appleapiopts.h
-Read.o: /usr/include/machine/signal.h /usr/include/i386/signal.h
-Read.o: /usr/include/machine/_mcontext.h /usr/include/i386/_mcontext.h
-Read.o: /usr/include/mach/i386/_structs.h
-Read.o: /usr/include/sys/_types/_sigaltstack.h
-Read.o: /usr/include/sys/_types/_ucontext.h
-Read.o: /usr/include/sys/_types/_pthread_attr_t.h
-Read.o: /usr/include/sys/_types/_sigset_t.h /usr/include/sys/_types/_size_t.h
-Read.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
-Read.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
-Read.o: /usr/include/sys/_types/_int16_t.h /usr/include/sys/_types/_int32_t.h
-Read.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
-Read.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
-Read.o: /usr/include/_types/_uint64_t.h /usr/include/sys/_types/_intptr_t.h
-Read.o: /usr/include/sys/_types/_uintptr_t.h /usr/include/_types/_intmax_t.h
-Read.o: /usr/include/_types/_uintmax_t.h /usr/include/sys/_types/_timeval.h
-Read.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
-Read.o: /usr/include/sys/_endian.h /usr/include/libkern/_OSByteOrder.h
-Read.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
-Read.o: /usr/include/sys/_types/_ct_rune_t.h
-Read.o: /usr/include/sys/_types/_rune_t.h /usr/include/sys/_types/_wchar_t.h
-Read.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
-Read.o: /usr/include/i386/types.h /usr/include/sys/_types/___offsetof.h
-Read.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
-Read.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
-Read.o: /usr/include/sys/_types/_off_t.h /usr/include/sys/_types/_ssize_t.h
-Read.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
-Read.o: /usr/include/time.h /usr/include/_structs.h
-Read.o: /usr/include/sys/_structs.h /usr/include/sys/_types/_timespec.h
-Read.o: /usr/include/sys/_types/_clock_t.h /usr/include/sys/_types/_time_t.h
-Read.o: /usr/include/math.h /usr/include/sys/stat.h
-Read.o: /usr/include/sys/_types/_blkcnt_t.h
-Read.o: /usr/include/sys/_types/_blksize_t.h /usr/include/sys/_types/_ino_t.h
-Read.o: /usr/include/sys/_types/_ino64_t.h /usr/include/sys/_types/_nlink_t.h
-Read.o: /usr/include/sys/_types/_gid_t.h /usr/include/sys/_types/_s_ifmt.h
-Read.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-Read.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h Utils.h
-Read.o: logcpp/log.h /usr/include/sys/time.h
-Read.o: /usr/include/sys/_types/_fd_def.h
-Read.o: /usr/include/sys/_types/_suseconds_t.h
-Read.o: /usr/include/sys/_types/_fd_setsize.h
-Read.o: /usr/include/sys/_types/_fd_set.h /usr/include/sys/_types/_fd_clr.h
-Read.o: /usr/include/sys/_types/_fd_isset.h
-Read.o: /usr/include/sys/_types/_fd_zero.h /usr/include/sys/_types/_fd_copy.h
-Read.o: /usr/include/sys/_select.h
+Utils.o: Utils.h Common.h logcpp/log.h
+Read.o: Read.h Common.h Utils.h logcpp/log.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
-Read.o: /usr/include/inttypes.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
-Read.o: /usr/include/unistd.h /usr/include/sys/unistd.h
-Read.o: /usr/include/sys/_types/_posix_vdisable.h
-Read.o: /usr/include/sys/_types/_seek_set.h
-Read.o: /usr/include/sys/_types/_useconds_t.h /usr/include/sys/select.h
-Read.o: /usr/include/sys/_types/_uuid_t.h /usr/include/gethostuuid.h
-Read.o: /usr/include/dirent.h /usr/include/sys/dirent.h /usr/include/cxxabi.h
-Read.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
-Read.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
-Read.o: /usr/include/sys/_types/_pthread_t.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
@@ -307,25 +193,6 @@ Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
-Read.o: /usr/include/pthread.h /usr/include/pthread_impl.h
-Read.o: /usr/include/sched.h /usr/include/sys/_types/_pthread_cond_t.h
-Read.o: /usr/include/sys/_types/_pthread_condattr_t.h
-Read.o: /usr/include/sys/_types/_pthread_key_t.h
-Read.o: /usr/include/sys/_types/_pthread_mutex_t.h
-Read.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
-Read.o: /usr/include/sys/_types/_pthread_once_t.h
-Read.o: /usr/include/sys/_types/_pthread_rwlock_t.h
-Read.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
-Read.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
-Read.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
-Read.o: /usr/include/semaphore.h /usr/include/sys/types.h
-Read.o: /usr/include/sys/_types/_in_addr_t.h
-Read.o: /usr/include/sys/_types/_in_port_t.h /usr/include/sys/_types/_key_t.h
-Read.o: /usr/include/sys/_types/_fsblkcnt_t.h
-Read.o: /usr/include/sys/_types/_fsfilcnt_t.h /usr/include/sys/fcntl.h
-Read.o: /usr/include/sys/_types/_o_sync.h /usr/include/sys/_types/_o_dsync.h
-Read.o: /usr/include/sys/semaphore.h /usr/include/aio.h
-Read.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
@@ -334,7 +201,6 @@ Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
-Read.o: /usr/include/fcntl.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
@@ -522,85 +388,14 @@ Read.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 Read.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
-Dataset.o: Dataset.h Common.h /usr/include/stdlib.h
-Dataset.o: /usr/include/Availability.h /usr/include/AvailabilityInternal.h
-Dataset.o: /usr/include/_types.h /usr/include/sys/_types.h
-Dataset.o: /usr/include/sys/cdefs.h /usr/include/sys/_symbol_aliasing.h
-Dataset.o: /usr/include/sys/_posix_availability.h
-Dataset.o: /usr/include/machine/_types.h /usr/include/i386/_types.h
-Dataset.o: /usr/include/sys/wait.h /usr/include/sys/_types/_pid_t.h
-Dataset.o: /usr/include/sys/_types/_id_t.h /usr/include/sys/signal.h
-Dataset.o: /usr/include/sys/appleapiopts.h /usr/include/machine/signal.h
-Dataset.o: /usr/include/i386/signal.h /usr/include/machine/_mcontext.h
-Dataset.o: /usr/include/i386/_mcontext.h /usr/include/mach/i386/_structs.h
-Dataset.o: /usr/include/sys/_types/_sigaltstack.h
-Dataset.o: /usr/include/sys/_types/_ucontext.h
-Dataset.o: /usr/include/sys/_types/_pthread_attr_t.h
-Dataset.o: /usr/include/sys/_types/_sigset_t.h
-Dataset.o: /usr/include/sys/_types/_size_t.h /usr/include/sys/_types/_uid_t.h
-Dataset.o: /usr/include/sys/resource.h /usr/include/stdint.h
-Dataset.o: /usr/include/sys/_types/_int8_t.h
-Dataset.o: /usr/include/sys/_types/_int16_t.h
-Dataset.o: /usr/include/sys/_types/_int32_t.h
-Dataset.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
-Dataset.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
-Dataset.o: /usr/include/_types/_uint64_t.h
-Dataset.o: /usr/include/sys/_types/_intptr_t.h
-Dataset.o: /usr/include/sys/_types/_uintptr_t.h
-Dataset.o: /usr/include/_types/_intmax_t.h /usr/include/_types/_uintmax_t.h
-Dataset.o: /usr/include/sys/_types/_timeval.h /usr/include/machine/endian.h
-Dataset.o: /usr/include/i386/endian.h /usr/include/sys/_endian.h
-Dataset.o: /usr/include/libkern/_OSByteOrder.h
-Dataset.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
-Dataset.o: /usr/include/sys/_types/_ct_rune_t.h
-Dataset.o: /usr/include/sys/_types/_rune_t.h
-Dataset.o: /usr/include/sys/_types/_wchar_t.h /usr/include/sys/_types/_null.h
-Dataset.o: /usr/include/machine/types.h /usr/include/i386/types.h
-Dataset.o: /usr/include/sys/_types/___offsetof.h
-Dataset.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
-Dataset.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
-Dataset.o: /usr/include/sys/_types/_off_t.h
-Dataset.o: /usr/include/sys/_types/_ssize_t.h /usr/include/secure/_stdio.h
-Dataset.o: /usr/include/secure/_common.h /usr/include/time.h
-Dataset.o: /usr/include/_structs.h /usr/include/sys/_structs.h
-Dataset.o: /usr/include/sys/_types/_timespec.h
-Dataset.o: /usr/include/sys/_types/_clock_t.h
-Dataset.o: /usr/include/sys/_types/_time_t.h /usr/include/math.h
-Dataset.o: /usr/include/sys/stat.h /usr/include/sys/_types/_blkcnt_t.h
-Dataset.o: /usr/include/sys/_types/_blksize_t.h
-Dataset.o: /usr/include/sys/_types/_ino_t.h
-Dataset.o: /usr/include/sys/_types/_ino64_t.h
-Dataset.o: /usr/include/sys/_types/_nlink_t.h
-Dataset.o: /usr/include/sys/_types/_gid_t.h /usr/include/sys/_types/_s_ifmt.h
-Dataset.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-Dataset.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h Utils.h
-Dataset.o: logcpp/log.h /usr/include/sys/time.h
-Dataset.o: /usr/include/sys/_types/_fd_def.h
-Dataset.o: /usr/include/sys/_types/_suseconds_t.h
-Dataset.o: /usr/include/sys/_types/_fd_setsize.h
-Dataset.o: /usr/include/sys/_types/_fd_set.h
-Dataset.o: /usr/include/sys/_types/_fd_clr.h
-Dataset.o: /usr/include/sys/_types/_fd_isset.h
-Dataset.o: /usr/include/sys/_types/_fd_zero.h
-Dataset.o: /usr/include/sys/_types/_fd_copy.h /usr/include/sys/_select.h
-Dataset.o: Read.h /Users/cjg/Software/seqan/core/include/seqan/sequence.h
+Dataset.o: Dataset.h Common.h Utils.h logcpp/log.h Read.h
+Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
-Dataset.o: /usr/include/inttypes.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
-Dataset.o: /usr/include/unistd.h /usr/include/sys/unistd.h
-Dataset.o: /usr/include/sys/_types/_posix_vdisable.h
-Dataset.o: /usr/include/sys/_types/_seek_set.h
-Dataset.o: /usr/include/sys/_types/_useconds_t.h /usr/include/sys/select.h
-Dataset.o: /usr/include/sys/_types/_uuid_t.h /usr/include/gethostuuid.h
-Dataset.o: /usr/include/dirent.h /usr/include/sys/dirent.h
-Dataset.o: /usr/include/cxxabi.h /usr/include/stddef.h
-Dataset.o: /usr/include/sys/_types/_ptrdiff_t.h
-Dataset.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
-Dataset.o: /usr/include/sys/_types/_pthread_t.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
@@ -728,26 +523,6 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
-Dataset.o: /usr/include/pthread.h /usr/include/pthread_impl.h
-Dataset.o: /usr/include/sched.h /usr/include/sys/_types/_pthread_cond_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_condattr_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_key_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_mutex_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_once_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_rwlock_t.h
-Dataset.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
-Dataset.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
-Dataset.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
-Dataset.o: /usr/include/semaphore.h /usr/include/sys/types.h
-Dataset.o: /usr/include/sys/_types/_in_addr_t.h
-Dataset.o: /usr/include/sys/_types/_in_port_t.h
-Dataset.o: /usr/include/sys/_types/_key_t.h
-Dataset.o: /usr/include/sys/_types/_fsblkcnt_t.h
-Dataset.o: /usr/include/sys/_types/_fsfilcnt_t.h /usr/include/sys/fcntl.h
-Dataset.o: /usr/include/sys/_types/_o_sync.h
-Dataset.o: /usr/include/sys/_types/_o_dsync.h /usr/include/sys/semaphore.h
-Dataset.o: /usr/include/aio.h /usr/include/sys/aio.h /usr/include/sys/mman.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
@@ -756,7 +531,6 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
-Dataset.o: /usr/include/fcntl.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
@@ -944,75 +718,14 @@ Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 Dataset.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
-Edge.o: Common.h /usr/include/stdlib.h /usr/include/Availability.h
-Edge.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
-Edge.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
-Edge.o: /usr/include/sys/_symbol_aliasing.h
-Edge.o: /usr/include/sys/_posix_availability.h /usr/include/machine/_types.h
-Edge.o: /usr/include/i386/_types.h /usr/include/sys/wait.h
-Edge.o: /usr/include/sys/_types/_pid_t.h /usr/include/sys/_types/_id_t.h
-Edge.o: /usr/include/sys/signal.h /usr/include/sys/appleapiopts.h
-Edge.o: /usr/include/machine/signal.h /usr/include/i386/signal.h
-Edge.o: /usr/include/machine/_mcontext.h /usr/include/i386/_mcontext.h
-Edge.o: /usr/include/mach/i386/_structs.h
-Edge.o: /usr/include/sys/_types/_sigaltstack.h
-Edge.o: /usr/include/sys/_types/_ucontext.h
-Edge.o: /usr/include/sys/_types/_pthread_attr_t.h
-Edge.o: /usr/include/sys/_types/_sigset_t.h /usr/include/sys/_types/_size_t.h
-Edge.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
-Edge.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
-Edge.o: /usr/include/sys/_types/_int16_t.h /usr/include/sys/_types/_int32_t.h
-Edge.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
-Edge.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
-Edge.o: /usr/include/_types/_uint64_t.h /usr/include/sys/_types/_intptr_t.h
-Edge.o: /usr/include/sys/_types/_uintptr_t.h /usr/include/_types/_intmax_t.h
-Edge.o: /usr/include/_types/_uintmax_t.h /usr/include/sys/_types/_timeval.h
-Edge.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
-Edge.o: /usr/include/sys/_endian.h /usr/include/libkern/_OSByteOrder.h
-Edge.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
-Edge.o: /usr/include/sys/_types/_ct_rune_t.h
-Edge.o: /usr/include/sys/_types/_rune_t.h /usr/include/sys/_types/_wchar_t.h
-Edge.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
-Edge.o: /usr/include/i386/types.h /usr/include/sys/_types/___offsetof.h
-Edge.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
-Edge.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
-Edge.o: /usr/include/sys/_types/_off_t.h /usr/include/sys/_types/_ssize_t.h
-Edge.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
-Edge.o: /usr/include/time.h /usr/include/_structs.h
-Edge.o: /usr/include/sys/_structs.h /usr/include/sys/_types/_timespec.h
-Edge.o: /usr/include/sys/_types/_clock_t.h /usr/include/sys/_types/_time_t.h
-Edge.o: /usr/include/math.h /usr/include/sys/stat.h
-Edge.o: /usr/include/sys/_types/_blkcnt_t.h
-Edge.o: /usr/include/sys/_types/_blksize_t.h /usr/include/sys/_types/_ino_t.h
-Edge.o: /usr/include/sys/_types/_ino64_t.h /usr/include/sys/_types/_nlink_t.h
-Edge.o: /usr/include/sys/_types/_gid_t.h /usr/include/sys/_types/_s_ifmt.h
-Edge.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-Edge.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h Utils.h
-Edge.o: logcpp/log.h /usr/include/sys/time.h
-Edge.o: /usr/include/sys/_types/_fd_def.h
-Edge.o: /usr/include/sys/_types/_suseconds_t.h
-Edge.o: /usr/include/sys/_types/_fd_setsize.h
-Edge.o: /usr/include/sys/_types/_fd_set.h /usr/include/sys/_types/_fd_clr.h
-Edge.o: /usr/include/sys/_types/_fd_isset.h
-Edge.o: /usr/include/sys/_types/_fd_zero.h /usr/include/sys/_types/_fd_copy.h
-Edge.o: /usr/include/sys/_select.h Edge.h Read.h
+Edge.o: Common.h Utils.h logcpp/log.h Edge.h Read.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
-Edge.o: /usr/include/inttypes.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
-Edge.o: /usr/include/unistd.h /usr/include/sys/unistd.h
-Edge.o: /usr/include/sys/_types/_posix_vdisable.h
-Edge.o: /usr/include/sys/_types/_seek_set.h
-Edge.o: /usr/include/sys/_types/_useconds_t.h /usr/include/sys/select.h
-Edge.o: /usr/include/sys/_types/_uuid_t.h /usr/include/gethostuuid.h
-Edge.o: /usr/include/dirent.h /usr/include/sys/dirent.h /usr/include/cxxabi.h
-Edge.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
-Edge.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
-Edge.o: /usr/include/sys/_types/_pthread_t.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
@@ -1140,25 +853,6 @@ Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
-Edge.o: /usr/include/pthread.h /usr/include/pthread_impl.h
-Edge.o: /usr/include/sched.h /usr/include/sys/_types/_pthread_cond_t.h
-Edge.o: /usr/include/sys/_types/_pthread_condattr_t.h
-Edge.o: /usr/include/sys/_types/_pthread_key_t.h
-Edge.o: /usr/include/sys/_types/_pthread_mutex_t.h
-Edge.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
-Edge.o: /usr/include/sys/_types/_pthread_once_t.h
-Edge.o: /usr/include/sys/_types/_pthread_rwlock_t.h
-Edge.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
-Edge.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
-Edge.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
-Edge.o: /usr/include/semaphore.h /usr/include/sys/types.h
-Edge.o: /usr/include/sys/_types/_in_addr_t.h
-Edge.o: /usr/include/sys/_types/_in_port_t.h /usr/include/sys/_types/_key_t.h
-Edge.o: /usr/include/sys/_types/_fsblkcnt_t.h
-Edge.o: /usr/include/sys/_types/_fsfilcnt_t.h /usr/include/sys/fcntl.h
-Edge.o: /usr/include/sys/_types/_o_sync.h /usr/include/sys/_types/_o_dsync.h
-Edge.o: /usr/include/sys/semaphore.h /usr/include/aio.h
-Edge.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
@@ -1167,7 +861,6 @@ Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
-Edge.o: /usr/include/fcntl.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
@@ -1355,96 +1048,14 @@ Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 Edge.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
-OverlapGraph.o: OverlapGraph.h Common.h /usr/include/stdlib.h
-OverlapGraph.o: /usr/include/Availability.h
-OverlapGraph.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
-OverlapGraph.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
-OverlapGraph.o: /usr/include/sys/_symbol_aliasing.h
-OverlapGraph.o: /usr/include/sys/_posix_availability.h
-OverlapGraph.o: /usr/include/machine/_types.h /usr/include/i386/_types.h
-OverlapGraph.o: /usr/include/sys/wait.h /usr/include/sys/_types/_pid_t.h
-OverlapGraph.o: /usr/include/sys/_types/_id_t.h /usr/include/sys/signal.h
-OverlapGraph.o: /usr/include/sys/appleapiopts.h /usr/include/machine/signal.h
-OverlapGraph.o: /usr/include/i386/signal.h /usr/include/machine/_mcontext.h
-OverlapGraph.o: /usr/include/i386/_mcontext.h
-OverlapGraph.o: /usr/include/mach/i386/_structs.h
-OverlapGraph.o: /usr/include/sys/_types/_sigaltstack.h
-OverlapGraph.o: /usr/include/sys/_types/_ucontext.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_attr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_sigset_t.h
-OverlapGraph.o: /usr/include/sys/_types/_size_t.h
-OverlapGraph.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
-OverlapGraph.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
-OverlapGraph.o: /usr/include/sys/_types/_int16_t.h
-OverlapGraph.o: /usr/include/sys/_types/_int32_t.h
-OverlapGraph.o: /usr/include/sys/_types/_int64_t.h
-OverlapGraph.o: /usr/include/_types/_uint8_t.h
-OverlapGraph.o: /usr/include/_types/_uint16_t.h
-OverlapGraph.o: /usr/include/_types/_uint32_t.h
-OverlapGraph.o: /usr/include/_types/_uint64_t.h
-OverlapGraph.o: /usr/include/sys/_types/_intptr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_uintptr_t.h
-OverlapGraph.o: /usr/include/_types/_intmax_t.h
-OverlapGraph.o: /usr/include/_types/_uintmax_t.h
-OverlapGraph.o: /usr/include/sys/_types/_timeval.h
-OverlapGraph.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
-OverlapGraph.o: /usr/include/sys/_endian.h
-OverlapGraph.o: /usr/include/libkern/_OSByteOrder.h
-OverlapGraph.o: /usr/include/libkern/i386/_OSByteOrder.h
-OverlapGraph.o: /usr/include/alloca.h /usr/include/sys/_types/_ct_rune_t.h
-OverlapGraph.o: /usr/include/sys/_types/_rune_t.h
-OverlapGraph.o: /usr/include/sys/_types/_wchar_t.h
-OverlapGraph.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
-OverlapGraph.o: /usr/include/i386/types.h
-OverlapGraph.o: /usr/include/sys/_types/___offsetof.h
-OverlapGraph.o: /usr/include/sys/_types/_dev_t.h
-OverlapGraph.o: /usr/include/sys/_types/_mode_t.h /usr/include/stdio.h
-OverlapGraph.o: /usr/include/sys/_types/_va_list.h
-OverlapGraph.o: /usr/include/sys/_types/_off_t.h
-OverlapGraph.o: /usr/include/sys/_types/_ssize_t.h
-OverlapGraph.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
-OverlapGraph.o: /usr/include/time.h /usr/include/_structs.h
-OverlapGraph.o: /usr/include/sys/_structs.h
-OverlapGraph.o: /usr/include/sys/_types/_timespec.h
-OverlapGraph.o: /usr/include/sys/_types/_clock_t.h
-OverlapGraph.o: /usr/include/sys/_types/_time_t.h /usr/include/math.h
-OverlapGraph.o: /usr/include/sys/stat.h /usr/include/sys/_types/_blkcnt_t.h
-OverlapGraph.o: /usr/include/sys/_types/_blksize_t.h
-OverlapGraph.o: /usr/include/sys/_types/_ino_t.h
-OverlapGraph.o: /usr/include/sys/_types/_ino64_t.h
-OverlapGraph.o: /usr/include/sys/_types/_nlink_t.h
-OverlapGraph.o: /usr/include/sys/_types/_gid_t.h
-OverlapGraph.o: /usr/include/sys/_types/_s_ifmt.h
-OverlapGraph.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-OverlapGraph.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h
-OverlapGraph.o: Utils.h logcpp/log.h /usr/include/sys/time.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_def.h
-OverlapGraph.o: /usr/include/sys/_types/_suseconds_t.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_setsize.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_set.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_clr.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_isset.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_zero.h
-OverlapGraph.o: /usr/include/sys/_types/_fd_copy.h /usr/include/sys/_select.h
-OverlapGraph.o: Dataset.h Read.h
+OverlapGraph.o: OverlapGraph.h Common.h Utils.h logcpp/log.h Dataset.h Read.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
-OverlapGraph.o: /usr/include/inttypes.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
-OverlapGraph.o: /usr/include/unistd.h /usr/include/sys/unistd.h
-OverlapGraph.o: /usr/include/sys/_types/_posix_vdisable.h
-OverlapGraph.o: /usr/include/sys/_types/_seek_set.h
-OverlapGraph.o: /usr/include/sys/_types/_useconds_t.h
-OverlapGraph.o: /usr/include/sys/select.h /usr/include/sys/_types/_uuid_t.h
-OverlapGraph.o: /usr/include/gethostuuid.h /usr/include/dirent.h
-OverlapGraph.o: /usr/include/sys/dirent.h /usr/include/cxxabi.h
-OverlapGraph.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
-OverlapGraph.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_t.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
@@ -1572,28 +1183,6 @@ OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
-OverlapGraph.o: /usr/include/pthread.h /usr/include/pthread_impl.h
-OverlapGraph.o: /usr/include/sched.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_cond_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_condattr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_key_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_mutex_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_once_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_rwlock_t.h
-OverlapGraph.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
-OverlapGraph.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
-OverlapGraph.o: /usr/include/semaphore.h /usr/include/sys/types.h
-OverlapGraph.o: /usr/include/sys/_types/_in_addr_t.h
-OverlapGraph.o: /usr/include/sys/_types/_in_port_t.h
-OverlapGraph.o: /usr/include/sys/_types/_key_t.h
-OverlapGraph.o: /usr/include/sys/_types/_fsblkcnt_t.h
-OverlapGraph.o: /usr/include/sys/_types/_fsfilcnt_t.h
-OverlapGraph.o: /usr/include/sys/fcntl.h /usr/include/sys/_types/_o_sync.h
-OverlapGraph.o: /usr/include/sys/_types/_o_dsync.h
-OverlapGraph.o: /usr/include/sys/semaphore.h /usr/include/aio.h
-OverlapGraph.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
@@ -1602,7 +1191,6 @@ OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
-OverlapGraph.o: /usr/include/fcntl.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
@@ -1791,75 +1379,14 @@ OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_sam.
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_gff.h
 OverlapGraph.o: /Users/cjg/Software/seqan/core/include/seqan/store/store_io_ucsc.h
 OverlapGraph.o: Edge.h
-main.o: Common.h /usr/include/stdlib.h /usr/include/Availability.h
-main.o: /usr/include/AvailabilityInternal.h /usr/include/_types.h
-main.o: /usr/include/sys/_types.h /usr/include/sys/cdefs.h
-main.o: /usr/include/sys/_symbol_aliasing.h
-main.o: /usr/include/sys/_posix_availability.h /usr/include/machine/_types.h
-main.o: /usr/include/i386/_types.h /usr/include/sys/wait.h
-main.o: /usr/include/sys/_types/_pid_t.h /usr/include/sys/_types/_id_t.h
-main.o: /usr/include/sys/signal.h /usr/include/sys/appleapiopts.h
-main.o: /usr/include/machine/signal.h /usr/include/i386/signal.h
-main.o: /usr/include/machine/_mcontext.h /usr/include/i386/_mcontext.h
-main.o: /usr/include/mach/i386/_structs.h
-main.o: /usr/include/sys/_types/_sigaltstack.h
-main.o: /usr/include/sys/_types/_ucontext.h
-main.o: /usr/include/sys/_types/_pthread_attr_t.h
-main.o: /usr/include/sys/_types/_sigset_t.h /usr/include/sys/_types/_size_t.h
-main.o: /usr/include/sys/_types/_uid_t.h /usr/include/sys/resource.h
-main.o: /usr/include/stdint.h /usr/include/sys/_types/_int8_t.h
-main.o: /usr/include/sys/_types/_int16_t.h /usr/include/sys/_types/_int32_t.h
-main.o: /usr/include/sys/_types/_int64_t.h /usr/include/_types/_uint8_t.h
-main.o: /usr/include/_types/_uint16_t.h /usr/include/_types/_uint32_t.h
-main.o: /usr/include/_types/_uint64_t.h /usr/include/sys/_types/_intptr_t.h
-main.o: /usr/include/sys/_types/_uintptr_t.h /usr/include/_types/_intmax_t.h
-main.o: /usr/include/_types/_uintmax_t.h /usr/include/sys/_types/_timeval.h
-main.o: /usr/include/machine/endian.h /usr/include/i386/endian.h
-main.o: /usr/include/sys/_endian.h /usr/include/libkern/_OSByteOrder.h
-main.o: /usr/include/libkern/i386/_OSByteOrder.h /usr/include/alloca.h
-main.o: /usr/include/sys/_types/_ct_rune_t.h
-main.o: /usr/include/sys/_types/_rune_t.h /usr/include/sys/_types/_wchar_t.h
-main.o: /usr/include/sys/_types/_null.h /usr/include/machine/types.h
-main.o: /usr/include/i386/types.h /usr/include/sys/_types/___offsetof.h
-main.o: /usr/include/sys/_types/_dev_t.h /usr/include/sys/_types/_mode_t.h
-main.o: /usr/include/stdio.h /usr/include/sys/_types/_va_list.h
-main.o: /usr/include/sys/_types/_off_t.h /usr/include/sys/_types/_ssize_t.h
-main.o: /usr/include/secure/_stdio.h /usr/include/secure/_common.h
-main.o: /usr/include/time.h /usr/include/_structs.h
-main.o: /usr/include/sys/_structs.h /usr/include/sys/_types/_timespec.h
-main.o: /usr/include/sys/_types/_clock_t.h /usr/include/sys/_types/_time_t.h
-main.o: /usr/include/math.h /usr/include/sys/stat.h
-main.o: /usr/include/sys/_types/_blkcnt_t.h
-main.o: /usr/include/sys/_types/_blksize_t.h /usr/include/sys/_types/_ino_t.h
-main.o: /usr/include/sys/_types/_ino64_t.h /usr/include/sys/_types/_nlink_t.h
-main.o: /usr/include/sys/_types/_gid_t.h /usr/include/sys/_types/_s_ifmt.h
-main.o: /usr/include/sys/_types/_filesec_t.h /usr/include/ctype.h
-main.o: /usr/include/runetype.h /usr/include/sys/_types/_wint_t.h Utils.h
-main.o: logcpp/log.h /usr/include/sys/time.h
-main.o: /usr/include/sys/_types/_fd_def.h
-main.o: /usr/include/sys/_types/_suseconds_t.h
-main.o: /usr/include/sys/_types/_fd_setsize.h
-main.o: /usr/include/sys/_types/_fd_set.h /usr/include/sys/_types/_fd_clr.h
-main.o: /usr/include/sys/_types/_fd_isset.h
-main.o: /usr/include/sys/_types/_fd_zero.h /usr/include/sys/_types/_fd_copy.h
-main.o: /usr/include/sys/_select.h Read.h
+main.o: Common.h Utils.h logcpp/log.h Read.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/sequence.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/platform.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_gcc.h
-main.o: /usr/include/inttypes.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/platform/platform_nvcc.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_debug.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_test_system.h
-main.o: /usr/include/unistd.h /usr/include/sys/unistd.h
-main.o: /usr/include/sys/_types/_posix_vdisable.h
-main.o: /usr/include/sys/_types/_seek_set.h
-main.o: /usr/include/sys/_types/_useconds_t.h /usr/include/sys/select.h
-main.o: /usr/include/sys/_types/_uuid_t.h /usr/include/gethostuuid.h
-main.o: /usr/include/dirent.h /usr/include/sys/dirent.h /usr/include/cxxabi.h
-main.o: /usr/include/stddef.h /usr/include/sys/_types/_ptrdiff_t.h
-main.o: /usr/include/sys/_types/_rsize_t.h /usr/include/signal.h
-main.o: /usr/include/sys/_types/_pthread_t.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic/debug_helper.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic/profiling.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/basic/basic_exception.h
@@ -1987,25 +1514,6 @@ main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_interface.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_cstyle.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_base.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system.h
-main.o: /usr/include/pthread.h /usr/include/pthread_impl.h
-main.o: /usr/include/sched.h /usr/include/sys/_types/_pthread_cond_t.h
-main.o: /usr/include/sys/_types/_pthread_condattr_t.h
-main.o: /usr/include/sys/_types/_pthread_key_t.h
-main.o: /usr/include/sys/_types/_pthread_mutex_t.h
-main.o: /usr/include/sys/_types/_pthread_mutexattr_t.h
-main.o: /usr/include/sys/_types/_pthread_once_t.h
-main.o: /usr/include/sys/_types/_pthread_rwlock_t.h
-main.o: /usr/include/sys/_types/_pthread_rwlockattr_t.h
-main.o: /usr/include/sys/_types/_mach_port_t.h /usr/include/errno.h
-main.o: /usr/include/sys/errno.h /usr/include/sys/_types/_errno_t.h
-main.o: /usr/include/semaphore.h /usr/include/sys/types.h
-main.o: /usr/include/sys/_types/_in_addr_t.h
-main.o: /usr/include/sys/_types/_in_port_t.h /usr/include/sys/_types/_key_t.h
-main.o: /usr/include/sys/_types/_fsblkcnt_t.h
-main.o: /usr/include/sys/_types/_fsfilcnt_t.h /usr/include/sys/fcntl.h
-main.o: /usr/include/sys/_types/_o_sync.h /usr/include/sys/_types/_o_dsync.h
-main.o: /usr/include/sys/semaphore.h /usr/include/aio.h
-main.o: /usr/include/sys/aio.h /usr/include/sys/mman.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_forwards.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_forwards.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_base.h
@@ -2014,7 +1522,6 @@ main.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_sema.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_event.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/system_thread.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_sync.h
-main.o: /usr/include/fcntl.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_async.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/system/file_directory.h
 main.o: /Users/cjg/Software/seqan/core/include/seqan/file/file_filereaderiterator.h
