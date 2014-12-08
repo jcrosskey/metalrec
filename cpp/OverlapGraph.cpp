@@ -110,9 +110,10 @@ bool OverlapGraph::buildOverlapGraphFromDataSet(Dataset *data_Set)
 		markedNodes->push_back(VACANT);
 	}
 
+	UINT64 total_overlap = getAllOverlaps();
 	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++)	// i starts at 1, why?? (exploredReads' first entry for what?)
 	{
-		if(exploredReads->at(i) == UNEXPLORED)
+		if(exploredReads->at(i) == UNEXPLORED && !dataSet->getReadFromID(i)->isContainedRead())
 		{
 			UINT64 start = 0, end = 0; 	// Initialize queue start and end.
 			queue->at(end++) = i;
@@ -139,7 +140,7 @@ bool OverlapGraph::buildOverlapGraphFromDataSet(Dataset *data_Set)
 								exploredReads->at(read2) = EXPLORED;
 							}
 						}
-						//markTransitiveEdges(read1, markedNodes); // Mark transitive edges
+						markTransitiveEdges(read1, markedNodes); // Mark transitive edges
 						exploredReads->at(read1) = EXPLORED_AND_TRANSITIVE_EDGES_MARKED;
 					}
 					if(exploredReads->at(read1) == EXPLORED_AND_TRANSITIVE_EDGES_MARKED)	// Read has transitive edges marked, explore neighbors' neighbors so that transitive edges adjacent to read1 can be removed.
@@ -159,11 +160,11 @@ bool OverlapGraph::buildOverlapGraphFromDataSet(Dataset *data_Set)
 										exploredReads->at(read3) = EXPLORED;
 									}
 								}
-								//markTransitiveEdges(read2, markedNodes); // Mark transitive edge
+								markTransitiveEdges(read2, markedNodes); // Mark transitive edge
 								exploredReads->at(read2) = EXPLORED_AND_TRANSITIVE_EDGES_MARKED;
 							}
 						}
-						//removeTransitiveEdges(read1); // Remove the transitive edges, function need to rewrite
+						removeTransitiveEdges(read1); // Remove the transitive edges, function need to rewrite
 					}
 				}
 				if(counter%100000==0)	// Show the progress.
@@ -266,11 +267,9 @@ bool OverlapGraph::insertEdge(Edge * edge)
  **********************************************************************************************************************/
 bool OverlapGraph::insertEdge(Read *read1, Read *read2, UINT16 overlapOffset)
 {
-	CLOCKSTART;
 	FILE_LOG(logDEBUG4) << " Insert edge from " << read1->getID() << " to " << read2->getID() << " with overlap offset " << overlapOffset;
 	Edge * edge1 = new Edge(read1,read2,overlapOffset);	// Create a new edge in the graph to insert.
 	insertEdge(edge1);	// Insert the edge in the overlap graph.
-	CLOCKSTOP;
 	return true;
 }
 
@@ -282,10 +281,13 @@ UINT64 OverlapGraph::contractCompositePaths(void)
 {
 	CLOCKSTART;
 	UINT64 counter = 0;
-	for(UINT64 index = 0; index < graph->size(); index++)	// Go through all the nodes in the graph
+	UINT64 index = 0;
+	bool found_composite_read = false;
+	while (index < graph->size())
 	{
 		if(graph->at(index)->size() > 0)	// If this read has some edges adjacent to it
 		{
+			found_composite_read = false;
 			for(UINT64 i = 0; i < graph->at(index)->size(); i++)	// Check all the edges 
 			{
 				UINT64 read = graph->at(index)->at(i)->getDestinationRead()->getID();
@@ -295,10 +297,33 @@ UINT64 OverlapGraph::contractCompositePaths(void)
 					removeEdge(graph->at(index)->at(i));	// delete the two edges that were contracted
 					removeEdge(graph->at(read)->at(0));
 					counter++;
+					found_composite_read = true;
 				}
 			}
+			if (!found_composite_read)
+				index++;
 		}
+		else
+			index++;
 	}
+	
+	//for(UINT64 index = 0; index < graph->size(); index++)	// Go through all the nodes in the graph
+	//{
+	//	if(graph->at(index)->size() > 0)	// If this read has some edges adjacent to it
+	//	{
+	//		for(UINT64 i = 0; i < graph->at(index)->size(); i++)	// Check all the edges 
+	//		{
+	//			UINT64 read = graph->at(index)->at(i)->getDestinationRead()->getID();
+	//			if (graph->at(read)->size() == 1)	// If the destination read only has 1 edge adjacent to it, there are a pair of composite edges
+	//			{
+	//				mergeEdges(graph->at(index)->at(i), graph->at(read)->at(0));	// merge the two edges, need to check
+	//				removeEdge(graph->at(index)->at(i));	// delete the two edges that were contracted
+	//				removeEdge(graph->at(read)->at(0));
+	//				counter++;
+	//			}
+	//		}
+	//	}
+	//}
 	FILE_LOG(logDEBUG) << setw(10) << counter << " composite Edges merged.";
 	CLOCKSTOP;
 	return counter;
@@ -354,14 +379,14 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 	// All the nodes, title and label
 	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
 	{
-		if(dataSet->getReadFromID(i)->superReadID ==0 && !graph->at(i)->empty())
+		if(dataSet->getReadFromID(i)->superReadID ==0)
 			graphFilePointer << "node: { title:\""<< i <<"\" label: \"" << i << "\" }" << endl;	// Print nodes even if there are no edge connected to it
 	}
 
 	// All the edges
 	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
 	{
-		if(dataSet->getReadFromID(i)->superReadID ==0 && !graph->at(i)->empty()) // if this read has some edge(s) connected to it
+		if(dataSet->getReadFromID(i)->superReadID ==0 && !graph->at(i)->empty()) // if this read has some edge(s) going out of it (since now the graph is directed)
 		{
 			// check the degree of the node
 			if(graph->at(i)->size() > highestDegree)
@@ -393,8 +418,8 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 	/************************* Store the contigs in a file. ************************/
 	if (contigEdges.size() > 0) // Sort the contigs by their length if there are edges in the graph.
 	{
-		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByOverlapOffset);	// But this is sorted by overlap offset..??
-		reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, why??
+		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByOverlapOffset);	// But this is sorted by overlap offset..?? (in a sense, if the offset is longer, the spelled edge is longer, given that the read lengths are more or less comparable.)
+		reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
 	}
 	UINT64 sum = 0;	// sum of contig lengths
 	ofstream contigFilePointer;
@@ -407,15 +432,15 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 		for(UINT64 i = 0; i < contigEdges.size(); i++) 
 		{
 			seqan::DnaString s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge  (" << setw(10) << contigEdges.at(i)->getSourceRead()->getID() << ", " << setw(10) << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << setw(10) << seqan::length(s) << " Coverage: " << setw(10) << contigEdges.at(i)->coverageDepth << endl;
+			contigFilePointer << ">contig_"<< i+1 << " Edge  (" << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << seqan::length(s) << " Coverage: " << contigEdges.at(i)->coverageDepth << endl;
 			sum += seqan::length(s);
-			contigFilePointer << s << endl;  // save 100 BP in each line.
-			//UINT32 start=0;
-			//do
-			//{
-			//	contigFilePointer << seqan::infix(s,start,min(start+100, seqan::length(s))) << endl;  // save 100 BP in each line.
-			//	start+=100;
-			//} while (start < seqan::length(s));
+			//contigFilePointer << s << endl;  // save 100 BP in each line.
+			UINT32 start=0;
+			do
+			{
+				contigFilePointer << seqan::infix(s,start,min(start+100, seqan::length(s))) << endl;  // save 100 BP in each line.
+				start+=100;
+			} while (start < seqan::length(s));
 		}
 	}
 	contigFilePointer.close();
@@ -438,12 +463,62 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 		}
 		// Print some more statistics on the node with highest degree.
 		FILE_LOG(logINFO)<< "Highest Degree Read " << highestDegreeNode << " has " << highestDegree << " neighbors.";
-		FILE_LOG(logDEBUG2)<< "Read string: " << dataSet->getReadFromID(highestDegreeNode)->getDnaStringForward() << endl;
-		FILE_LOG(logINFO) << " Simple Edges: " << simEdges << " Composite Edges: " << comEdges;
+		FILE_LOG(logDEBUG2)<< "Read string: " << dataSet->getReadFromID(highestDegreeNode)->getDnaStringForward();
+		FILE_LOG(logINFO) << "It has " << simEdges << " simple edges," << "  and " << comEdges << " composite edges."; 
 	}
 
 	CLOCKSTOP;
 	return true;
+}
+
+
+
+/**********************************************************************************************************************
+ * Find all the overlaps between reads in the graph, and mark the contained reads in the process.
+ **********************************************************************************************************************/
+UINT64 OverlapGraph::getAllOverlaps(void)
+{
+	UINT64 total_overlap = 0;
+	for (UINT64 readNumber = 1; readNumber <= dataSet->getNumberOfUniqueReads(); readNumber++)
+	{
+		FILE_LOG(logDEBUG3) << "find overlap reads of read " << readNumber;
+		Read *read1 = dataSet->getReadFromID(readNumber); 	// Get the current read read1.
+		INT64 endCoord = read1->getEndCoord() - minimumOverlapLength - rubberPos;
+		FILE_LOG(logDEBUG3) << "End coordinate is " << endCoord;
+		seqan::DnaString readDnaString = read1->getDnaStringForward(); 	// Get the forward string of read1.
+		for(UINT64 j = readNumber + 1 ; j <= dataSet->getNumberOfUniqueReads(); j++) // For each read with start coordinate bigger than the current read, see if they overlap
+		{
+			if (dataSet->getReadFromID(j)->getStartCoord() > endCoord)	// Too far away to overlap with the current read
+				break;
+			// Otherwise, realign the two reads and see if they overlap
+			Read *read2 = dataSet->getReadFromID(j);
+			INT16 overlapOffset;
+			if (read1->superReadID == 0 && read2->superReadID == 0 && DoReadsOverlap(read1, read2, overlapOffset))	// If the two reads do overlap, and both non-contained.
+			{
+				if (overlapOffset > 0 )
+				{
+					FILE_LOG(logDEBUG4)<< "read" << readNumber << " and read" << j << " overlap";
+				}
+				else if (overlapOffset < 0 )
+				{
+					FILE_LOG(logDEBUG4)<< "read" << j << " and read" << readNumber << " overlap";
+				}
+				total_overlap++;
+			}
+			else if (read1->superReadID != 0)
+			{
+				FILE_LOG(logDEBUG4)<< "read" << readNumber << " is contained in read" << read1->superReadID;
+				break;
+			}
+			else if (read2->superReadID != 0)
+				FILE_LOG(logDEBUG4)<< "read" << j << " is contained in read" << read2->superReadID;
+			else
+				FILE_LOG(logDEBUG4)<< "read" << j << "  and read" << readNumber  << "\'s Overlap is not valid!";
+
+		}
+	}
+	FILE_LOG(logDEBUG)<< "Total number of overlaps found is: " << total_overlap;
+	return total_overlap;
 }
 
 
@@ -453,38 +528,13 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
  **********************************************************************************************************************/
 bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads)
 {
-	FILE_LOG(logDEBUG4) << "insert all edges of read " << readNumber;
+	FILE_LOG(logDEBUG4) << "Insert all edges of read " << readNumber;
 	Read *read1 = dataSet->getReadFromID(readNumber); 	// Get the current read read1.
-	INT64 endCoord = read1->getEndCoord() - minimumOverlapLength - rubberPos;
-	FILE_LOG(logDEBUG4) << "End coordinate for read " << readNumber << " is " << endCoord;
-	seqan::DnaString readDnaString = read1->getDnaStringForward(); 	// Get the forward string of read1.
-	for(UINT64 j = readNumber + 1 ; j <= dataSet->getNumberOfUniqueReads(); j++) // For each read with start coordinate bigger than the current read, see if they overlap
+	for(size_t i = 0; i < read1->getOverlapReadIDs()->size(); i++)
 	{
-		if (dataSet->getReadFromID(j)->getStartCoord() > endCoord)	// Too far away to overlap with the current read
-			break;
-		// Otherwise, realign the two reads and see if they overlap
-		Read *read2 = dataSet->getReadFromID(j);
-		if (exploredReads->at(read2->getID())!=UNEXPLORED)	// The possible edge between the two reads have already been explored
-			continue;
-		UINT16 overlapOffset;
-		//FILE_LOG(logDEBUG4) << "Now check the overlap between read " << readNumber << " and read " << j;
-		if (read1->superReadID == 0 && read2->superReadID == 0 && DoReadsOverlap(read1, read2, overlapOffset))	// If the two reads do overlap, and both non-contained.
-		{
-			if (overlapOffset > 0 )
-				insertEdge(read1, read2, overlapOffset);
-			else if (overlapOffset < 0 )
-				insertEdge(read2, read1, -overlapOffset);
-		}
-		else if (read1->superReadID != 0)
-		{
-			FILE_LOG(logDEBUG4)<< "Read" << readNumber << " is contained in Read" << read1->superReadID;
-			break;
-		}
-		else if (read2->superReadID != 0)
-			FILE_LOG(logDEBUG4)<< "Read" << j << " is contained in Read" << read2->superReadID;
-		else
-			FILE_LOG(logDEBUG4)<< "Overlap is not valid!";
-
+		Read *r1 = dataSet->getReadFromID(read1->getOverlapReadIDs()->at(i));
+		if(!r1->isContainedRead())
+			insertEdge(read1, r1, read1->getOverlapReadOffsets()->at(i));
 	}
 	if(graph->at(readNumber)->size() != 0)	// Sort the list of edges of the current node according to the overlap offset (ascending) if there are multiple edges
 		sort(graph->at(readNumber)->begin(),graph->at(readNumber)->end(), compareEdgeByOverlapOffset); 
@@ -495,7 +545,7 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 /**********************************************************************************************************************
  * Check if two reads overlap with each other, and if so, find the overlapOffset between them
  **********************************************************************************************************************/
-bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, UINT16 & OverlapOffset)
+bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOffset)
 {
 	if (read1->superReadID != 0 || read2->superReadID != 0)	// Do not consider overlap for contained reads
 	{
@@ -578,6 +628,20 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, UINT16 & OverlapOf
 	/* Check and see if one read is contained in the other, they are not considered as overlapping in this case */
 	if (misMatches <= maxError || misMatches <= overlapLength * maxErrorRate)	// Only if two sequences are similar enough
 	{
+		/* Change the starting coordinate of the second read, 
+		 * depending on the overlap offset with the first read, whose coordinate is already set
+		 */
+		if (read2->getStartCoord() != (read1->getStartCoord() + OverlapOffset))
+		{
+			bool change_coord = read2->setStartCoord(read1->getStartCoord() + OverlapOffset);
+			//FILE_LOG(logDEBUG2) << "Depending on read" << readNumber1 << "\'s coord " << read1->getStartCoord() << ", Change read" << readNumber2 << "\'s starting coordinate to " << read2->getStartCoord();
+		}
+		if (misMatches != 0)
+		{
+			FILE_LOG(logDEBUG2) << "Total align length: " << alignLength << "; OverlapOffset: " << OverlapOffset << "; misMatches: " << misMatches << "; overlapLength: " << overlapLength;
+			FILE_LOG(logDEBUG4) << align;
+		}
+
 		if (openGap1 + endGap1 == 0)	// Seq1 does not contain any gap (contains seq2)
 		{
 			// Neither of the two reads are contained in other reads, so currently this will be the read's first contained read
@@ -587,11 +651,13 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, UINT16 & OverlapOf
 			{
 				//reads contained in read2 now should also be contained in read1
 				for(size_t i = 0; i < read2->getContainedReadIDs()->size(); i++)
-					read1->getContainedReadIDs()->push_back(read2->getContainedReadIDs()->at(i));
+				{
+					read1->getContainedReadIDs()->push_back(read2->getContainedReadIDs()->at(i));	// Put reads contained in Read2 as Read1's contained reads
+					dataSet->getReadFromID(read2->getContainedReadIDs()->at(i))->superReadID = read1->getID();	// Set those contained reads' super read ID to read1's ID
+				}
 			}
-			//removeEdgesOfRead(read2);	// Remove all the edges adjacent to read2 because it's contained in other reads.
 			dataSet->numberOfNonContainedReads = dataSet->numberOfNonContainedReads - 1;
-			FILE_LOG(logDEBUG4) << "Read" << readNumber1 << " contains Read" << readNumber2;
+			FILE_LOG(logDEBUG4) << "read" << readNumber1 << " contains read" << readNumber2;
 			return false;
 		}
 		else if (openGap2 + endGap2 == 0)	// Seq2 does not contain any gap (contains seq1)
@@ -601,7 +667,10 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, UINT16 & OverlapOf
 			if (!read1->getContainedReadIDs()->empty())
 			{
 				for(size_t i = 0; i < read1->getContainedReadIDs()->size(); i++)
+				{
 					read2->getContainedReadIDs()->push_back(read1->getContainedReadIDs()->at(i));
+					dataSet->getReadFromID(read1->getContainedReadIDs()->at(i))->superReadID = read2->getID();
+				}
 			}
 			//removeEdgesOfRead(read1);	// Remove all the edges adjacent to read2 because it's contained in other reads. TODO: write this function
 			dataSet->numberOfNonContainedReads = dataSet->numberOfNonContainedReads - 1;

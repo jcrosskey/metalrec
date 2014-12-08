@@ -46,7 +46,7 @@ class OverlapGraph
 		vector< vector<Edge *> * > *graph;	// Adjacency list of the graph.
 
 		bool mergeList(Edge *edge1, Edge *edge2, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets);
-		bool DoReadsOverlap(Read * read1, Read * read2, UINT16 & OverlapOffset);
+		bool DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOffset);
 
 	public:
 		OverlapGraph(void);	// Default constructor.
@@ -60,6 +60,7 @@ class OverlapGraph
 		UINT64 contractCompositePaths(void); 	// Contract composite paths in the overlap graph.
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
 		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
+		UINT64 getAllOverlaps(void);	// Find all the overlaps between reads in the graph, and mark the contained reads in the process.
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read

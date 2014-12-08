@@ -389,7 +389,10 @@ void Dataset::saveReads(string fileName)
 				<< " # Start coord: " << read1->getStartCoord() \
 				<< " # End coord: " << read1->getEndCoord() \
 				<< " # Length: " << read1->getReadLength() \
-				<< " # Noncontained\n" << read1->getDnaStringForward() << endl;
+				<< " # Noncontained, contains: ";
+			for(size_t i = 0; i < read1->getContainedReadIDs()->size(); i++)
+				outputFile << read1->getContainedReadIDs()->at(i) << ", ";
+			outputFile << "\n" << read1->getDnaStringForward() << endl;
 		}
 	}
 	outputFile.close();
@@ -406,7 +409,7 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 	outputFile.open(fileName.c_str());
 	if(!outputFile.is_open())
 		MYEXIT("Unable to open file: " + fileName);
-	Read * read0 = reads->at(0);	// Read with leftmost mapping start coordinate
+	Read * read0 = getReadFromID(1);	// Read with leftmost mapping start coordinate
 	int LeftMostCoord = read0->getStartCoord();
 	if (LeftMostCoord < 0 )
 	{
@@ -422,6 +425,7 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 		{
 			string OffsetString(read1->getStartCoord() - LeftMostCoord, '.');
 			outputFile << OffsetString;
+			//cout << i << "\t" << read1->getStartCoord() << endl;
 		}
 		outputFile << read1->getDnaStringForward() << endl;
 	}
