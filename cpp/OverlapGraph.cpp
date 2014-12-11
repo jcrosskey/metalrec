@@ -54,6 +54,7 @@ OverlapGraph::OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const U
 	numberOfNodes = 0;
 	numberOfEdges = 0;
 	rubberPos = rubber_pos;
+	//rubberPos = 10;	// Need to put this in the argument list TODO
 	buildOverlapGraphFromDataSet(data_Set);
 }
 
@@ -623,19 +624,21 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOff
 	OverlapOffset = openGap2 - openGap1;	// Overlapoffset, if negative, second sequence has left overhang
 	UINT32 misMatches = (alignLength - openGap1 - openGap2 - endGap1 - endGap2 - score)/2;	// Number of mismatches, including gaps
 	UINT32 overlapLength = alignLength - openGap1 - openGap2 - endGap1 - endGap2;
+	//int ref_overlapOffset = read2->getStartCoord() - read1->getStartCoord();
 
 	FILE_LOG(logDEBUG4) << "Total align length: " << alignLength << "; OverlapOffset: " << OverlapOffset << "; misMatches: " << misMatches << "; overlapLength: " << overlapLength;
 	/* Check and see if one read is contained in the other, they are not considered as overlapping in this case */
-	if (misMatches <= maxError || misMatches <= overlapLength * maxErrorRate)	// Only if two sequences are similar enough
+	if (misMatches <= maxError || misMatches <= overlapLength * maxErrorRate) 	// Only if two sequences are similar enough
 	{
 		/* Change the starting coordinate of the second read, 
 		 * depending on the overlap offset with the first read, whose coordinate is already set
+		 * DO NOT DO THIS NOW, SINCE STARTING COORDINATES ARE NOT USED ANYWHERE
 		 */
-		if (read2->getStartCoord() != (read1->getStartCoord() + OverlapOffset))
-		{
-			bool change_coord = read2->setStartCoord(read1->getStartCoord() + OverlapOffset);
-			//FILE_LOG(logDEBUG2) << "Depending on read" << readNumber1 << "\'s coord " << read1->getStartCoord() << ", Change read" << readNumber2 << "\'s starting coordinate to " << read2->getStartCoord();
-		}
+		//if (read2->getStartCoord() != (read1->getStartCoord() + OverlapOffset))
+		//{
+		//	bool change_coord = read2->setStartCoord(read1->getStartCoord() + OverlapOffset);
+		//	//FILE_LOG(logDEBUG2) << "Depending on read" << readNumber1 << "\'s coord " << read1->getStartCoord() << ", Change read" << readNumber2 << "\'s starting coordinate to " << read2->getStartCoord();
+		//}
 		if (misMatches != 0)
 		{
 			FILE_LOG(logDEBUG2) << "Total align length: " << alignLength << "; OverlapOffset: " << OverlapOffset << "; misMatches: " << misMatches << "; overlapLength: " << overlapLength;
@@ -678,6 +681,7 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOff
 			return false;
 		}
 		/* If neither is contained in the other, check if the overlap length passes the threshold */
+		//else if (overlapLength >= minimumOverlapLength && abs(ref_overlapOffset - OverlapOffset) <= 2*rubberPos)
 		else if (overlapLength >= minimumOverlapLength)
 		{
 			FILE_LOG(logDEBUG4) << "Found overlap between " << readNumber1 << " and " << readNumber2;
@@ -693,11 +697,16 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOff
 			}
 			return true;
 		}
-		else
+		else if (overlapLength < minimumOverlapLength)
 		{
 			FILE_LOG(logDEBUG4) << readNumber1 << " and " << readNumber2 << " do not contain each other and do not overlap long enough ";
 			return false;
 		}
+		//else
+		//{
+		//	FILE_LOG(logDEBUG2) << readNumber1 << " and " << readNumber2 << " overlap offset " << OverlapOffset << " does not fit the coordiates " << read1->getStartCoord() << ", " << read2->getStartCoord();
+		//	return false;
+		//}
 	}
 }
 
