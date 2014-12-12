@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	UINT64 minimumOverlapLength;
 	UINT32 maxError;
 	float maxErrorRate;
-	UINT32 rubberPos = 10;
+	INT32 rubberPos = 10;
 	bool useCoverageDepth;
 	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, maxError, maxErrorRate, useCoverageDepth);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
@@ -165,35 +165,18 @@ int main(int argc, char **argv)
 	//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
 	FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 	OverlapGraph *graph = new OverlapGraph(dataSet, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-
-
-	/*** For debugging, print the read containing information and the overlap information ***/
-	/*
-	cout << "number of non-contained reads in dataset is " << dataSet->numberOfNonContainedReads<< endl;
-	cout << "number of nodes in dataset is " << graph->getNumberOfNodes()<< endl;
-	cout << "number of edges in dataset is " << graph->getNumberOfEdges()<< endl;
-
-	for ( UINT64 id = 1; id <= dataSet->getNumberOfUniqueReads(); id++)
-	{
-		Read *read = dataSet->getReadFromID(id);
-		cout << "Read" << id << "--> contained read: " << read->isContainedRead() \
-			<< "\n\tContains reads: ";
-		for(size_t i = 0; i < read->getContainedReadIDs()->size(); i++)
-			cout << read->getContainedReadIDs()->at(i) << " ";
-		cout << endl;
-		cout << "\tOverlapping reads: ";
-		for(size_t i = 0; i < read->getOverlapReadIDs()->size(); i++)
-		{
-			Read *r1 = dataSet->getReadFromID(read->getOverlapReadIDs()->at(i));
-			if(!r1->isContainedRead())
-				cout << read->getOverlapReadIDs()->at(i) << ":" << read->getOverlapReadOffsets()->at(i) << " ";
-		}
-		cout << endl;
-	}
-	*/
-	/*** For debugging, print the read containing information and the overlap information ***/
 	dataSet->saveReads(allFileName + "_reads.fasta");
-	dataSet->printReadsTiling(allFileName + "_reads.tiling");
+	graph->calculateFlow(allFileName+"_flow.input", allFileName+"_flow.output");
+	FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+	graph->removeAllSimpleEdgesWithoutFlow();
+	graph->simplifyGraph();
+	graph->printGraph(allFileName+"_graph.gdl", allFileName+"_contigs.fasta");
+
+
+	delete dataSet;
+	delete graph;
+	/*** For debugging, print the read containing information and the overlap information ***/
+	//dataSet->printReadsTiling(allFileName + "_reads.tiling");
 	
 	CLOCKSTOP;
 }

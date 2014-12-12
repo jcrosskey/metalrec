@@ -40,7 +40,7 @@ class OverlapGraph
 		float maxErrorRate;	// maximum error rate
 		UINT64 numberOfNodes;	// Number of nodes in the overlap graph.
 		UINT64 numberOfEdges;	// Number of edges in the overlap graph.
-		UINT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
+		INT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
 
 		Dataset * dataSet; 	// Pointer to the dataset containing all the reads.
 		vector< vector<Edge *> * > *graph;	// Adjacency list of the graph.
@@ -49,8 +49,9 @@ class OverlapGraph
 		bool DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOffset);
 
 	public:
+		bool flowComputed;	// Flag to check wheather the flow is computed or not.
 		OverlapGraph(void);	// Default constructor.
-		OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const UINT32 & rubber_pos);	// Another constructor, from dataSet including all the reads, with specified values for other parameters. Default values are also included
+		OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos);	// Another constructor, from dataSet including all the reads, with specified values for other parameters. Default values are also included
 		~OverlapGraph();	// Destructor.
 
 		bool buildOverlapGraphFromDataSet(Dataset *data_Set);	// Build the overlap graph using dataSet.
@@ -65,14 +66,17 @@ class OverlapGraph
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
 		bool mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
+		UINT64 removeAllSimpleEdgesWithoutFlow();	// Remove simple edges without flow
 		bool updateReadLocations(Edge *edge);	// Update the location of all the reads in the current edge. This function is called when a new edge is inserted.
 		bool removeReadLocations(Edge *edge);	// Remove the location of all the reads from the current edge. This function is called when an edge is removed.
 		UINT64 getNumberOfEdges(void){return numberOfEdges;}	// Get the number of edges in the overlap graph.
 		UINT64 getNumberOfNodes(void){return numberOfNodes;}	// Get the number of nodes in the overlap graph.
 		bool setDataset(Dataset *data_Set){dataSet=data_Set; return true;}	// Set the dataset pointer.
-		bool setRubberPos(const UINT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
+		bool setRubberPos(const INT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
 		Edge *findEdge(UINT64 source, UINT64 destination);	// Find an edge from source to destination in the overlap graph.
 		bool isEdgePresent(UINT64 source, UINT64 destination);	// Check if an edge is present in the overlap graph between source and destination.
+		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.
+		bool calculateFlow(string inputFileName, string outputFileName);									// Calculate the minimum cost flow of the overlap graph.
 		seqan::DnaString getStringInEdge(Edge *edge);	// Get the string in an edge by overlapping the ordered reads in the edge.
 		bool simplifyGraph(void);	// Some simple simplification.
 		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.

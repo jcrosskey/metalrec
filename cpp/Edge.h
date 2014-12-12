@@ -27,6 +27,7 @@ class Edge{
 
 	public:
 		bool transitiveRemovalFlag;	// Used to mark transitive edges.
+		UINT16 flow;	// Store the flow in the current edge.
 		UINT64 coverageDepth;	// Estimated depth of coverage.
 		UINT64 SD;
 		Edge(void);	// Default constructor.

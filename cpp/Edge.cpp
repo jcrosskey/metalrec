@@ -18,6 +18,7 @@ Edge::Edge(void)
 	// Initialize the variables.
 	overlapOffset = 0;
 	transitiveRemovalFlag = false;
+	flow = 0;
 	coverageDepth = 0;
 }
 
@@ -58,6 +59,7 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length)
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
+	flow = 0;
 	coverageDepth = 0;
 
 	listOfReads = new vector<UINT64>;
@@ -80,6 +82,7 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  vector<UINT64> *listRe
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
+	flow = 0;
 	coverageDepth = 0;
 
 	listOfReads = listReads;

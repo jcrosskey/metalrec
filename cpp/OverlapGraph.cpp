@@ -6,6 +6,7 @@
  */
 
 #include "OverlapGraph.h"
+#include "CS2/cs2.h"
 
 /**************************************************
  * Function to compare two edges. Used for sorting.
@@ -45,7 +46,7 @@ OverlapGraph::OverlapGraph(void)
 /**********************************************************************************************************************
   Another Constructor. Build the overlap grpah from the data_Set, and specified parameter values
  **********************************************************************************************************************/
-OverlapGraph::OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const UINT32 & rubber_pos)
+OverlapGraph::OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos)
 {
 	// Initialize the variables.
 	minimumOverlapLength = minOverlap;
@@ -253,10 +254,18 @@ bool OverlapGraph::markTransitiveEdges(UINT64 readNumber, vector<markType> * mar
 bool OverlapGraph::insertEdge(Edge * edge)
 {
 
-	UINT64 ID = edge->getSourceRead()->getID(); // This is the source read.
-	if(graph->at(ID)->empty()) 	// If there is no edge incident to the node
+	UINT64 SourceID = edge->getSourceRead()->getID(); // This is the source read.
+	UINT64 DestinationID = edge->getDestinationRead()->getID(); // This is the destination read.
+	if((dataSet->getReadFromID(SourceID)->numInEdges + dataSet->getReadFromID(SourceID)->numOutEdges) == 0)	// If there is no edge incident to the node
 		numberOfNodes++;	// Then a new node is inserted in the graph. Number of nodes increased.
-	graph->at(ID)->push_back(edge);	// Insert the edge in the list of edges of ID
+	if((dataSet->getReadFromID(DestinationID)->numOutEdges + dataSet->getReadFromID(DestinationID)->numInEdges) == 0)
+		numberOfNodes++;
+
+	// update the number of in edges and out edges incident to the corresponding node
+	dataSet->getReadFromID(SourceID)->numOutEdges++;
+	dataSet->getReadFromID(DestinationID)->numInEdges++;
+
+	graph->at(SourceID)->push_back(edge);	// Insert the edge in the list of edges of ID
 	numberOfEdges++;	// Increase the number of edges.
 	updateReadLocations(edge);	// If the current edge contains some reads, then we need to update their location information.
 	return true;
@@ -337,7 +346,8 @@ UINT64 OverlapGraph::contractCompositePaths(void)
 bool OverlapGraph::removeEdge(Edge *edge)
 {
 	removeReadLocations(edge);	// If the current edge contains some reads. We have to update their location formation.
-	UINT64 ID1 = edge->getSourceRead()->getID();  // Get the source and destation read IDs.
+	UINT64 ID1 = edge->getSourceRead()->getID();  // Get the source read ID.
+	UINT64 ID2 = edge->getDestinationRead()->getID();  // Get the destation read ID.
 
 	for(UINT64 i = 0; i< graph->at(ID1)->size(); i++) // Delete the edge.
 	{
@@ -346,13 +356,51 @@ bool OverlapGraph::removeEdge(Edge *edge)
 			delete graph->at(ID1)->at(i);
 			graph->at(ID1)->at(i) = graph->at(ID1)->at(graph->at(ID1)->size()-1);	// Move the last edge to this entry
 			graph->at(ID1)->pop_back();	// delete the last entry
-			if(graph->at(ID1)->empty())
+			dataSet->getReadFromID(ID1)->numOutEdges--;
+			dataSet->getReadFromID(ID2)->numInEdges--;
+			if((dataSet->getReadFromID(ID1)->numInEdges + dataSet->getReadFromID(ID1)->numOutEdges) == 0)
+				numberOfNodes--;
+			if((dataSet->getReadFromID(ID2)->numInEdges + dataSet->getReadFromID(ID2)->numOutEdges) == 0)
 				numberOfNodes--;
 			numberOfEdges--;
 			break;
 		}
 	}
 	return true;
+}
+
+
+
+/**********************************************************************************************************************
+  Remove an all simple edge in the overlap graph that does not have any flow.
+  Definition of simple edge: just a simple overlap, no tiling or intermediate reads in the edge.
+ **********************************************************************************************************************/
+UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
+{
+	CLOCKSTART;
+	vector <Edge *> listOfEdges;
+	for(UINT64 i = 1; i < graph->size(); i++) // For each read.
+	{
+		if(!graph->at(i)->empty())	// If the read has some edges.
+		{
+			for(UINT64 j=0; j < graph->at(i)->size(); j++) // For each edge
+			{
+				Edge * edge = graph->at(i)->at(j);
+				// The edge is simple edge with no flow, and has string shorter than deadEndBp. JJ
+				//if(edge->getSourceRead()->getReadNumber() < edge->getDestinationRead()->getReadNumber() && edge->getListOfReads()->empty() && edge->flow == 0 && getStringInEdge(edge).size() < deadEndBp ) 
+				if(edge->getSourceRead()->getID() < edge->getDestinationRead()->getID() && edge->getListOfReads()->empty() && edge->flow == 0 ) 
+				{
+					listOfEdges.push_back(edge); // Put in the list of edges to be removed.
+					FILE_LOG(logDEBUG1)  << "removing edge ("<< edge->getSourceRead()->getID()<<","  << edge->getDestinationRead()->getID()<<") OverlapOffset : " << setw(10) << edge->getOverlapOffset(); 
+				}
+			}
+		}
+	}
+	for(UINT64 i = 0 ; i < listOfEdges.size(); i++)
+		removeEdge(listOfEdges.at(i));		// remove the edges from the list.
+	FILE_LOG(logDEBUG) << "Simple edges without flow removed: " << listOfEdges.size();
+	CLOCKSTOP;
+	return listOfEdges.size();
 }
 
 
@@ -681,8 +729,8 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOff
 			return false;
 		}
 		/* If neither is contained in the other, check if the overlap length passes the threshold */
-		//else if (overlapLength >= minimumOverlapLength && abs(ref_overlapOffset - OverlapOffset) <= 2*rubberPos)
-		else if (overlapLength >= minimumOverlapLength)
+		else if (overlapLength >= minimumOverlapLength && -OverlapOffset < rubberPos)
+		//else if (overlapLength >= minimumOverlapLength)
 		{
 			FILE_LOG(logDEBUG4) << "Found overlap between " << readNumber1 << " and " << readNumber2;
 			if (OverlapOffset > 0)
@@ -702,11 +750,11 @@ bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOff
 			FILE_LOG(logDEBUG4) << readNumber1 << " and " << readNumber2 << " do not contain each other and do not overlap long enough ";
 			return false;
 		}
-		//else
-		//{
-		//	FILE_LOG(logDEBUG2) << readNumber1 << " and " << readNumber2 << " overlap offset " << OverlapOffset << " does not fit the coordiates " << read1->getStartCoord() << ", " << read2->getStartCoord();
-		//	return false;
-		//}
+		else
+		{
+			FILE_LOG(logDEBUG2) << readNumber1 << " and " << readNumber2 << " overlap offset " << OverlapOffset << " does not fit the coordiates " << read1->getStartCoord() << ", " << read2->getStartCoord();
+			return false;
+		}
 	}
 }
 
@@ -725,11 +773,16 @@ bool OverlapGraph::removeTransitiveEdges(UINT64 readNumber)
 		else	// Free the transitive edge
 		{
 			numberOfEdges--;
+			UINT64 ID2 = graph->at(readNumber)->at(index)->getDestinationRead()->getID();
+			dataSet->getReadFromID(readNumber)->numOutEdges--;
+			dataSet->getReadFromID(ID2)->numInEdges--;
+			if ( (dataSet->getReadFromID(ID2)->numInEdges + dataSet->getReadFromID(ID2)->numOutEdges)==0)
+				numberOfNodes--;
 			delete graph->at(readNumber)->at(index);
 		}
 	}
 	graph->at(readNumber)->resize(j);
-	if(graph->at(readNumber)->empty())
+	if ( (dataSet->getReadFromID(readNumber)->numInEdges + dataSet->getReadFromID(readNumber)->numOutEdges)==0)
 		numberOfNodes--;
 	return true;
 }
@@ -853,6 +906,163 @@ bool OverlapGraph::removeReadLocations(Edge *edge)
 		}
 
 	}
+	return true;
+}
+
+
+/**********************************************************************************************************************
+  This function calculates the cost and bounds for an edge in the overlap graph.
+  This function is very sensitive to the assembled contigs.
+ **********************************************************************************************************************/
+bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST)
+{
+	for(UINT64 i = 0; i < 3; i++)		// For the simple edges we put very high cost
+	{
+		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
+	}
+
+	if(!edge->getListOfReads()->empty()) // Composite Edge
+	{
+		if(edge->getListOfReads()->size() > 5 || edge->getOverlapOffset() > 1000 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
+		{
+			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 1;
+			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
+			FLOWLB[2] = 0; FLOWUB[2] = 8; COST[2] = 100000;
+		}
+		else // Short composite edge containing less than 20 reads or with overlap offset less than 1000. May have zero flow.
+		{
+			FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = 1;
+			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
+			FLOWLB[2] = 0; FLOWUB[2] = 8; COST[2] = 100000;
+		}
+	}
+
+	return true;
+}
+
+
+/********************************
+ * Calculate minimum cost flow
+ ********************************/
+bool OverlapGraph::calculateFlow(string inputFileName, string outputFileName)
+{
+	CLOCKSTART;
+	// Add super source and super sink nodes, add edge from super sink to super source with very big cost
+	// Add edge from super source to every node in the graph, also from every node in the graph to the super sink
+	// Every edge will be assigned a lower bound and an upper bound of the flow (capacity), and the cost associated with the edge
+	UINT64 V = numberOfNodes + 2, E = numberOfEdges * 3 + numberOfNodes * 2 + 1 , SUPERSOURCE = 1, SUPERSINK = V;
+	INT64 FLOWLB[3], FLOWUB[3], COST[3];			// Flow bounds and cost of the edges, cost function originally is a piecewise function with 3 segments
+	ofstream outputFile;
+	outputFile.open(inputFileName.c_str());
+	if(!outputFile.is_open())
+		MYEXIT("Unable to open file: "+inputFileName);
+	stringstream ss;
+	ss << "p min " << setw(10) << V << " " << setw(10) << E << endl;  	// Problem description: Number of nodes and edges in the graph.
+	ss << "n " << setw(10) << SUPERSOURCE << setw(10) << " 0" << endl;	// Flow in the super source
+	ss << "n " << setw(10) << SUPERSINK << setw(10) << " 0" << endl;	// Flow in the super sink.
+
+	// Flow lower bound and upper bound, and the cost for the first segment in the piecewise cost function 
+	FLOWLB[0] = 1; FLOWUB[0] = 1000000; COST[0] = 1000000;
+	ss << "a " << setw(10) << SUPERSINK << " " << setw(10) << SUPERSOURCE << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl; // Add an edge from super sink to super source with very high cost (almost infinity), also at most can be used once
+
+
+	// If the ID of a node in the original graph is 100 and directed graph is 5
+	// Then listOfNodes->at(100) is equal to 5
+	// and ListOfNodesReverse->at(5) is equal to 100.
+	vector<UINT64> *listOfNodes = new vector<UINT64>;
+	vector<UINT64> *listOfNodesReverse = new vector<UINT64>;
+
+	for(UINT64 i = 0; i <= graph->size(); i++)		// For n nodes in the graph, CS2 requires that the nodes are numbered from 1 to n. In the overlap graph, the nodes does not have sequencinal ID. We need to convert them to 1 - n
+	{
+		listOfNodes->push_back(0);
+		listOfNodesReverse->push_back(0);
+	}
+
+	// This loop set lower bound and upper bound from super source to each node, and from each node to super sink. All costs are 0.
+	UINT64 currentIndex = 1;
+	for(UINT64 i = 1; i < graph->size(); i++)
+	{
+		if( (dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges) != 0 ) // edges to and from the super source and super sink
+		{
+			FILE_LOG(logDEBUG2) << "Found node " << i << " corresponding to index " << currentIndex;
+			listOfNodes->at(i) = currentIndex;					// Mapping between original node ID and cs2 node ID
+			listOfNodesReverse->at(currentIndex) = i;			// Mapping between original node ID and cs2 node ID
+			FLOWLB[0] = 0; FLOWUB[0] = 1000000; COST[0] = 0;
+			ss << "a " << setw(10) << SUPERSOURCE << " " << setw(10) << currentIndex + 1 << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
+			ss << "a " << setw(10) << currentIndex + 1 << " " << setw(10) << SUPERSINK << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
+			currentIndex++;
+		}
+	}
+
+	// This loop converts the original bi-directed edges to directed edges (1 becomes 6).
+	// This loop set the lower and upper bounds of the flow in each edge, and the cost
+	for(UINT64 i = 1; i < graph->size(); i++)
+	{
+		if(!graph->at(i)->empty()) // edges to and from the super source and super sink
+		{
+			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
+			{
+				Edge *edge = graph->at(i)->at(j);
+				UINT64 u = listOfNodes->at(edge->getSourceRead()->getID());	// Node number of source read in the new graph
+				UINT64 v = listOfNodes->at(edge->getDestinationRead()->getID());	// Node number of destination read in the new graph
+
+				calculateBoundAndCost(edge, FLOWLB, FLOWUB, COST);	// Calculate bounds and cost depending on the edge property (number of reads in edge, or string length)
+
+				// Here for each edge we add three edges with different values of cost and bounds, 3 pieces in the piecewise function
+				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
+				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[1] << " " << setw(10) << FLOWUB[1] << " " << setw(10) << COST[1] << endl;
+				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[2] << " " << setw(10) << FLOWUB[2] << " " << setw(10) << COST[2] << endl;
+			}
+		}
+	}
+	outputFile << ss.str();		// Write the string in a file for CS2
+	outputFile.close();
+	ss.str(std::string());
+
+	char * inFile = new char[inputFileName.size() + 1];
+	std::copy(inputFileName.begin(), inputFileName.end(), inFile);
+	inFile[inputFileName.size()] = '\0';
+
+	char * outFile = new char[outputFileName.size() + 1];
+	std::copy(outputFileName.begin(), outputFileName.end(), outFile);
+	outFile[outputFileName.size()] = '\0';
+
+
+	FILE_LOG(logINFO) << "Calling CS2";
+	main_cs2(inFile,outFile);			// Call CS2
+	FILE_LOG(logINFO) << "CS2 finished";
+
+	delete[] inFile;
+	delete[] outFile;
+
+	ifstream inputFile;
+	inputFile.open(outputFileName.c_str());
+	if(!inputFile.is_open())
+		MYEXIT("Unable to open file: "+outputFileName);
+
+
+	string s, d, f;
+	UINT64 lineNum = 0;
+	while(!inputFile.eof())
+	{
+		lineNum ++;
+		UINT64 source, destination, flow;
+		inputFile >> source >> destination >> flow;		// get the flow from CS2
+
+		if(source != SUPERSINK && source != SUPERSOURCE && destination != SUPERSOURCE && destination != SUPERSINK && flow!=0)
+		{
+			UINT64 mySource = listOfNodesReverse->at(source-1);				// Map the source to the original graph
+			UINT64 myDestination = listOfNodesReverse->at(destination-1);	// Map the destination in the original graph
+			Edge *edge = findEdge(mySource, myDestination);	// Find the edge in the original graph.
+			edge->flow += flow;												// Add the flow in the original graph.
+			FILE_LOG(logDEBUG2) << "Edge from " << mySource << " to " << myDestination << " has flow " << edge->flow;
+		}
+	}
+	inputFile.close();
+	delete listOfNodes;
+	delete listOfNodesReverse;
+	this->flowComputed = true;
+	CLOCKSTOP;
 	return true;
 }
 

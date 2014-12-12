@@ -17,6 +17,8 @@ Read::Read(void)
 	ID = 0;
 	frequency = 0;
 	superReadID = 0;
+	numInEdges = 0;
+	numOutEdges = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
 	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.
@@ -42,6 +44,8 @@ Read::Read(const string & s)
 	ID = 0;
 	frequency = 0;
 	superReadID = 0;
+	numInEdges = 0;
+	numOutEdges = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
 	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.
@@ -69,6 +73,8 @@ Read::Read(const seqan::BamAlignmentRecord & record)
 	ID = 0;
 	frequency = 0;
 	superReadID = 0;
+	numInEdges = 0;
+	numOutEdges = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
 	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.

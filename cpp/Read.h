@@ -60,6 +60,8 @@ class Read
 
 		UINT64 superReadID;	// ID of the (longest) read containing this read. 
 					// 0 = not a contained read, otherwise superReadID contains the ID of the uniqe super read.
+		UINT16 numInEdges;	// Number of edges going into the read
+		UINT16 numOutEdges;	// Number of edges going out of the read
 
 		/* mutators */
 		bool setRead(const string & s); 		// Set the read from alignment record string, (with generic string parsing)
