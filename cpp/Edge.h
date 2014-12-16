@@ -29,7 +29,6 @@ class Edge{
 		bool transitiveRemovalFlag;	// Used to mark transitive edges.
 		UINT16 flow;	// Store the flow in the current edge.
 		UINT64 coverageDepth;	// Estimated depth of coverage.
-		UINT64 SD;
 		Edge(void);	// Default constructor.
 		Edge(Read *from, Read *to, UINT64 length); 	// Another constructor.
 		Edge(Read *from, Read *to, UINT64 length, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets);

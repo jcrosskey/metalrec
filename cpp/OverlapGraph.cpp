@@ -46,7 +46,7 @@ OverlapGraph::OverlapGraph(void)
 /**********************************************************************************************************************
   Another Constructor. Build the overlap grpah from the data_Set, and specified parameter values
  **********************************************************************************************************************/
-OverlapGraph::OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos)
+OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos)
 {
 	// Initialize the variables.
 	minimumOverlapLength = minOverlap;
@@ -56,7 +56,7 @@ OverlapGraph::OverlapGraph(Dataset *data_Set, const UINT64 & minOverlap, const U
 	numberOfEdges = 0;
 	rubberPos = rubber_pos;
 	//rubberPos = 10;	// Need to put this in the argument list TODO
-	buildOverlapGraphFromDataSet(data_Set);
+	buildOverlapGraphFromHashTable(ht);
 }
 
 
@@ -81,7 +81,7 @@ OverlapGraph::~OverlapGraph()
 /**********************************************************************************************************************
  * Build the overlap graph from data set
  **********************************************************************************************************************/
-bool OverlapGraph::buildOverlapGraphFromDataSet(Dataset *data_Set)
+bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 {
 	CLOCKSTART;
 	dataSet = data_Set;	// Corresponding data set for this overlap graph
@@ -480,16 +480,16 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 	{
 		for(UINT64 i = 0; i < contigEdges.size(); i++) 
 		{
-			seqan::DnaString s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge  (" << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << seqan::length(s) << " Coverage: " << contigEdges.at(i)->coverageDepth << endl;
-			sum += seqan::length(s);
+			string s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
+			contigFilePointer << ">contig_"<< i+1 << " Edge  (" << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << s.length() << " Coverage: " << contigEdges.at(i)->coverageDepth << endl;
+			sum += s.length();
 			//contigFilePointer << s << endl;  // save 100 BP in each line.
 			UINT32 start=0;
 			do
 			{
-				contigFilePointer << seqan::infix(s,start,min(start+100, seqan::length(s))) << endl;  // save 100 BP in each line.
+				contigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
 				start+=100;
-			} while (start < seqan::length(s));
+			} while (start < s.length());
 		}
 	}
 	contigFilePointer.close();
@@ -523,55 +523,6 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 
 
 /**********************************************************************************************************************
- * Find all the overlaps between reads in the graph, and mark the contained reads in the process.
- **********************************************************************************************************************/
-UINT64 OverlapGraph::getAllOverlaps(void)
-{
-	UINT64 total_overlap = 0;
-	for (UINT64 readNumber = 1; readNumber <= dataSet->getNumberOfUniqueReads(); readNumber++)
-	{
-		FILE_LOG(logDEBUG3) << "find overlap reads of read " << readNumber;
-		Read *read1 = dataSet->getReadFromID(readNumber); 	// Get the current read read1.
-		INT64 endCoord = read1->getEndCoord() - minimumOverlapLength - rubberPos;
-		FILE_LOG(logDEBUG3) << "End coordinate is " << endCoord;
-		seqan::DnaString readDnaString = read1->getDnaStringForward(); 	// Get the forward string of read1.
-		for(UINT64 j = readNumber + 1 ; j <= dataSet->getNumberOfUniqueReads(); j++) // For each read with start coordinate bigger than the current read, see if they overlap
-		{
-			if (dataSet->getReadFromID(j)->getStartCoord() > endCoord)	// Too far away to overlap with the current read
-				break;
-			// Otherwise, realign the two reads and see if they overlap
-			Read *read2 = dataSet->getReadFromID(j);
-			INT16 overlapOffset;
-			if (read1->superReadID == 0 && read2->superReadID == 0 && DoReadsOverlap(read1, read2, overlapOffset))	// If the two reads do overlap, and both non-contained.
-			{
-				if (overlapOffset > 0 )
-				{
-					FILE_LOG(logDEBUG4)<< "read" << readNumber << " and read" << j << " overlap";
-				}
-				else if (overlapOffset < 0 )
-				{
-					FILE_LOG(logDEBUG4)<< "read" << j << " and read" << readNumber << " overlap";
-				}
-				total_overlap++;
-			}
-			else if (read1->superReadID != 0)
-			{
-				FILE_LOG(logDEBUG4)<< "read" << readNumber << " is contained in read" << read1->superReadID;
-				break;
-			}
-			else if (read2->superReadID != 0)
-				FILE_LOG(logDEBUG4)<< "read" << j << " is contained in read" << read2->superReadID;
-			else
-				FILE_LOG(logDEBUG4)<< "read" << j << "  and read" << readNumber  << "\'s Overlap is not valid!";
-
-		}
-	}
-	FILE_LOG(logDEBUG)<< "Total number of overlaps found is: " << total_overlap;
-	return total_overlap;
-}
-
-
-/**********************************************************************************************************************
  * Insert all edges of a read in the overlap graph.  
  * If a read is already explored, it won't be explored against for another read again.
  **********************************************************************************************************************/
@@ -590,173 +541,6 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 	return true;
 }
 
-
-/**********************************************************************************************************************
- * Check if two reads overlap with each other, and if so, find the overlapOffset between them
- **********************************************************************************************************************/
-bool OverlapGraph::DoReadsOverlap(Read * read1, Read * read2, INT16 & OverlapOffset)
-{
-	if (read1->superReadID != 0 || read2->superReadID != 0)	// Do not consider overlap for contained reads
-	{
-		FILE_LOG(logDEBUG4)<< "One of the reads is contained in other read(s), do not consider overlap between them";
-		return false;
-	}
-		
-	UINT64 readNumber1 = read1->getID(), readNumber2 = read2->getID();
-	typedef seqan::DnaString TDna;	// Sequence type is DNA sequence
-	typedef seqan::Align<TDna, seqan::ArrayGaps> TAlign;	// Align type
-	typedef seqan::Row<TAlign>::Type TRow;	// gapped sequence type (GAPS class)
-	typedef seqan::Iterator<TRow>::Type TRowIterator;	// Iterator over gapped sequence
-
-	TDna seq1 = read1->getDnaStringForward();	// Get the DnaString of the reads
-	TDna seq2 = read2->getDnaStringForward();
-
-	TAlign align;	// Align object of type TAlign
-	seqan::resize(rows(align),2);	// Pairwise alignment, so the size is set to 2
-	seqan::assignSource(row(align,0), seq1);	// Put the sequences in the align object
-	seqan::assignSource(row(align,1), seq2);
-
-	int score = seqan::globalAlignment(align, seqan::Score<int, seqan::Simple>(1,-1,-1), seqan::AlignConfig<true, true, true, true>());	// Get the best score, for overlap alignment, with AlignConfig<t,t,t,t>()
-
-	/* Find opening and ending gaps in each sequence of the alignment */
-	TRow row1 = row(align,0);
-	TRow row2 = row(align,1);
-	TRowIterator it1 = seqan::begin(row1);
-	TRowIterator it1End = seqan::end(row1);
-	TRowIterator it2 = seqan::begin(row2);
-	TRowIterator it2End = seqan::end(row2);
-
-	size_t openGap1 = 0, endGap1 = 0, openGap2 = 0, endGap2 = 0;	
-	for(TRowIterator it = it1; it != it1End; ++it)
-	{
-		if(seqan::isGap(it))
-		{
-			openGap1++;
-			//cout << *it;
-		}
-		else
-			break;
-	}
-	for(TRowIterator it = --it1End; it != it1; --it)
-	{
-		if(seqan::isGap(it))
-		{
-			endGap1++;
-			//cout << *it;
-		}
-		else
-			break;
-	}
-	for(TRowIterator it = it2; it != it2End; ++it)
-	{
-		if(seqan::isGap(it))
-		{
-			openGap2++;
-			//cout << *it;
-		}
-		else
-			break;
-	}
-	for(TRowIterator it = --it2End; it != it2; --it)
-	{
-		if(seqan::isGap(it))
-		{
-			endGap2++;
-			//cout << *it;
-		}
-		else
-			break;
-	}
-
-	size_t alignLength = seqan::length(row1);	// Number of base pairs in the alignment, could also use length(row2)
-	OverlapOffset = openGap2 - openGap1;	// Overlapoffset, if negative, second sequence has left overhang
-	UINT32 misMatches = (alignLength - openGap1 - openGap2 - endGap1 - endGap2 - score)/2;	// Number of mismatches, including gaps
-	UINT32 overlapLength = alignLength - openGap1 - openGap2 - endGap1 - endGap2;
-	//int ref_overlapOffset = read2->getStartCoord() - read1->getStartCoord();
-
-	FILE_LOG(logDEBUG4) << "Total align length: " << alignLength << "; OverlapOffset: " << OverlapOffset << "; misMatches: " << misMatches << "; overlapLength: " << overlapLength;
-	/* Check and see if one read is contained in the other, they are not considered as overlapping in this case */
-	if (misMatches <= maxError || misMatches <= overlapLength * maxErrorRate) 	// Only if two sequences are similar enough
-	{
-		/* Change the starting coordinate of the second read, 
-		 * depending on the overlap offset with the first read, whose coordinate is already set
-		 * DO NOT DO THIS NOW, SINCE STARTING COORDINATES ARE NOT USED ANYWHERE
-		 */
-		//if (read2->getStartCoord() != (read1->getStartCoord() + OverlapOffset))
-		//{
-		//	bool change_coord = read2->setStartCoord(read1->getStartCoord() + OverlapOffset);
-		//	//FILE_LOG(logDEBUG2) << "Depending on read" << readNumber1 << "\'s coord " << read1->getStartCoord() << ", Change read" << readNumber2 << "\'s starting coordinate to " << read2->getStartCoord();
-		//}
-		if (misMatches != 0)
-		{
-			FILE_LOG(logDEBUG2) << "Total align length: " << alignLength << "; OverlapOffset: " << OverlapOffset << "; misMatches: " << misMatches << "; overlapLength: " << overlapLength;
-			FILE_LOG(logDEBUG4) << align;
-		}
-
-		if (openGap1 + endGap1 == 0)	// Seq1 does not contain any gap (contains seq2)
-		{
-			// Neither of the two reads are contained in other reads, so currently this will be the read's first contained read
-			read2->superReadID = read1->getID();	// Assign read2's superReadID to read1's ID
-			read1->getContainedReadIDs()->push_back(read2->getID());	// Add read2 to read1's containedReadIDs
-			if (!read2->getContainedReadIDs()->empty())	// read2 also contains other reads
-			{
-				//reads contained in read2 now should also be contained in read1
-				for(size_t i = 0; i < read2->getContainedReadIDs()->size(); i++)
-				{
-					read1->getContainedReadIDs()->push_back(read2->getContainedReadIDs()->at(i));	// Put reads contained in Read2 as Read1's contained reads
-					dataSet->getReadFromID(read2->getContainedReadIDs()->at(i))->superReadID = read1->getID();	// Set those contained reads' super read ID to read1's ID
-				}
-			}
-			dataSet->numberOfNonContainedReads = dataSet->numberOfNonContainedReads - 1;
-			FILE_LOG(logDEBUG4) << "read" << readNumber1 << " contains read" << readNumber2;
-			return false;
-		}
-		else if (openGap2 + endGap2 == 0)	// Seq2 does not contain any gap (contains seq1)
-		{
-			read1->superReadID = read2->getID();
-			read2->getContainedReadIDs()->push_back(read1->getID());
-			if (!read1->getContainedReadIDs()->empty())
-			{
-				for(size_t i = 0; i < read1->getContainedReadIDs()->size(); i++)
-				{
-					read2->getContainedReadIDs()->push_back(read1->getContainedReadIDs()->at(i));
-					dataSet->getReadFromID(read1->getContainedReadIDs()->at(i))->superReadID = read2->getID();
-				}
-			}
-			//removeEdgesOfRead(read1);	// Remove all the edges adjacent to read2 because it's contained in other reads. TODO: write this function
-			dataSet->numberOfNonContainedReads = dataSet->numberOfNonContainedReads - 1;
-			FILE_LOG(logDEBUG4) << "Read" << readNumber2 << " contains Read" << readNumber1;
-			return false;
-		}
-		/* If neither is contained in the other, check if the overlap length passes the threshold */
-		else if (overlapLength >= minimumOverlapLength && -OverlapOffset < rubberPos)
-		//else if (overlapLength >= minimumOverlapLength)
-		{
-			FILE_LOG(logDEBUG4) << "Found overlap between " << readNumber1 << " and " << readNumber2;
-			if (OverlapOffset > 0)
-			{
-				read1->getOverlapReadIDs()->push_back(readNumber2);
-				read1->getOverlapReadOffsets()->push_back(OverlapOffset);
-			}
-			else
-			{
-				read2->getOverlapReadIDs()->push_back(readNumber1);
-				read2->getOverlapReadOffsets()->push_back(-OverlapOffset);
-			}
-			return true;
-		}
-		else if (overlapLength < minimumOverlapLength)
-		{
-			FILE_LOG(logDEBUG4) << readNumber1 << " and " << readNumber2 << " do not contain each other and do not overlap long enough ";
-			return false;
-		}
-		else
-		{
-			FILE_LOG(logDEBUG2) << readNumber1 << " and " << readNumber2 << " overlap offset " << OverlapOffset << " does not fit the coordiates " << read1->getStartCoord() << ", " << read2->getStartCoord();
-			return false;
-		}
-	}
-}
 
 
 /**********************************************************************************************************************
@@ -1099,38 +883,37 @@ bool OverlapGraph::isEdgePresent(UINT64 source, UINT64 destination)
 /**********************************************************************************************************************
   This function returns the string spelled out by overlapping the reads in an edge in the overlap graph
  **********************************************************************************************************************/
-seqan::DnaString OverlapGraph::getStringInEdge(Edge *edge)
+string OverlapGraph::getStringInEdge(Edge *edge)
 {
-	seqan::DnaString read1_string, read2_string, readTemp, returnString;
+	string read1_string, read2_string, readTemp, returnString;
 	// strings of the source and destination reads
 	read1_string =  edge->getSourceRead()->getDnaStringForward();
 	read2_string =  edge->getDestinationRead()->getDnaStringForward();
 	returnString = read1_string;
 
-	UINT64 previousLength = seqan::length(read1_string);
-	UINT64 substringLength;
+	UINT64 previousLength = read1_string.length(), substringLength;
 
 	// Going through all the reads on the edge (if this edge is composite)
 	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)
 	{
 		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward();
 
-		substringLength =  seqan::length(readTemp) + edge->getListOfOverlapOffsets()->at(i) - previousLength;	// Length of the added substring
+		substringLength =  readTemp.length() + edge->getListOfOverlapOffsets()->at(i) - previousLength;	// Length of the added substring
 		if( edge->getListOfOverlapOffsets()->at(i) ==  previousLength)	// Overlap offset is equal to the length of the previous read (not really overlap, two reads just touch each other at the ends)
-			seqan::append(returnString, "N");
-		seqan::append(returnString, seqan::infix(readTemp, seqan::length(readTemp) - substringLength, seqan::length(readTemp)) );
-		previousLength = seqan::length(readTemp);
+			returnString = returnString + "N";
+		returnString = returnString + readTemp.substr(readTemp.length() - substringLength, substringLength);
+		previousLength = readTemp.length();
 	}
 
 	if(edge->getListOfReads()->empty()) // Simple edge
 	{
-		substringLength =  seqan::length(read2_string) + edge->getOverlapOffset() - seqan::length(read1_string);
-		seqan::append(returnString, seqan::infix(read2_string, seqan::length(read2_string) - substringLength, seqan::length(read2_string)));
+		substringLength =  read2_string.length() + edge->getOverlapOffset() - read1_string.length();
+		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
 	}
 	else
 	{
 		substringLength = edge->getListOfOverlapOffsets()->at(0);
-		seqan::append(returnString, seqan::infix(read2_string, seqan::length(read2_string) - substringLength, seqan::length(read2_string)));
+		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
 	}
 	return returnString;
 }
@@ -1154,77 +937,76 @@ bool OverlapGraph::simplifyGraph(void)
   Calculate the coverage depth of an edge for every basepair and then update the Mean and SD of coverage depth in
   the edge. Only consider reads that are unique to the edge.
  **********************************************************************************************************************/
-void OverlapGraph::getBaseByBaseCoverage(Edge *edge)
-{
-	vector<UINT64> * coverageBaseByBase = new vector<UINT64>;
-	UINT64 length = edge->getOverlapOffset() + edge->getDestinationRead()->getReadLength();	// Array lenght same as the string length in the edge.
-	for(UINT64 i = 0; i <=length; i++)
-	{
-		coverageBaseByBase->push_back(0);	// At first all the bases are covered 0 times.
-	}
-	UINT64 overlapOffset = 0;
-	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)	// For each read in the edge.
-	{
-		Read *read = dataSet->getReadFromID(edge->getListOfReads()->at(i));
-		overlapOffset += edge->getListOfOverlapOffsets()->at(i);	// Where the current read starts in the string.
-		UINT64 readLength = read->getReadLength();
-		for(UINT64 j = overlapOffset; j < overlapOffset + readLength; j++)
-		{
-			coverageBaseByBase->at(j) += read->getFrequency();	// Increase the coverage of all bases by the frequency of the read.
-		}
-	}
-
-	overlapOffset = 0;
-	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++) // Scan the reads again.
-	{
-		Read *read = dataSet->getReadFromID(edge->getListOfReads()->at(i));
-		overlapOffset += edge->getListOfOverlapOffsets()->at(i);
-		UINT64 readLength = read->getReadLength();
-		if(read->getListOfEdgesForward()->size() > 1)	// Clear the bases that are covered by reads apperaing in multiple places in the graph.
-		{
-			for(UINT64 j = overlapOffset; j < overlapOffset + readLength; j++)
-			{
-				coverageBaseByBase->at(j) = 0;
-			}
-		}
-	}
-	for(UINT64 i = 0; i < edge->getSourceRead()->getReadLength(); i++)	// For the source read, clear the bases. Because this read is present in multiple places or not all reads are considered for these bases.
-	{
-		coverageBaseByBase->at(i) = 0;
-	}
-
-	for(UINT64 i = 0; i < edge->getDestinationRead()->getReadLength(); i++)	// Similarly clear the bases covered by the destination read.
-	{
-		coverageBaseByBase->at(coverageBaseByBase->size() - 1 - i) = 0;
-	}
-
-	UINT64 sum = 0, variance=0, count = 0, mean = 0, sd = 0;
-
-	for(UINT64 i = 0; i < coverageBaseByBase->size(); i++)
-	{
-		if(coverageBaseByBase->at(i) != 0)	// Count only the non-zero values.
-		{
-			sum += coverageBaseByBase->at(i);
-			count++;
-		}
-	}
-	if ( count != 0 )
-	{
-		mean = sum/count;	// Calculate the mean.
-
-		for(UINT64 i = 0; i < coverageBaseByBase->size(); i++)
-		{
-			if(coverageBaseByBase->at(i) != 0)	// Calculate the variance.
-			{
-				variance += (mean - coverageBaseByBase->at(i)) * (mean - coverageBaseByBase->at(i));
-			}
-		}
-		sd = sqrt(variance/count);	// Calculate the standard deviation.
-	}
-	edge->coverageDepth = mean;	// Update the mean of the current edge.
-	edge->SD = sd;	// Update the standard deviation of the current edge.
-	delete coverageBaseByBase;
-}
+//void OverlapGraph::getBaseByBaseCoverage(Edge *edge)
+//{
+//	vector<UINT64> * coverageBaseByBase = new vector<UINT64>;
+//	UINT64 length = edge->getOverlapOffset() + edge->getDestinationRead()->getReadLength();	// Array lenght same as the string length in the edge.
+//	for(UINT64 i = 0; i <=length; i++)
+//	{
+//		coverageBaseByBase->push_back(0);	// At first all the bases are covered 0 times.
+//	}
+//	UINT64 overlapOffset = 0;
+//	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)	// For each read in the edge.
+//	{
+//		Read *read = dataSet->getReadFromID(edge->getListOfReads()->at(i));
+//		overlapOffset += edge->getListOfOverlapOffsets()->at(i);	// Where the current read starts in the string.
+//		UINT64 readLength = read->getReadLength();
+//		for(UINT64 j = overlapOffset; j < overlapOffset + readLength; j++)
+//		{
+//			coverageBaseByBase->at(j) += read->getFrequency();	// Increase the coverage of all bases by the frequency of the read.
+//		}
+//	}
+//
+//	overlapOffset = 0;
+//	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++) // Scan the reads again.
+//	{
+//		Read *read = dataSet->getReadFromID(edge->getListOfReads()->at(i));
+//		overlapOffset += edge->getListOfOverlapOffsets()->at(i);
+//		UINT64 readLength = read->getReadLength();
+//		if(read->getListOfEdgesForward()->size() > 1)	// Clear the bases that are covered by reads apperaing in multiple places in the graph.
+//		{
+//			for(UINT64 j = overlapOffset; j < overlapOffset + readLength; j++)
+//			{
+//				coverageBaseByBase->at(j) = 0;
+//			}
+//		}
+//	}
+//	for(UINT64 i = 0; i < edge->getSourceRead()->getReadLength(); i++)	// For the source read, clear the bases. Because this read is present in multiple places or not all reads are considered for these bases.
+//	{
+//		coverageBaseByBase->at(i) = 0;
+//	}
+//
+//	for(UINT64 i = 0; i < edge->getDestinationRead()->getReadLength(); i++)	// Similarly clear the bases covered by the destination read.
+//	{
+//		coverageBaseByBase->at(coverageBaseByBase->size() - 1 - i) = 0;
+//	}
+//
+//	UINT64 sum = 0, variance=0, count = 0, mean = 0, sd = 0;
+//
+//	for(UINT64 i = 0; i < coverageBaseByBase->size(); i++)
+//	{
+//		if(coverageBaseByBase->at(i) != 0)	// Count only the non-zero values.
+//		{
+//			sum += coverageBaseByBase->at(i);
+//			count++;
+//		}
+//	}
+//	if ( count != 0 )
+//	{
+//		mean = sum/count;	// Calculate the mean.
+//
+//		for(UINT64 i = 0; i < coverageBaseByBase->size(); i++)
+//		{
+//			if(coverageBaseByBase->at(i) != 0)	// Calculate the variance.
+//			{
+//				variance += (mean - coverageBaseByBase->at(i)) * (mean - coverageBaseByBase->at(i));
+//			}
+//		}
+//		sd = sqrt(variance/count);	// Calculate the standard deviation.
+//	}
+//	edge->coverageDepth = mean;	// Update the mean of the current edge.
+//	delete coverageBaseByBase;
+//}
 
 
 /**********************************************************************************************************************

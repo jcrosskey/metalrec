@@ -10,12 +10,6 @@
 #define READ_H_
 
 #include "Common.h"
-#include <seqan/sequence.h>
-#include <seqan/basic.h>
-#include <seqan/file.h>
-#include <seqan/modifier.h>
-#include <seqan/stream.h>
-#include <seqan/bam_io.h>
 
 class Edge;
 
@@ -29,13 +23,11 @@ class Read
 {
 	private:
 		UINT64 ID;	// Unique Identification of the read.
-		seqan::CharString readName;	// Query/Read name (original name in the input file)
-		seqan::DnaString readDnaString;	// Same as below, but with seqAn's String<Dna> implementation
-		seqan::DnaString readReverseDnaString;	// Reverse complement string of the read ( need for bidirectional graph, might not be needed in this application )
+		string readName;	// Query/Read name (original name in the input file)
+		string readDnaString;	// Same as below, but with seqAn's String<Dna> implementation
 		string cigarString;	// Cigar string, might be useful in the future. 
 		UINT32 frequency;	// Frequency of the read. Number of times this read is present in the dataset. Used in some statistical analysis.
 		UINT32 rStart;	// Alignment start position on the PacBio read
-		//UINT32 rEnd;	// Alignment end position on the PacBio read
 		UINT32 leftClip;	// Clipped length at the left end
 		UINT32 rightClip;	// Clipped length at the right end
 		UINT8 mapQV;	// Mapping quality value, smaller the better, 255 means quality is not available
@@ -55,7 +47,6 @@ class Read
 	public:
 		Read(void);	// Default constructor.
 		Read(const string & s);	// Another constructor, from alignment record in string format.
-		Read(const seqan::BamAlignmentRecord & record);	// Another constructor, from BamAlignmentRecord
 		~Read(void);	// Destructor.
 
 		UINT64 superReadID;	// ID of the (longest) read containing this read. 
@@ -65,24 +56,22 @@ class Read
 
 		/* mutators */
 		bool setRead(const string & s); 		// Set the read from alignment record string, (with generic string parsing)
-		bool setRead(const seqan::BamAlignmentRecord & record); 		// Set the read from alignment record string, (with seqAn BamStream class)
 		bool setReadID(UINT64 id); 			// Set the read ID.
 		bool setFrequency(UINT32 freq);	// Set the ferquency of the read.
 		bool setStartCoord(INT32 start_coord){startCoord = start_coord; return true;}	// Set the starting coordinate
 
 		/* accessors */
 		bool isContainedRead(void){return (superReadID == 0 ? false : true);};	// Whether the read is contained in another read
-		seqan::DnaString getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
-		seqan::DnaString getDnaStringReverse(void){return readReverseDnaString;}	// Get the forward string of the current read.
-		seqan::CharString getReadName(void){return readName;}	// Get the name of the current read.
+		string getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
+		string getReadName(void){return readName;}	// Get the name of the current read.
 		INT32 getStartCoord(void){return startCoord;}	// Get the starting coordinate of the read, with clipped part added back
 		INT32 getEndCoord(void);	// Get the ending coordinate of the read
 		UINT32 getrStart(void) {return rStart;}	// Get the leftmost alignment position on the reference sequence.
-		size_t getReadLength(void){return length(readDnaString);}	// Get the length of the string in the current read.
+		size_t getReadLength(void){return readDnaString.length();}	// Get the length of the string in the current read.
 		UINT64 getID(void) {return ID;}	// Get the read number of the current read.
 		UINT32 getFrequency(void) {return frequency;}	// Get the frequency of the current read.
 		INT32 getAlignScore(void) {return alignScore;}	// Get the alignment score
-		INT32 getMapQV(void) {return mapQV;}	// Get the mapping quality value
+		UINT8 getMapQV(void) {return mapQV;}	// Get the mapping quality value
 		bool isReverseComplemented(void) {return isReverseComplement;}	// Get the reverse complement status
 
 		vector<Edge *> * getListOfEdgesForward(void){return listOfEdgesForward;}	// Get the list of edges that contain the forward string of the current read.

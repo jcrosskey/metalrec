@@ -25,7 +25,7 @@ class Dataset
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
 		vector<Read *> *reads;	// List of reads in the dataset.
-		bool testRead(const seqan::DnaString & readDnaString);	// Test if the read is good. Contains only {A,C,G,T} and does not contain more than 80% of same base. 
+		bool testRead(const string & readDnaString);	// Test if the read is good. Contains only {A,C,G,T} and does not contain more than 80% of same base. 
 	// The dataset contains only good quality reads.
 		bool removeDupicateReads(void);	// Remove duplicate reads from the dataset. Frequency is stored for each of the reads.
 		void sortReads(void);	// Sort the reads by their start mapping coordinates
@@ -39,9 +39,8 @@ class Dataset
 
 		/* Constructors and destructor */
 		Dataset(void);	// Default constructor.
-		Dataset(const string & inputSamFile, UINT64 minOverlap, bool generic);// another constructor, from a BLASR generated sam file, do not use BamAlignmentRecord class
 		Dataset(const string & inputSamFile, UINT64 minOverlap );// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
-		Dataset(stringstream * inputSamStream, UINT64 minOverlap);// anotherconstructor, uses string stream directly instead of reading the file
+//		Dataset(stringstream * inputSamStream, UINT64 minOverlap);// anotherconstructor, uses string stream directly instead of reading the file
 		~Dataset(void);	// Default destructor.
 
 		/* mutators */
