@@ -34,12 +34,12 @@ bool compareEdgeByOverlapOffset (Edge *edge1, Edge* edge2)
 OverlapGraph::OverlapGraph(void)
 {
 	// Initialize the variables.
-	minimumOverlapLength = 0;
-	maxError = 0;
-	maxErrorRate = 0.0;
-	numberOfNodes = 0;
-	numberOfEdges = 0;
-	rubberPos = 0;
+//	minimumOverlapLength = 0;
+//	maxError = 0;
+//	maxErrorRate = 0.0;
+//	numberOfNodes = 0;
+//	numberOfEdges = 0;
+//	rubberPos = 0;
 }
 
 
@@ -55,7 +55,6 @@ OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT3
 	numberOfNodes = 0;
 	numberOfEdges = 0;
 	rubberPos = rubber_pos;
-	//rubberPos = 10;	// Need to put this in the argument list TODO
 	buildOverlapGraphFromHashTable(ht);
 }
 
@@ -84,13 +83,14 @@ OverlapGraph::~OverlapGraph()
 bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 {
 	CLOCKSTART;
-	dataSet = data_Set;	// Corresponding data set for this overlap graph
 	numberOfNodes = 0;
 	numberOfEdges = 0;
+	flowComputed = false;
+	hashTable = ht;                         /* set hashtable */
+	dataSet = ht->getDataset();             /* set dataset */
 	UINT64 counter = 0;	// Number of reads explored so far (maybe)
 
 	// initialize and reserve space for the type vectors
-	// They all have size 1 bigger than the number of UniqueReads, why??
 	vector<nodeType> *exploredReads = new vector<nodeType>;
 	exploredReads->reserve(dataSet->getNumberOfUniqueReads()+1);
 
@@ -100,7 +100,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	vector<markType> *markedNodes = new vector<markType>;
 	markedNodes->reserve(dataSet->getNumberOfUniqueReads()+1);
 
-	graph = new vector< vector<Edge *> * >;
+	graph = new vector< vector<Edge *> * >; /* initialize the graph */
 	graph->reserve(dataSet->getNumberOfUniqueReads()+1);
 
 	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i++) // Initialization, one edge list for each unique read
@@ -108,11 +108,12 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 		vector<Edge *> *newList = new vector<Edge *>;	// Vector of edges
 		graph->push_back(newList);	// Insert this vector (list) of edges into the graph
 		exploredReads->push_back(UNEXPLORED);	// Initialize all reads to be UNEXPLORED
-		queue->push_back(0);
-		markedNodes->push_back(VACANT);
+		queue->push_back(0); /* Initialize the queue that manages reads to explore */
+		markedNodes->push_back(VACANT); /* Initialize all reads to be VACANT */
 	}
 
-	UINT64 total_overlap = getAllOverlaps();
+	markContainedReads();
+
 	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++)	// i starts at 1, why?? (exploredReads' first entry for what?)
 	{
 		if(exploredReads->at(i) == UNEXPLORED && !dataSet->getReadFromID(i)->isContainedRead())
@@ -207,10 +208,202 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 }
 
 
-/**********************************************************************************************************************
-  Mark all the transitive edges of a read.
-  For Details: E.W. Myers. The fragment assembly string graph. Bioinformatics, 21(suppl 2):ii79-ii85, 2005.
- **********************************************************************************************************************/
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  markContainedReads
+ *  Description:  This function check if a read contains other small reads. 
+ *  		  If a read is contained in more than one super read then it is assigned to the longest such super read.
+ * =====================================================================================
+ */
+void OverlapGraph::markContainedReads(void)
+{
+	CLOCKSTART;
+	if(dataSet->longestReadLength == dataSet->shortestReadLength) // If all reads are of same length, then no need to do look for contained reads.
+	{
+		FILE_LOG(logINFO) << "All reads are of same length. No contained reads.";
+		CLOCKSTOP;
+		return;
+	}
+	UINT64 counter = 0;
+	for(UINT64 i = 1; i < graph->size(); i++) // For each read
+	{
+		Read *read1 = dataSet->getReadFromID(i); // Get the read
+		string readString = read1->getDnaStringForward(); // Get the forward of the read
+		string subString;
+		for(UINT64 j = 0; j < read1->getReadLength() - hashTable->getHashStringLength(); j++) // for each substring of read1 of length getHashStringLength
+		{
+			subString = readString.substr(j,hashTable->getHashStringLength()); // Get the substring from read1
+			vector<UINT64> * listOfReads=hashTable->getListOfReads(subString); // Search the substring in the hash table
+			if(!listOfReads->empty()) // If other reads contain the substring as prefix or suffix
+			{
+				for(UINT64 k = 0; k < listOfReads->size(); k++) // For each read in the list.
+				{
+					UINT64 data = listOfReads->at(k); // We used bit operation in the hash table to store read ID and orientation
+					Read *read2 = dataSet->getReadFromID(data & 0X7FFFFFFFFFFFFFFF); 	// Least significant 63 bits store the read number.
+					// Most significant 1 bits store the orientation.
+					// Orientation 0 means prefix of forward string of the read
+					// Orientation 1 means suffix of forward string of the read
+
+					if( (read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0 /* They have to have the possibility to contain first */
+							&& readString.length() > read2->getDnaStringForward().length() /* read1 has to be longer than read2 */
+							&& checkOverlapForContainedRead(read1,read2,(data >> 63),j)) // read1 need to be longer than read2 in order to contain read2
+						// Check if the remaining of the strings also match
+					{
+						if(read2->superReadID == 0) // This is the first super read found. we store the ID of the super read.
+						{
+							read2->superReadID = i;
+							counter ++;
+						}
+						else // Already found some previous super read. Now we have another super read.
+						{
+							if(readString.length() > dataSet->getReadFromID(read2->superReadID)->getReadLength()) // This super read is longer than the previous super read. Update the super read ID.
+								read2->superReadID = i;
+						}
+					}
+				}
+			}
+		}
+		if(i % 1000000 == 0)
+		{
+			FILE_LOG(logDEBUG) << setw(10) << counter << " contained reads in " << setw(10) << i << " super reads.";
+		}
+	}
+
+	// Get some statistics
+	UINT64 containedReads = 0, nonContainedReads = 0;
+	for(UINT64 i = 1; i < graph->size(); i++)
+	{
+		Read *rr = dataSet->getReadFromID(i);
+		if(rr->superReadID == 0) // Count the number of reads that are not contained by some other reads.
+			nonContainedReads++;
+		else					// Count the number of reads that are contained by some other read.
+			containedReads++;
+	}
+	FILE_LOG(logINFO) << setw(10) << nonContainedReads << " Non-contained reads. (Keep as is)";
+	FILE_LOG(logINFO)<< setw(10) << containedReads << " contained reads. (Need to change their mate-pair information)";
+	CLOCKSTOP;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  checkOverlapForContainedRead
+ *  Description:  Hash table search found that a proper substring of read1 is a prefix or suffix of read2 
+ *  		TODO need to also check the starting coordinate so that if two reads are not around the same region, don't attempt to do this 
+ *  		orient 0 means prefix of forward of the read2 
+ *  		orient 1 means suffix of forward of the read2 
+ *  		We need to check if the remaining of the stings match to see if read2 is contained in read1.
+ * =====================================================================================
+ */
+bool OverlapGraph::checkOverlapForContainedRead(Read *read1, Read *read2, UINT64 orient, UINT64 start)
+{
+	// start: index of the position where the prefix/suffix is found in read1
+	string string1=read1->getDnaStringForward(); // Get the forward of read1
+	UINT64 hashStringLength = hashTable->getHashStringLength(); 
+	UINT64 lengthRemaining1, lengthRemaining2;
+	string string2 = read2->getDnaStringForward(); // Get the string in read2 based on the orientation.
+	if(orient == 0)
+		// orient 0 read1 has read2's prefix
+		//   >--------MMMMMMMMMMMMMMM*******------> read1      M means match found by hash table
+		//            MMMMMMMMMMMMMMM*******>       read2      * means we need to check these characters for match
+	{
+		lengthRemaining1 = string1.length() - start - hashStringLength; 	// This is the remaining of read1
+		lengthRemaining2 = string2.length() - hashStringLength; 	// This is the remaining of read2
+		if(lengthRemaining1 >= lengthRemaining2)
+		{
+			return checkOverlapWithSub(string1.substr(start + hashStringLength, lengthRemaining2), string2.substr(hashStringLength, lengthRemaining2)); // If the remaining of the string match, then read2 is contained in read1
+		}
+	}
+	else                                 // orient 1, read1 has read2's suffix
+		//   >---*****MMMMMMMMMMMMMMM-------------> read1      M means match found by hash table
+		//      >*****MMMMMMMMMMMMMMM       		read2      * means we need to check these characters for match
+	{
+		lengthRemaining1 = start;
+		lengthRemaining2 = string2.length() - hashStringLength;
+		if(lengthRemaining1 >= lengthRemaining2)
+		{
+			return checkOverlapWithSub(string1.substr(start - lengthRemaining2, lengthRemaining2),  string2.substr(0, lengthRemaining2)); // If the remaining of the string match, then read2 is contained in read1
+		}
+	}
+	return false;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  checkOverlap
+ *  Description:  Checks if two read overlaps.  
+ *  		Hash table search found that a proper substring of read1 is a prefix or suffix of read2 
+ *  		Orientation 0 means prefix of forward of the read2 
+ *  		Orientation 1 means suffix of forward of the read2
+ * =====================================================================================
+ */
+bool OverlapGraph::checkOverlap(Read *read1, Read *read2, UINT64 orient, UINT64 start)
+{
+	string string1=read1->getStringForward(); // Get the forward string of read1
+	UINT64 hashStringLength = hashTable->getHashStringLength();
+	string string2 = read2->getStringForward(); // Get the string from read2. 
+	if(orient == 0)		// orient 0
+		//   >--------MMMMMMMMMMMMMMM*************> 			read1      M means match found by hash table
+		//            MMMMMMMMMMMMMMM*************------->      read2      * means we need to check these characters for match
+	{
+		if(string1.length()- start - hashStringLength >= string2.length() - hashStringLength) // The overlap must continue till the end.
+			return false;
+		return checkOverlapWithSub(string1.substr(start + hashStringLength, string1.length()-(start + hashStringLength)), string2.substr(hashStringLength,  string1.length()-(start + hashStringLength))); // If the remaining strings match.
+	}
+	else								// orient 1
+		//   	>********MMMMMMMMMMMMMMM-------------> 			read1      M means match found by hash table
+		//  >----********MMMMMMMMMMMMMMM       		    		read2      * means we need to check these characters for match
+	{
+		if(string2.length()-hashStringLength < start)
+			return false;
+		return checkOverlapWithSub(string1.substr(0, start), string2.substr(string2.length()-hashStringLength-start, start)); // If the remaining strings match.
+	}
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  checkOverlapWithSub
+ *  Description:  check if two string overlap with number of substitutions allowed, perfectly matched prefix/suffix is not included in these strings. In other words, str1 and str2 are the string to compare after the perfect matched hash string
+ * =====================================================================================
+ */
+bool OverlapGraph::checkOverlapWithSub(const string & str1, const string & str2)
+{
+	UINT64 match_len = hashTable->getHashStringLength(); /* number of perfect matched bases */
+	UINT64 overlap_len = match_len;
+	UINT64 subs = 0;                        /* number of substitutions so far */
+	UINT64 comp_len = min(str1.length(), str2.length() ); /* number of characters need to compare at the most */
+
+	bool overlap = true;
+	for ( UINT64 i=0; i <= comp_len; i++ ) {
+		if (str1.at(i) == str2.at(i))
+		{
+			match_len++;
+			overlap_len++;
+		}
+		else
+		{
+			subs++;
+			overlap_len++;
+			if (subs > maxError || subs > maxErrorRate * overlap_len)
+			{
+				overlap = false;
+				break;
+			}
+		}
+	}
+	return overlap;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  markTransitiveEdges
+ *  Description:  Mark all the transitive edges of a read.  
+ *  For Details: E.W. Myers. The fragment assembly string graph. Bioinformatics, 21(suppl 2):ii79-ii85, 2005.
+ * =====================================================================================
+ */
 bool OverlapGraph::markTransitiveEdges(UINT64 readNumber, vector<markType> * markedNodes)
 {
 
@@ -522,25 +715,59 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 
 
 
-/**********************************************************************************************************************
- * Insert all edges of a read in the overlap graph.  
- * If a read is already explored, it won't be explored against for another read again.
- **********************************************************************************************************************/
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  insertAllEdgesOfRead
+ *  Description:  Insert all edges of a read in the overlap graph 
+ *  		  If a read is already explored, it won't be explored against for another read again.
+ * =====================================================================================
+ */
 bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads)
 {
-	FILE_LOG(logDEBUG4) << "Insert all edges of read " << readNumber;
 	Read *read1 = dataSet->getReadFromID(readNumber); 	// Get the current read read1.
-	for(size_t i = 0; i < read1->getOverlapReadIDs()->size(); i++)
+	string readString = read1->getDnaStringForward(); 		// Get the forward string of read1.
+	string subString;
+	/* Shoud the scan of the string start from the second base, as in original OMEGA? QQQ 
+	 * For Now, we'll start from the beginning. Think about it, will this result in duplicates? */
+	for(UINT64 j = 0; j < read1->getReadLength()-hashTable->getHashStringLength(); j++) // For each proper substring of length getHashStringLength of read1
 	{
-		Read *r1 = dataSet->getReadFromID(read1->getOverlapReadIDs()->at(i));
-		if(!r1->isContainedRead())
-			insertEdge(read1, r1, read1->getOverlapReadOffsets()->at(i));
+		subString = readString.substr(j,hashTable->getHashStringLength());  // Get the proper substring s of read1.
+		vector<UINT64> * listOfReads=hashTable->getListOfReads(subString); // Search the string in the hash table.
+		if(!listOfReads->empty()) // If there are some reads that contain s as prefix or suffix of the read or their reverse complement
+		{
+			for(UINT64 k = 0; k < listOfReads->size(); k++) // For each such reads.
+			{
+				UINT64 data = listOfReads->at(k);			// We used bit operations in the hash table. Most significant 2 bits store orientation and least significant 62 bits store read ID.
+				UINT16 overlapOffset;
+				UINT8 orientation;
+				Read *read2 = dataSet->getReadFromID(data & 0X7FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
+				if(exploredReads->at(read2->getReadNumber())!= UNEXPLORED) 			// No need to discover the same edge again. All edges of read2 is already inserted in the graph.
+					continue;
+				if(read1->superReadID == 0 && read2->superReadID == 0 /* Both read need to be non-contained. */
+						&& read1->getID() != read2->getID() /* Do not look for overlap with itself */
+						&& (read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0 /* They have to have the possibility to contain first */
+						&& checkOverlap(read1,read2,(data >> 62),j)) /* Check if they have valid overlap */
+				{
+					orientation = data >> 63;
+					
+					if ( orientation == 0 ) {
+						overlapOffset =  j;
+						insertEdge(read1, read2, overlapOffset);
+					}
+					else
+					{
+						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+						if (overlapOffset < rubberPos) /* Overlap is opposite to the PacBio guided coordinates, see if it's too far off */
+							insertEdge(read2, read1, overlapOffset);
+					}
+				}
+			}
+		}
 	}
-	if(graph->at(readNumber)->size() != 0)	// Sort the list of edges of the current node according to the overlap offset (ascending) if there are multiple edges
-		sort(graph->at(readNumber)->begin(),graph->at(readNumber)->end(), compareEdgeByOverlapOffset); 
+	if(graph->at(readNumber)->size() != 0)
+		sort(graph->at(readNumber)->begin(),graph->at(readNumber)->end(), compareEdgeByOverlapOffset); // Sort the list of edges of the current node according to the overlap offset (ascending).
 	return true;
 }
-
 
 
 /**********************************************************************************************************************
@@ -592,6 +819,8 @@ bool OverlapGraph::removeEdgesOfRead(Read * read)
 	}
 	return true;
 }
+
+
 /**********************************************************************************************************************
   Merge two edges in the overlap graph.
  **********************************************************************************************************************/

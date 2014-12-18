@@ -10,12 +10,13 @@
 #define OVERLAPGRAPH_H_
 #include "Common.h"
 #include "Dataset.h"
+#include "HashTable.h"
 #include "Edge.h"
 
 /**********************************************************************************************************************
- * Class to store the overlap graph, hash table is no longer used here. 
- * Overlap graph is a directed graph, built from dataSet including all reads' information and pairwise alignment
- * between the reads.
+ * Class to store the overlap graph, hash table is used to find overlaps, no more pairwise alignment is involved
+ * Overlap graph is a directed graph, since the strand is already decided by the reads' alignments to the PacBio read.
+ * Mismatches of substitution type is allowed for now
  **********************************************************************************************************************/
 
 enum nodeType {
@@ -55,6 +56,9 @@ class OverlapGraph
 
 		bool buildOverlapGraphFromHashTable(HashTable *ht);	// Build the overlap graph using dataSet.
 		void markContainedReads(void);								// Find superReads for each read and mark them as contained read.
+		bool checkOverlapForContainedRead(Read *read1, Read *read2, UINT64 orient, UINT64 start);
+		bool checkOverlap(Read *read1, Read *read2, UINT64 orient, UINT64 start);
+		bool checkOverlapWithSub(const string & str1, const string & str2);
 		bool markTransitiveEdges(UINT64 readNumber, vector<markType> * markedNodes); // Mark transitive edges of a read.
 		bool insertEdge(Edge * edge); 	// Insert an edge in the overlap graph.
 		bool insertEdge(Read *read1, Read *read2, UINT16 overlapOffset); // Insert an edge in the overlap graph.
