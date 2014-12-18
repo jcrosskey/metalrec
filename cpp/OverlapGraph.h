@@ -38,15 +38,16 @@ class OverlapGraph
 		UINT64 minimumOverlapLength;	// Length of the minimum overlap to consider two reads as overlapping
 		UINT32 maxError;	// maximum number of substitutions allowed in overlap between Illumina reads
 		float maxErrorRate;	// maximum error rate
+		INT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
+
 		UINT64 numberOfNodes;	// Number of nodes in the overlap graph.
 		UINT64 numberOfEdges;	// Number of edges in the overlap graph.
-		INT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
 
 		Dataset * dataSet; 	// Pointer to the dataset containing all the reads.
 		HashTable *hashTable;           /* pointer to the hash table */
 		vector< vector<Edge *> * > *graph;	// Adjacency list of the graph.
 
-		bool mergeList(Edge *edge1, Edge *edge2, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets);
+		bool mergeList(Edge *edge1, Edge *edge2, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listOfSubstitutionPoses);
 
 	public:
 		bool flowComputed;	// Flag to check wheather the flow is computed or not.
@@ -57,11 +58,11 @@ class OverlapGraph
 		bool buildOverlapGraphFromHashTable(HashTable *ht);	// Build the overlap graph using dataSet.
 		void markContainedReads(void);								// Find superReads for each read and mark them as contained read.
 		bool checkOverlapForContainedRead(Read *read1, Read *read2, UINT64 orient, UINT64 start);
-		bool checkOverlap(Read *read1, Read *read2, UINT64 orient, UINT64 start);
-		bool checkOverlapWithSub(const string & str1, const string & str2);
+		bool checkOverlap(Read *read1, Read *read2, UINT64 orient, UINT64 start, UINT16 & numSub, vector<UINT64> * listSubs);
+		bool checkOverlapWithSub(const string & str1, const string & str2, UINT16 & numSub, vector<UINT64> * listSubs, UINT64 orient);
 		bool markTransitiveEdges(UINT64 readNumber, vector<markType> * markedNodes); // Mark transitive edges of a read.
 		bool insertEdge(Edge * edge); 	// Insert an edge in the overlap graph.
-		bool insertEdge(Read *read1, Read *read2, UINT16 overlapOffset); // Insert an edge in the overlap graph.
+		bool insertEdge(Read *read1, Read *read2, UINT16 overlapOffset, UINT16 numSub, vector<UINT64> *listSubs); // Insert an edge in the overlap graph.
 		UINT64 contractCompositePaths(void); 	// Contract composite paths in the overlap graph.
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
 		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.

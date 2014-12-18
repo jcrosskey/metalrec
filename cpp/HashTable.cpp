@@ -33,20 +33,17 @@ UINT64 getPrimeLargerThanNumber(UINT64 number)
  **********************************************************************************************************************/
 HashTable::HashTable(void)
 {
-	// Initialize the variables.
-	hashStringLength = 0;
-	numberOfHashCollision = 0;
 }
 
 
 /**********************************************************************************************************************
   Add Database in hashTable
  **********************************************************************************************************************/
-bool HashTable::insertDataset(Dataset* d, UINT64 minOverlapLength)
+bool HashTable::insertDataset(Dataset* d, UINT64 hashLength)
 {
 	CLOCKSTART;
 	dataSet=d;
-	hashStringLength = minOverlapLength - 1;
+	hashStringLength = hashLength;
 	numberOfHashCollision = 0;
 	UINT64 size = getPrimeLargerThanNumber(d->getNumberOfUniqueReads() * 4 + 1);  // Size should be at least twice the number of entries in the hash table to reduce hash collision.
 	setHashTableSize(size);
@@ -55,7 +52,7 @@ bool HashTable::insertDataset(Dataset* d, UINT64 minOverlapLength)
 		hashRead(d->getReadFromID(i)); 	// Insert the read in the hash table.
 		if(i%1000000 == 0)
 		{
-			FILE_LOG(logDEBUG) << setw(10) << i << " reads inserted in the hash table. Hash collisions: " << setw(10) << numberOfHashCollision;	// Print some statistics.
+			FILE_LOG(logDEBUG) << i << " reads inserted in the hash table. Hash collisions: " << numberOfHashCollision;	// Print some statistics.
 		}
 	}
 	FILE_LOG(logINFO) << "Total Hash collisions: " << numberOfHashCollision;
@@ -72,9 +69,8 @@ bool HashTable::insertDataset(Dataset* d, UINT64 minOverlapLength)
 	}
 	FILE_LOG(logINFO) <<"Longest list size in the hash table is: " << longestSize;
 	FILE_LOG(logDEBUG2) << "First read in this list: " ;
-	FILE_LOG(logDEBUG2) << this->dataSet->getReadFromID(readID & 0X3FFFFFFFFFFFFFF)->getStringForward();
-	FILE_LOG(logDEBUG2) << this->dataSet->getReadFromID(readID & 0X3FFFFFFFFFFFFFF)->getStringReverse(); 
-	FILE_LOG(logDEBUG2) << "Orientation: " << (readID >> 63) << endl;	// First bit indicates if it's a prefix or a suffix
+	FILE_LOG(logDEBUG2) << this->dataSet->getReadFromID(readID & 0X3FFFFFFFFFFFFFF)->getDnaStringForward();
+	FILE_LOG(logDEBUG2) << "Orientation: " << (readID >> 62) << endl;	// First bit indicates if it's a prefix or a suffix
 
 	CLOCKSTOP;
 	return true;
@@ -86,7 +82,7 @@ bool HashTable::insertDataset(Dataset* d, UINT64 minOverlapLength)
  **********************************************************************************************************************/
 bool HashTable::hashRead(Read *read)
 {
-	string forwardRead = read->getStringForward();
+	string forwardRead = read->getDnaStringForward();
 
 	string prefix = forwardRead.substr(0,hashStringLength); 	// Prefix of the forward string.
 	string suffix = forwardRead.substr(forwardRead.length() - hashStringLength,hashStringLength);	// Suffix of the forward string.
@@ -147,20 +143,20 @@ UINT64 HashTable::hashFunction(string subString)
  **********************************************************************************************************************/
 bool HashTable::insertIntoTable(Read *read, string subString, UINT64 orientation)
 {
-	UINT64 ID = read->getReadNumber() | (orientation << 63); 	// Most significant one bit is used to store the location (prefix or suffix) of the string in the read.
+	UINT64 ID = read->getID() | (orientation << 62); 	// Most significant one bit is used to store the location (prefix or suffix) of the string in the read.
 	// 0 = 0 means prefix of the read string.
 	// 1 = 1 means suffix of the read string.
-	// Read number is stored is least significant 63 bits.
+	// Read number is stored is least significant 62 bits.
 	UINT64 currentCollision =0;
 
 	UINT64 index = hashFunction(subString);	// Get the index using the hash function.
 	while(!hashTable->at(index)->empty())
 	{
 		UINT64 data = hashTable->at(index)->at(0);	// First read in the list
-		UINT64 readNumber = data & 0X1FFFFFFFFFFFFFFF;	// Read number of this read, stored in the last 63 bits of the 64-bit number
-		UINT64 orient = data >> 63;	// orientation now means prefix or suffix
+		UINT64 readNumber = data & 0X3FFFFFFFFFFFFFFF;	// Read number of this read, stored in the last 62 bits of the 64-bit number
+		UINT64 orient = data >> 62;	// orientation now means prefix or suffix
 
-		string str = dataSet->getReadFromID(readNumber)->getStringForward();
+		string str = dataSet->getReadFromID(readNumber)->getDnaStringForward();
 		string subStr = (orient == 0)  ? str.substr(0,hashStringLength) : str.substr(str.length() - hashStringLength, hashStringLength);
 		if(subStr == subString)
 			break;	// break if the hashed string is the same as the subString to be hashed
@@ -190,9 +186,9 @@ vector<UINT64> * HashTable::getListOfReads(string subString)
 	{
 
 		UINT64 data = hashTable->at(index)->at(0);
-		UINT64 readNumber = data & 0X1FFFFFFFFFFFFFFF;	// Read number is stored in least significant 63 bits.
-		UINT64 orient = data >> 63; 	// Orientation is stored in the most significant two bits.
-		string str = dataSet->getReadFromID(readNumber)->getStringForward();
+		UINT64 readNumber = data & 0X3FFFFFFFFFFFFFFF;	// Read number is stored in least significant 62 bits.
+		UINT64 orient = data >> 62; 	// Orientation is stored in the most significant two bits.
+		string str = dataSet->getReadFromID(readNumber)->getDnaStringForward();
 		string subStr = (orient == 0) ? str.substr(0,hashStringLength) : str.substr(str.length() - hashStringLength, hashStringLength);
 		if(subStr == subString)	// subString present in the current index
 			break;

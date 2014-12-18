@@ -26,9 +26,8 @@ class HashTable{
 		void setHashTableSize(UINT64 size); 	// Set the size of the hash table.
 	public:
 		HashTable(void);	// Default constructor.
-		HashTable(Dataset *d);	// Another constructor.
 		~HashTable();	// Destructor.
-		bool insertDataset(Dataset *d, UINT64 minOverlapLength);	// Insert the dataset in the hash table.
+		bool insertDataset(Dataset *d, UINT64 hashLength);	// Insert the dataset in the hash table.
 		vector<UINT64> * getListOfReads(string subString); 	// Get the list of reads that contain subString as prefix or suffix.
 		UINT64 hashFunction(string subString); 	// Hash function.
 		UINT64 getHashTableSize(void){return hashTableSize;}	// Get the size of the hash table.

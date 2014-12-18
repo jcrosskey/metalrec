@@ -25,17 +25,17 @@ Edge::Edge(void)
 /**********************************************************************************************************************
 	Another Constructor
 **********************************************************************************************************************/
-Edge::Edge(Read *from, Read *to, UINT64 length)
+Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs) 	// Another constructor.
 {
-	makeEdge(from, to, length);
+	makeEdge(from, to, length, numSub, listSubs);
 }
 
 /**********************************************************************************************************************
  	 Another Constructor
 **********************************************************************************************************************/
-Edge::Edge(Read *from, Read *to, UINT64 length, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets)
+Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
 {
-	makeEdge(from, to, length, listReads, listOverlapOffsets);
+	makeEdge(from, to, length, numSub, listReads, listOverlapOffsets, listSubs);
 }
 
 /**********************************************************************************************************************
@@ -51,11 +51,12 @@ Edge::~Edge()
 /**********************************************************************************************************************
 	Function to insert a simple edge
 **********************************************************************************************************************/
-bool Edge::makeEdge(Read *from, Read *to, UINT64 length)
+bool Edge::makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs)
 {
 	source = from;
 	destination = to;
 	overlapOffset = length;
+	numOfSubstitions = numSub;
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
@@ -68,17 +69,21 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length)
 	listOfOverlapOffsets = new vector<UINT16>;
 	listOfOverlapOffsets->resize(listOfOverlapOffsets->size());	// Resize to reduce space.
 
+	listOfSubstitutionPoses = listSubs;
+	listOfSubstitutionPoses->resize(listOfSubstitutionPoses->size());	// Resize to reduce space.
+
 	return true;
 }
 
 /**********************************************************************************************************************
 	Function to add a composite edge
 **********************************************************************************************************************/
-bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets)
+bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
 {
 	source = from;
 	destination = to;
 	overlapOffset = length;
+	numOfSubstitions = numSub;
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
@@ -90,6 +95,9 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  vector<UINT64> *listRe
 
 	listOfOverlapOffsets = listOverlapOffsets;
 	listOfOverlapOffsets->resize(listOfOverlapOffsets->size());	// Resize to reduce space.
+
+	listOfSubstitutionPoses = listSubs;
+	listOfSubstitutionPoses->resize(listOfSubstitutionPoses->size());	// Resize to reduce space.
 
 	return true;
 }
