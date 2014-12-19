@@ -224,6 +224,7 @@ void OverlapGraph::markContainedReads(void)
 		Read *read1 = dataSet->getReadFromID(i); // Get the read
 		string readString = read1->getDnaStringForward(); // Get the forward of the read
 		string subString; /* sub string of read1 with length hashStringLength */
+		UINT64 readNumber = read1->getID();
 		for(UINT64 j = 0; j < read1->getReadLength() - hashTable->getHashStringLength(); j++) // for each substring of read1 of length getHashStringLength
 		{
 			subString = readString.substr(j,hashTable->getHashStringLength()); // Get the substring from read1
@@ -234,12 +235,21 @@ void OverlapGraph::markContainedReads(void)
 				{
 					UINT64 data = listOfReads->at(k); // We used bit operation in the hash table to store read ID and orientation
 					Read *read2 = dataSet->getReadFromID(data & 0X3FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
+					UINT64 readNumber2 = read2->getID();
 					// Most significant 1 bits store the orientation.
 					// Orientation 0 means prefix of forward string of the read
 					// Orientation 1 means suffix of forward string of the read
 
+					bool contain_possible; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
+					if ( readNumber < readNumber2 ) {
+						contain_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
+					}
+					else
+					{
+						contain_possible = ((read2->getEndCoord() - read1->getStartCoord() + rubberPos) > 0);
+					}
 					if( readString.length() > read2->getDnaStringForward().length() /* read1 has to be longer than read2, also eliminate the possibility of comparing a read to itself */
-							&& (read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0 /* they have to have the possibility to contain first */
+							&& contain_possible /* they have to have the possibility to contain first */
 							&& checkOverlapForContainedRead(read1,read2,(data >> 62),j)) // Check if the remaining of the strings also match
 					{
 						if(read2->superReadID == 0) // This is the first super read found. we store the ID of the super read.
@@ -582,7 +592,7 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 				if(edge->getSourceRead()->getID() < edge->getDestinationRead()->getID() && edge->getListOfReads()->empty() && edge->flow == 0 ) 
 				{
 					listOfEdges.push_back(edge); // Put in the list of edges to be removed.
-					FILE_LOG(logDEBUG1)  << "removing edge ("<< edge->getSourceRead()->getID()<<","  << edge->getDestinationRead()->getID()<<") OverlapOffset : " << edge->getOverlapOffset(); 
+					FILE_LOG(logDEBUG4)  << "removing edge ("<< edge->getSourceRead()->getID()<<","  << edge->getDestinationRead()->getID()<<") OverlapOffset : " << edge->getOverlapOffset(); 
 				}
 			}
 		}
@@ -592,6 +602,92 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 	FILE_LOG(logDEBUG) << "Simple edges without flow removed: " << listOfEdges.size();
 	CLOCKSTOP;
 	return listOfEdges.size();
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  removeDeadEndNodes
+ *  Description:  Remove nodes that do not contribute to the graph, and the edges adjacent to them.
+ *  Definition of the dead-end nodes:
+ *  1. The node itself and all its neighbors only have in-edges or out-edges.
+ *  2. The edge between the node and its neighbor should satisfy:
+ *  	- Overlap offset in the edge is less than 200 bps (at most adding 200 bps on top of one read, not much. Currently implemented) 
+ *  	OR
+ *  	- Number of reads contained in the edge is smaller than 5. Some edge could have many overlapping reads each with tiny overlap offset,
+ *  	  In this case the resulted contig is not going to be big any way. Therefore this is not used. 
+ * =====================================================================================
+ */
+UINT64 OverlapGraph::removeDeadEndNodes(void)
+{
+	CLOCKSTART;
+	vector <UINT64> listOfNodes; // for saving nodes that should be deleted
+
+	if ( getNumberOfNodes() < 3){           /* If there are two nodes in the graph, they are connected. If removed, the graph will have nothing left!! */
+		FILE_LOG(logINFO) << "Number of nodes in graph is " << getNumberOfNodes() << ", cannot reduce any more";
+		return 0;
+	}
+	else{
+		for(UINT64 i = 1; i < graph->size(); i++) // For each read.
+		{
+			if(!graph->at(i)->empty())	// If the read has some out edges.
+			{
+				UINT64 flag = 0, inEdge = 0 , outEdge = 0;
+				for(UINT64 j=0; j < graph->at(i)->size(); j++) // For each edge going out from this node
+				{
+					Edge * edge = graph->at(i)->at(j);
+					// Break case:
+					// 1. if composite edge is more than deadEndLength reads
+					// 2. if the edge is loop for the current node
+					// 3. if the string formed in this edge is longer than deadEndBp (500) (JJ)
+					// Then flag=1 and exit the loop
+					//if(edge->getListOfReads()->size() > deadEndLength || getStringInEdge(edge).size() > deadEndBp || edge->getSourceRead()->getReadNumber() == edge->getDestinationRead()->getReadNumber())
+					if(edge->getListOfReads()->size() > deadEndLength || edge->getSourceRead()->getReadNumber() == edge->getDestinationRead()->getReadNumber())
+					{
+						flag = 1;
+						break;
+					}
+
+					if(edge->getOrientation() == 0 || edge->getOrientation() == 1)
+						inEdge++;
+					else
+						outEdge++;
+				}
+				if(flag == 0) // If not break case
+				{
+					if( (inEdge > 0 && outEdge == 0) || (inEdge == 0 && outEdge > 0)) // only one type of simple edges
+					{
+						listOfNodes.push_back(i);
+					}
+				}
+			}
+		}
+
+		UINT64 edgesRemoved = 0;
+		vector <Edge *> listOfEdges;
+		for(UINT64 i = 0 ; i < listOfNodes.size(); i++)
+		{
+			listOfEdges.clear();
+			if(!graph->at(listOfNodes.at(i))->empty())	// If the read has some edges.
+			{
+				edgesRemoved += graph->at(listOfNodes.at(i))->size();
+				//FILE_LOG(logDEBUG1) << "Removing dead-end node " << listOfNodes.at(i) ;
+				for(UINT64 j=0; j < graph->at(listOfNodes.at(i))->size(); j++) // For each edge
+				{
+					listOfEdges.push_back(graph->at(listOfNodes.at(i))->at(j));
+					FILE_LOG(logDEBUG1) << "Removing dead-end node edge ( " <<  graph->at(listOfNodes.at(i))->at(j)->getSourceRead()->getReadNumber() << ", " << graph->at(listOfNodes.at(i))->at(j)->getDestinationRead()->getReadNumber() << ") Length: " << getStringInEdge(graph->at(listOfNodes.at(i))->at(j)).length();
+				}
+				for(UINT64 j = 0; j< listOfEdges.size(); j++)
+				{
+					removeEdge(listOfEdges.at(j));							// Remove all the edges of the current node.
+				}
+			}
+		}
+		FILE_LOG(logDEBUG)<< "Dead-end nodes removed: " << listOfNodes.size();
+		FILE_LOG(logDEBUG)<<  "Total Edges removed: " << edgesRemoved;
+		CLOCKSTOP;
+		return listOfNodes.size();
+	}
 }
 
 
@@ -674,7 +770,7 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 		for(UINT64 i = 0; i < contigEdges.size(); i++) 
 		{
 			string s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge  (" << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << s.length() << " Coverage: " << contigEdges.at(i)->coverageDepth << endl;
+			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  " Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
 			sum += s.length();
 			//contigFilePointer << s << endl;  // save 100 BP in each line.
 			UINT32 start=0;
@@ -741,34 +837,61 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 				UINT16 overlapOffset;
 				UINT8 orientation;
 				Read *read2 = dataSet->getReadFromID(data & 0X3FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
+				UINT64 readNumber2 = read2->getID();
 
 				/* See if the edge between the two reads has already been found, if so, do not try to find the same edge again.
 				 * For the overlap between two reads, if there is mismatch, there are two chances to find them. 
 				 * Cannot simply depend on if one node has been explored or not. */
-				if(isEdgePresent(readNumber, read2->getID()) || isEdgePresent(read2->getID(), readNumber))
+				if(isEdgePresent(readNumber, readNumber2) || isEdgePresent(readNumber2, readNumber))
 					continue;
 
 				/* If no errors are allowed, then every pair of reads only need to be checked once */
-				if ( maxError == 0 && maxErrorRate == 0 && exploredReads->at(read2->getID())!= UNEXPLORED )
+				if ( maxError == 0 && maxErrorRate == 0 && exploredReads->at(readNumber2)!= UNEXPLORED )
 					continue;
 
 				UINT16 numSub;
 				vector<UINT64> *listSubs = new vector<UINT64>;
+
+				bool overlap_possible; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
+				if ( readNumber < readNumber2 ) {
+					overlap_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
+				}
+				else
+				{
+					overlap_possible = ((read2->getEndCoord() - read1->getStartCoord() + rubberPos) > 0);
+				}
 				if(read1->superReadID == 0 && read2->superReadID == 0 /* Both read need to be non-contained. */
-						&& read1->getID() != read2->getID() /* Do not look for overlap with itself */
-						&& (read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0 /* They have to have the possibility to contain first */
-						&& checkOverlap(read1,read2,(data >> 62),j, numSub, listSubs)) /* Check if they have valid overlap */
+						&& readNumber != readNumber2 /* Do not look for overlap with itself */
+						&& overlap_possible /* They have to have the possibility to contain first */
+						&& checkOverlap(read1, read2, (data >> 62), j, numSub, listSubs)) /* Check if they have valid overlap */
 				{
 					orientation = data >> 62;
 					
-					if ( orientation == 0 ) {
+					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
+					// read1 	---------MMMMMMMMMMMM
+					// read2		 MMMMMMMMMMMM-----------
+					if ( orientation == 0 && readNumber < readNumber2 ) {
 						overlapOffset =  j;
 						insertEdge(read1, read2, overlapOffset, numSub, listSubs);
 						FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
 						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
 						FILE_LOG(logDEBUG4) << " ";
 					}
-					else
+					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
+					// read1		 MMMMMMMMMMMM-----------
+					// read2 	---------MMMMMMMMMMMM
+					else if ( orientation == 1 && readNumber > readNumber2)
+					{
+						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+						insertEdge(read2, read1, overlapOffset, numSub, listSubs);
+						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
+						FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
+						FILE_LOG(logDEBUG4) << " ";
+					}
+					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
+					// read1		 MMMMMMMMMMMM-----------
+					// read2 	          ---------MMMMMMMMMMMM
+					else if (orientation == 1 && readNumber < readNumber2)
 					{
 						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
 						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
@@ -778,6 +901,21 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 							insertEdge(read2, read1, overlapOffset, numSub, listSubs);
 						else
 							FILE_LOG(logDEBUG4) << "!!!!!!Overlap is to the opposite direction too much!!!!!!";
+					}
+					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
+					// read1 	          ---------MMMMMMMMMMMM
+					// read2		 MMMMMMMMMMMM-----------
+					// readNumber > readNumber2 and orientation == 0
+					else {
+						overlapOffset = j;
+						FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
+						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
+						FILE_LOG(logDEBUG4) << " ";
+						if (overlapOffset < rubberPos) /* Overlap is opposite to the PacBio guided coordinates, see if it's too far off */
+							insertEdge(read1, read2, overlapOffset, numSub, listSubs);
+						else
+							FILE_LOG(logDEBUG4) << "!!!!!!Overlap is to the opposite direction too much!!!!!!";
+						
 					}
 				}
 			}
@@ -1025,7 +1163,7 @@ bool OverlapGraph::calculateFlow(string inputFileName, string outputFileName)
 	{
 		if( (dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges) != 0 ) // edges to and from the super source and super sink
 		{
-			FILE_LOG(logDEBUG2) << "Found node " << i << " corresponding to index " << currentIndex;
+			FILE_LOG(logDEBUG4) << "Found node " << i << " corresponding to index " << currentIndex;
 			listOfNodes->at(i) = currentIndex;					// Mapping between original node ID and cs2 node ID
 			listOfNodesReverse->at(currentIndex) = i;			// Mapping between original node ID and cs2 node ID
 			FLOWLB[0] = 0; FLOWUB[0] = 1000000; COST[0] = 0;
@@ -1150,10 +1288,12 @@ string OverlapGraph::getStringInEdge(Edge *edge)
 
 	UINT64 previousLength = read1_string.length(), substringLength;
 
+//	cout << "number of reads in the edge: " << edge->getListOfReads()->size();
+//	cout << "number of overlap offsets in the edge: " << edge->getListOfOverlapOffsets()->size();
 	// Going through all the reads on the edge (if this edge is composite)
 	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)
 	{
-		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward();
+		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward(); /* next read in the edge */
 
 		substringLength =  readTemp.length() + edge->getListOfOverlapOffsets()->at(i) - previousLength;	// Length of the added substring
 		if( edge->getListOfOverlapOffsets()->at(i) ==  previousLength)	// Overlap offset is equal to the length of the previous read (not really overlap, two reads just touch each other at the ends)
@@ -1169,7 +1309,7 @@ string OverlapGraph::getStringInEdge(Edge *edge)
 	}
 	else
 	{
-		substringLength = edge->getListOfOverlapOffsets()->at(0);
+		substringLength = read2_string.length() + edge->getOverlapOffset() - returnString.length();
 		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
 	}
 	return returnString;

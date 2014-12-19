@@ -71,6 +71,7 @@ class OverlapGraph
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
 		bool mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
 		UINT64 removeAllSimpleEdgesWithoutFlow();	// Remove simple edges without flow
+		UINT64 removeDeadEndNodes(void); /* Remove dead end nodes from graph */
 		bool updateReadLocations(Edge *edge);	// Update the location of all the reads in the current edge. This function is called when a new edge is inserted.
 		bool removeReadLocations(Edge *edge);	// Remove the location of all the reads from the current edge. This function is called when an edge is removed.
 		UINT64 getNumberOfEdges(void){return numberOfEdges;}	// Get the number of edges in the overlap graph.
