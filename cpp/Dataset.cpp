@@ -9,7 +9,7 @@
 
 /**********************************************************************************************************************
  * Function to compare two reads by their start mapping coordinate. Used for sorting.
- * If two reads have same start mapping coordinate, sort by their lengths.
+ * If two reads have same start mapping coordinate, sort by their lengths (i.e. by their ending coordinates).
  **********************************************************************************************************************/
 bool compareReads (Read *read1, Read *read2)
 {
@@ -42,7 +42,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 	CLOCKSTART;
 	// Initialize the variables.
 	numberOfUniqueReads = 0;
-	numberOfReads = 0;
+	numberOfReads = 0;                      /* number of good reads in the dataset */
 	numberOfNonContainedReads = 0;
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
@@ -50,7 +50,6 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 	minimumOverlapLength = minOverlap;
 	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
-	//UINT64 counter = 0;
 	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
 	ifstream samIn;
@@ -104,67 +103,6 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 	CLOCKSTOP;
 }
 
-
-///**********************************************************************************************************************
-// * Another constructor, from BLASR generated sam file in piped stream instead of reading the file, TODO: fix this function
-// **********************************************************************************************************************/
-//Dataset::Dataset(stringstream * inputSamStream, UINT64 minOverlap)
-//{
-//	CLOCKSTART;
-//	// Initialize the variables.
-//	numberOfUniqueReads = 0;
-//	numberOfReads = 0;
-//	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
-//	longestReadLength = 0X0000000000000000;
-//	reads = new vector<Read *>;
-//	minimumOverlapLength = minOverlap;
-//	//UINT64 counter = 0;
-//	PacBioReadName = Utils::getFilename(inputSamFile);
-//	UINT64 goodReads = 0, badReads = 0;
-//
-//	/** get reads from sam file **/
-//	string line;
-//	while(inputSamStream->good())
-//	{
-//		char c = inputSamStream->peek();	// See if the line starts with @, if so, it's header line, ignore until EOL
-//		if (c == '@')
-//		{
-//			FILE_LOG(logDEBUG2) << "header line";
-//			inputSamStream->ignore(maxCharInLine, '\n');
-//		}
-//		else	// not header line, alignment record
-//		{
-//			stringstream record;
-//			inputSamStream >> record;
-//			/* this function has some problem... need to be fixed TODO */
-//			getline(inputSamStream, line);
-//			Read *r = new Read(line);
-//			FILE_LOG(logDEBUG2) << "Read in read: " << r->readName;
-//			if (testRead(r->getDnaStringForward))
-//			{
-//				UINT32 len = r->getReadLength();
-//				if (len > longestReadLength)
-//					longestReadLength = len;
-//				if (len < shortestReadLength)
-//					shortestReadLength = len;
-//				reads.push_back(r);
-//				numberOfReads++;
-//				goodReads++;
-//			}
-//			else
-//				badReads++;
-//		}
-//	}
-//
-//	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
-//	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
-//	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
-//	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
-//	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
-//	sortReads();
-//	removeDupicateReads();	// Remove duplicated reads for the dataset.
-//	CLOCKSTOP;
-//}
 
 /**********************************************************************************************************************
   Default destructor

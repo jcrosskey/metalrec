@@ -66,6 +66,7 @@ class OverlapGraph
 		UINT64 contractCompositePaths(void); 	// Contract composite paths in the overlap graph.
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
 		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
+		bool printGraph(string outputFastaName);	// Save the longest contig in the outputFastaName file
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
@@ -80,6 +81,7 @@ class OverlapGraph
 		bool setRubberPos(const INT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
 		Edge *findEdge(UINT64 source, UINT64 destination);	// Find an edge from source to destination in the overlap graph.
 		bool isEdgePresent(UINT64 source, UINT64 destination);	// Check if an edge is present in the overlap graph between source and destination.
+		UINT64 popBubbles(void);	//If there is more than 1 edges connecting a pair of same nodes, pick one if possible
 		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.
 		bool calculateFlow(string inputFileName, string outputFileName);									// Calculate the minimum cost flow of the overlap graph.
 		string getStringInEdge(Edge *edge);	// Get the string in an edge by overlapping the ordered reads in the edge.
@@ -88,7 +90,5 @@ class OverlapGraph
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.
 		UINT64 calculateEditDistance(const std::string &s1, const std::string &s2);	// Find the edit distance between two strings.
 };
-
-
 
 #endif /* OVERLAPGRAPH_H_ */

@@ -20,7 +20,7 @@
 int loglevel; // logging level in integer format, for different levels of verbosity
 
 void usage();
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth);
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName);
 
 /************************
  * Help usage
@@ -37,7 +37,9 @@ void usage()
 		<< std::endl
 		<< "  [OPTION]" << std::endl
 		<< "    -h/--help" << std::endl
-		<< "    -f\tOutput file name prefix (default: output)" << std::endl    // all output file with have this name with different extensions.
+		<< "    -f\tOutput file name prefix (default: metalrec)" << std::endl    // all output file with have this name with different extensions.
+		<< "    -od\tOutput directory (default: ./ current working directory)" << std::endl    // output directory
+		<< "    -o\tFasta files full path name with corrected sequence (default: outputDir + inputSam.fasta)" << std::endl    // output directory
 		<< "    -k\thash string length (kmer length, default: 31)" << std::endl  // hash string length
 		<< "    -r\trubber length (default: 10)" << std::endl  // hash string length
 		<< "    -e\tMaximum (substitution) errors allowed in the overlap (default: 0)" << std::endl    // Maximum (substitution) errors allowed in the overlap between Illumina reads
@@ -50,9 +52,9 @@ void usage()
 /**********************************************************************************************************************
   Parse the input arguments
  **********************************************************************************************************************/
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth)
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName)
 {
-	allFileName = "output";
+	allFileName = "metalrec";
 	minimumOverlapLength = 0;
 	hashStringLength = 31;
 	maxError = 0;
@@ -60,14 +62,11 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 	rubPos = 10;
 	useCoverageDepth = true;
 	inputSamFile = "";
+	outputDir = "./";
+	outputFastaName = "";
 	FILELog::ReportingLevel();	// Initialize the log level to the default (INFO)
 	vector<string> argumentsList;
-	//cout << "PRINTING ARGUMENTS" << endl;
-	//for(UINT64 i = 0; i < argc; i++)
-	//{
-	//	cout << argv[i] << ' ';
-	//}
-	cout << endl << endl;
+	cout << endl;
 	while(argc--)
 		argumentsList.push_back(*argv++);
 
@@ -100,6 +99,10 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 			maxErrorRate = atof(argumentsList[++i].c_str());
 		else if (argumentsList[i] == "-r")
 			rubPos = atoi(argumentsList[++i].c_str());
+		else if (argumentsList[i] == "-od")
+			outputDir = argumentsList[++i];
+		else if (argumentsList[i] == "-o")
+			outputFastaName = argumentsList[++i];
 		else if (argumentsList[i] == "-log"){
 			try{
 				FILELog::ReportingLevel() = FILELog::FromString(argumentsList[++i]);
@@ -144,6 +147,10 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 		usage();
 		exit(0);
 	}
+	Utils::mkdirIfNonExist(outputDir);
+	if (outputFastaName.size() == 0)
+		outputFastaName = outputDir + "/" + Utils::getFilename(inputSamFile) + ".fasta";
+
 	FILE_LOG(logDEBUG) << "input sam file: " << inputSamFile;
 	FILE_LOG(logDEBUG) << "output file name prefix: " << allFileName;
 	FILE_LOG(logDEBUG) << "minimum overlap length: " << minimumOverlapLength;
@@ -162,13 +169,13 @@ int main(int argc, char **argv)
 {
 	CLOCKSTART;
 	/** Parse command line arguments **/
-	string inputSamFile, allFileName;
+	string inputSamFile, allFileName, outputDir, outputFastaName;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError;
 	float maxErrorRate;
 	UINT32 rubberPos;
 	bool useCoverageDepth;
-	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, hashStringLength, maxError, rubberPos, maxErrorRate, useCoverageDepth);
+	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, hashStringLength, maxError, rubberPos, maxErrorRate, useCoverageDepth, outputDir, outputFastaName);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 	FILE_LOG(logDEBUG1) << "Parsing argument list finished";
 	//cout << "logging level is " << loglevel << endl;	// For debugging only
@@ -183,12 +190,14 @@ int main(int argc, char **argv)
 	HashTable *ht = new HashTable();
 	ht->insertDataset(dataSet, hashStringLength);
 	OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-	dataSet->saveReads(allFileName + "_reads.fasta");
-	graph->calculateFlow(allFileName+"_flow.input", allFileName+"_flow.output");
+	//dataSet->saveReads(allFileName + "_reads.fasta");
+	graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
 	FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
 	graph->removeAllSimpleEdgesWithoutFlow();
 	graph->simplifyGraph();
-	graph->printGraph(allFileName+"_graph.gdl", allFileName+"_contigs.fasta");
+	if (loglevel > 3)
+		graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
+	graph->printGraph(outputFastaName);
 
 
 	delete dataSet;
