@@ -759,21 +759,25 @@ bool OverlapGraph::printGraph(string outputFastaName)
 	{
 		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByStringLength);	// Sort the contigs by their total string length
 		//reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
+		/* Output the longest one for result */
+		ofstream outputContigFilePointer;
+		outputContigFilePointer.open(outputFastaName.c_str());
+		if(!outputContigFilePointer.is_open())
+			MYEXIT("Unable to open file: " + outputFastaName);
+		string s = getStringInEdge(contigEdges.at(contigEdges.size()-1)); // get the string in the longest edge. This function need to be rewritten too.
+		outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
+		UINT32 start=0;
+		do
+		{
+			outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+			start+=100;
+		} while (start < s.length());
+		outputContigFilePointer.close();
 	}
-	/* Output the longest one for result */
-	ofstream outputContigFilePointer;
-	outputContigFilePointer.open(outputFastaName.c_str());
-	if(!outputContigFilePointer.is_open())
-		MYEXIT("Unable to open file: " + outputFastaName);
-	string s = getStringInEdge(contigEdges.at(contigEdges.size()-1)); // get the string in the longest edge. This function need to be rewritten too.
-	outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
-	UINT32 start=0;
-	do
+	else
 	{
-		outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
-		start+=100;
-	} while (start < s.length());
-	outputContigFilePointer.close();
+		FILE_LOG(logERROR) << "No contigs (edges) left in the graph, nothing to write";
+	}
 	return true;
 }
 
