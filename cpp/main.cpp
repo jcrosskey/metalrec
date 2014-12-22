@@ -185,24 +185,29 @@ int main(int argc, char **argv)
 	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
 	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength);	// now reads the .sam file, later should be able to take the string stream TODO**
-	//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
-	FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
-	HashTable *ht = new HashTable();
-	ht->insertDataset(dataSet, hashStringLength);
-	OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-	//dataSet->saveReads(allFileName + "_reads.fasta");
-	graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
-	FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
-	graph->removeAllSimpleEdgesWithoutFlow();
-	graph->simplifyGraph();
-	if (loglevel > 3)
-		graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
-	graph->printGraph(outputFastaName);
+	if (dataSet->getNumberOfUniqueReads() == 0)
+		FILE_LOG(logERROR) << "Data set has no reads in it, quitting...";
+	else
+	{
+		//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
+		FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
+		HashTable *ht = new HashTable();
+		ht->insertDataset(dataSet, hashStringLength);
+		OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
+		//dataSet->saveReads(allFileName + "_reads.fasta");
+		graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
+		FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+		graph->removeAllSimpleEdgesWithoutFlow();
+		graph->simplifyGraph();
+		if (loglevel > 3)
+			graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
+		graph->printGraph(outputFastaName);
 
+		delete ht;
+		delete graph;
+	}
 
 	delete dataSet;
-	delete ht;
-	delete graph;
 	/*** For debugging, print the read containing information and the overlap information ***/
 	//dataSet->printReadsTiling(allFileName + "_reads.tiling");
 	
