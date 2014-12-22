@@ -72,21 +72,25 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 			else	// not header line, alignment record
 			{
 				getline(samIn, line);
-				Read *r = new Read(line);
-				FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-				if (testRead(r->getDnaStringForward()))
+				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
+				if (line.length() !=0)
 				{
-					UINT32 len = r->getReadLength();
-					if (len > longestReadLength)
-						longestReadLength = len;
-					if (len < shortestReadLength)
-						shortestReadLength = len;
-					reads->push_back(r);
-					numberOfReads++;
-					goodReads++;
+					Read *r = new Read(line);
+					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
+					if (testRead(r->getDnaStringForward()))
+					{
+						UINT32 len = r->getReadLength();
+						if (len > longestReadLength)
+							longestReadLength = len;
+						if (len < shortestReadLength)
+							shortestReadLength = len;
+						reads->push_back(r);
+						numberOfReads++;
+						goodReads++;
+					}
+					else
+						badReads++;
 				}
-				else
-					badReads++;
 			}
 		}
 	}
@@ -138,29 +142,34 @@ bool Dataset::removeDupicateReads(void)
 	CLOCKSTART;
 	UINT64 j = 0;	// Unique read counter
 	Read *temp;
-	for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequency of the duplicated reads.
+	if ( reads->size() == 0 )
+		numberOfUniqueReads = 0;
+	else
 	{
-		if(reads->at(j)->getStartCoord()!= reads->at(i)->getStartCoord() \
-				|| reads->at(j)->getDnaStringForward() != reads->at(i)->getDnaStringForward())	// Two reads have different start mapping coordinates, or different strings
+		for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequency of the duplicated reads.
 		{
-			j++;	// Number of unique reads increases by 1
-			temp = reads->at(j);	// Save the read that was just checked
-			reads->at(j) = reads->at(i);	// Switch reads.at(i) and reads.at(j)
-			reads->at(i) = temp;
+			if(reads->at(j)->getStartCoord()!= reads->at(i)->getStartCoord() \
+					|| reads->at(j)->getDnaStringForward() != reads->at(i)->getDnaStringForward())	// Two reads have different start mapping coordinates, or different strings
+			{
+				j++;	// Number of unique reads increases by 1
+				temp = reads->at(j);	// Save the read that was just checked
+				reads->at(j) = reads->at(i);	// Switch reads.at(i) and reads.at(j)
+				reads->at(i) = temp;
+			}
+			else if(i!=j)	// No more same reads as the current one, set the frequencies for this read
+				reads->at(j)->setFrequency(reads->at(j)->getFrequency() + 1);
 		}
-		else if(i!=j)	// No more same reads as the current one, set the frequencies for this read
-			reads->at(j)->setFrequency(reads->at(j)->getFrequency() + 1);
+		numberOfUniqueReads = j+1;
+		for(UINT64 i = 0 ; i < reads->size(); i++) 	// Assing ID to the reads.
+		{
+			if(i < getNumberOfUniqueReads())
+				reads->at(i)->setReadID(i+1);	// Read's ID, 1 based, 0 (superReadID default for non-contained reads)
+			else
+				delete reads->at(i); 	// Free the unused reads.
+		}
+		reads->resize(numberOfUniqueReads);	//Resize the vector of reads.
 	}
-	numberOfUniqueReads = j+1;
 	FILE_LOG(logINFO) <<"Number of unique reads: " << numberOfUniqueReads;
-	for(UINT64 i = 0 ; i < reads->size(); i++) 	// Assing ID to the reads.
-	{
-		if(i < getNumberOfUniqueReads())
-			reads->at(i)->setReadID(i+1);	// Read's ID, 1 based, 0 (superReadID default for non-contained reads)
-		else
-			delete reads->at(i); 	// Free the unused reads.
-	}
-	reads->resize(numberOfUniqueReads);	//Resize the vector of reads.
 	CLOCKSTOP;
 	return true;
 }
