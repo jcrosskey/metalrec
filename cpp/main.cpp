@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 	/** Read sam file and store all the reads **/
 	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength);	// now reads the .sam file, later should be able to take the string stream TODO**
 	if (dataSet->getNumberOfReads() == 0)
-		FILE_LOG(logERROR) << "Data set has no reads in it, quitting...";
+		FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no read in it, quitting...";
 	else
 	{
 		//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
@@ -195,6 +195,10 @@ int main(int argc, char **argv)
 		ht->insertDataset(dataSet, hashStringLength);
 		OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
 		//dataSet->saveReads(allFileName + "_reads.fasta");
+		if (graph->getNumberOfEdges() == 0)
+			FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no edge in it, quitting...";
+		else
+		{
 		graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
 		FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
 		graph->removeAllSimpleEdgesWithoutFlow();
@@ -205,6 +209,7 @@ int main(int argc, char **argv)
 
 		delete ht;
 		delete graph;
+		}
 	}
 
 	delete dataSet;

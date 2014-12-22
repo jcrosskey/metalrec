@@ -61,17 +61,15 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 	else
 	{
 		string line;
-		while(samIn.good())
+		while(!samIn.eof())
 		{
-			char c = samIn.peek();	// See if the line starts with @, if so, it's header line
-			if (c == '@')
+			getline(samIn, line, '\n');
+			if (line[0] == '@')
 			{
 				FILE_LOG(logDEBUG3) << "header line";
-				samIn.ignore(maxCharInLine, '\n');
 			}
 			else	// not header line, alignment record
 			{
-				getline(samIn, line);
 				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
 				if (line.length() !=0)
 				{
