@@ -32,10 +32,8 @@ void usage()
     
     << " [Inputs]" << endl
     << "   -f <readNameFile> File including base names of read/sam files" << endl
-    << "   -fd <fastaDir> directories with fasta files including PacBio sequences to correct" << endl
     << "   -sd <samDir> directory with sam files including mapping results for each PacBio sequence" << endl
-    << "   -ecPath <py_path> full path of python script metalrec.py" << endl
-    << "   -omegaPath <py_path> full path of omega executable file" << endl
+    << "   -p <exec_path> full path of error correction executable" << endl
     << endl
     
     << " [Outputs]" << endl
@@ -51,23 +49,20 @@ void usage()
 /* align_fasta [options] -d <fastaDir> -o <outDir> -s <py_path> */
 
 int initializeArguments(int argc, char ** argv,
-                         vector<string> & fastaFilenames, // input fasta files
+                         vector<string> & samFilenames, // input fasta files
                          vector<string> & outFilenames, //output fasta files for corrected sequences
 			 string & samDir, // output directory name
-                         string & py_cmd_path, // python commmand's prefix (including path and some options, no input and output)
-                         string & omega_cmd_path) // omega executable file's prefix (including path and some options, no input and output)
+                         string & exec_path)  // error correction executable file's path
 {
 	vector<string> Arguments;
 	while(argc--)
 		Arguments.push_back(*argv++);
 
 	string baseNameFile = ""; /* File including base names of read/sam files */
-	string fastaDir = ""; /*input directory for the fasta files of PacBio sequences */
 	string outDir = ""; /* output directory */
 
 	samDir  = ""; /* input directory for the sam files of PacBio sequences */
-	py_cmd_path = ""; /* python commmand's prefix (including path and some options, no input and output) */
-	omega_cmd_path = ""; 
+	exec_path = ""; /* python commmand's prefix (including path and some options, no input and output) */
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
@@ -78,16 +73,6 @@ int initializeArguments(int argc, char ** argv,
 			}
 			catch(const out_of_range& oor){
 				baseNameFile = "";
-			}
-		}
-
-		// input directory for the fasta files of PacBio sequences
-		else if (Arguments[i] == "-fd") {
-			try{
-			    fastaDir = Arguments.at(++i);
-			}
-			catch(const out_of_range& oor){
-				fastaDir = "";
 			}
 		}
 
@@ -112,25 +97,15 @@ int initializeArguments(int argc, char ** argv,
 		}
 
 		// python commmand's prefix (including path and some options, no input and output)
-		else if (Arguments[i] == "-ecPath"){
+		else if (Arguments[i] == "-p"){
 			try{
-			    py_cmd_path = Arguments.at(++i);
+			    exec_path = Arguments.at(++i);
 			}
 			catch(const out_of_range& oor){
-				py_cmd_path = "";
+				exec_path = "";
 			}
 		}
 		
-		// omega executable file's prefix
-		else if (Arguments[i] == "-omegaPath"){
-			try{
-			    omega_cmd_path = Arguments.at(++i);
-			}
-			catch(const out_of_range& oor){
-				omega_cmd_path = "";
-			}
-		}
-
 		// help, print Usage
 		else if (Arguments[i] == "-h" || Arguments[i] == "--help")
 		{
@@ -145,8 +120,9 @@ int initializeArguments(int argc, char ** argv,
 		}
 	}
 	/* check required arguments
-	* 1. fastaDir; 2. samDir 3. python command path */
-	if ( ((baseNameFile == "") && (fastaDir== "")) || (omega_cmd_path == "") || (py_cmd_path == "") || (samDir == ""))
+	* 1. fastaDir; 2. samDir 3. error correction executable path */
+	//if ( ((baseNameFile == "") && (fastaDir== "")) || (exec_path == "") || (samDir == ""))
+	if ( ((baseNameFile == "") && (samDir== "")) || (exec_path == "") )
 	{
 		cerr << "missing necessary parameter(s)"<<endl;
 		cerr << "use -h/--help for help" << endl;
@@ -168,38 +144,35 @@ int initializeArguments(int argc, char ** argv,
 		baseIn.open(baseNameFile.c_str());
 		string line;
 		while (getline(baseIn, line)){
-			fastaFilenames.push_back(line + ".fasta");
+			samFilenames.push_back(line + ".sam");
 		}
 		baseIn.close();
 	}
-	// find all the fasta files in the input directory, ends with .fa or .fasta
-	else if (fastaDir != "") {
-		DirectoryStructure fasta_dir(fastaDir);
+	// find all the sam files in the input directory, ends with .sam
+	else if (samDir != "") {
+		DirectoryStructure sam_dir(samDir);
 
-		fasta_dir.setPattern(".fa");
-		fasta_dir.getFiles(fastaFilenames);
+		sam_dir.setPattern(".sam");
+		sam_dir.getFiles(samFilenames);
 
-		fasta_dir.setPattern(".fasta");
-		fasta_dir.getFiles(fastaFilenames);
-
-		//cout << "total number of fasta files is " << fastaFilenames.size() << endl;
+		//cout << "total number of sam files is " << samFilenames.size() << endl;
 	}
 
 	/* number of fasta files found in the input directory
 	* if no fasta files are found in the directories, exit
 	*/
-	int fileNum = (int) fastaFilenames.size();
+	int fileNum = (int) samFilenames.size();
 	if (fileNum == 0)
 	{
-		cerr << "no fasta file in the input directory"<<endl;
+		cerr << "no sam file in the input directory"<<endl;
 		return 1;
 	}
 
 	// full path of the input files and the output files
 	for (int i = 0; i < fileNum; i++)
 	{
-		string outFilename = outDir + "/" + fastaFilenames.at(i); // output file name for the corrected PacBio sequence
-		fastaFilenames.at(i) = fastaDir + "/" + fastaFilenames.at(i); // full path for the input fasta files
+		string outFilename = outDir + "/" + Utils::getFilename2(samFilenames.at(i)) + ".fasta"; // output file name for the corrected PacBio sequence
+		samFilenames.at(i) = samDir + "/" + samFilenames.at(i); // full path for the input sam files
 		outFilenames.push_back(outFilename);
 	}
 
@@ -261,8 +234,8 @@ void MasterProcess(const int & fileNum)
 }
 
 // slave job
-void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & outFilenames,
-                  const string & py_cmd_path,const string & omega_cmd_path, const string & samDir)
+void SlaveProcess(const vector<string> & samFilenames, const vector<string> & outFilenames,
+                  const string & exec_path, const string & samDir)
 {
     MPI_Status status;
     int currentWorkID, myid;
@@ -279,148 +252,25 @@ void SlaveProcess(const vector<string> & fastaFilenames, const vector<string> & 
             break;
         }
         
-	string fastaFile = fastaFilenames[currentWorkID]; // input fasta file 
-	string basename = Utils::getFilebase(fastaFile); // base name of the fasta file, same for sam file
+	string samFile = samFilenames[currentWorkID];	// sam file to work on
+	string basename = Utils::getFilename2(samFile); // base name of the fasta file, same for sam file
 	string outFile = outFilenames[currentWorkID]; // output corrected fasta file
-	string logFile = Utils::getFilebase(outFile) + ".log"; // log file
 
-	string readName;
-
-	ifstream fastaIn(fastaFile.c_str());
-	if(fastaIn.good())
-	{
-		getline(fastaIn, readName);
-	}
-	fastaIn.close();
-	cout << myid << ": working on " << readName << endl;
-	unsigned slash_pos = basename.find_last_of("/");
-	basename = basename.substr(slash_pos + 1);
-	string samFile = samDir  + "/" + basename + ".sam"; // sam file
-	string reads_file = Utils::getFilebase(outFile) + "_reads.fasta"; // reads fasta file
-	string omega_prefix = Utils::getFilebase(outFile) + "_omega"; // prefix for omega's output files
+	cout << myid << ": working on " << basename << endl;
+	string output_prefix = basename + "_metalrec"; // prefix for omega's output files
 
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
-		// Step 1: extract reads from the alignment file
-		string py_get_reads_cmd = "python " + py_cmd_path + "/fastaGenFromSam.py" + " -i " + samFile + " -o " + reads_file;
-		//cout << py_get_reads_cmd << endl;
-		int res = system(py_get_reads_cmd.c_str());
+		string metalrec_cmd =  exec_path + " -s " + samFile + " -o " + outFile + " -od " + samDir + " -f " + output_prefix + " -l 40 -k 15 -er 0.000 -log ERROR";
+		//cout << metalrec_cmd << endl;
+		int res = system(metalrec_cmd.c_str());
 		if(res != 0){
-			cout << "   *** Failed command " << py_get_reads_cmd << endl;
-		}
-		else
-		{
-			int num_reads;
-			ifstream reads_in;
-			reads_in.open(reads_file.c_str());
-			if(!reads_in.is_open())
-			{
-				cout << "Unable to open file: " << reads_file << endl;
-			}
-			else
-			{
-				num_reads = 0;
-				string s;
-				while(getline(reads_in, s))
-				{
-					if ( s[0] == ">"[0])
-						num_reads = num_reads + 1;
-					if (num_reads > 0)
-						break;
-				}
-				reads_in.close();
-				if(num_reads == 0 )
-				{
-					cout << "There is no read mapped to this pacbio read. " << fastaFile << " Done." << endl;
-				}
-
-				else
-				{
-					// Step 2: use omega to do mini-assembly of the reads that aligned to the pacbio read. Output file: 1_contigs.fasta
-					string omega_cmd = omega_cmd_path + " -se " + reads_file + " -l 40 -f " + omega_prefix + " -noMP -noCV -log ERROR > /dev/null";
-					//cout << omega_cmd << endl;
-					res = system(omega_cmd.c_str());
-					if(res != 0){
-						cout << "   *** Failed command " << omega_cmd << endl;
-					}
-					else
-					{
-						remove( reads_file.c_str() );
-						string omega_fasta = omega_prefix + "_contigs.fasta"; // could also delete the flow files - TODO
-
-						// Step 3: check if there is more than 1 contigs in 1_contigs.fasta
-						ifstream omega_in;
-						omega_in.open(omega_fasta.c_str());
-						if(!omega_in.is_open())
-						{
-							cout << "Unable to open file: " << omega_fasta << endl;
-						}
-						else
-						{
-							string s;
-							stringstream ss;
-							num_reads = 0;
-							while(getline(omega_in, s))
-							{
-								if ( s[0] == ">"[0])
-									num_reads = num_reads + 1;
-								else
-									ss << s << "\n";
-
-								if (num_reads > 1)
-									break;
-							}
-							omega_in.close();
-							if(num_reads == 1)
-							{
-								ofstream omega_out;
-								omega_out.open(outFile.c_str());
-								omega_out << readName << "_0 omega" << endl << ss.str();
-								omega_out.close();
-								cout << "omega assembly generated only 1 contig, No scrubbing. Done.\n";
-								remove( omega_fasta.c_str() );
-								remove( (omega_prefix + "_flow.input").c_str() );
-								remove( (omega_prefix + "_flow.output").c_str() );
-							}
-							else
-							{
-								cout << "omega generated more than 1 contig\n";
-
-								// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and do scrubbing
-								string blasr_m5 = Utils::getFilebase(outFile) + "_blasr.m5"; // prefix for omega's output files
-								string blasr_cmd = "blasr " + omega_fasta + " " + fastaFile + " -noSplitSubreads -m 5 -out " + blasr_m5 + " > /dev/null";
-								//cout << blasr_cmd << endl;
-								res = system(blasr_cmd.c_str());
-								if(res != 0){
-									cout << "   *** Failed command " << blasr_cmd << endl;
-								}
-								else
-								{
-									remove( omega_fasta.c_str() );
-									remove( (omega_prefix + "_flow.input").c_str() );
-									remove( (omega_prefix + "_flow.output").c_str() );
-									string ec_cmd = "python " + py_cmd_path + "/metalrec.py -i " + fastaFile + " -s " + blasr_m5 + " -o " + outFile + " > " + logFile;
-									//cout << ec_cmd << endl;
-									res = system(ec_cmd.c_str());
-									if(res != 0){
-										cout << "   *** Failed command " << ec_cmd << endl;
-									}
-									else
-									{
-										cout << "EC finished. Done.\n";
-										remove( blasr_m5.c_str() );
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+			cout << "   *** Failed command " << metalrec_cmd << endl;
 		}
 	}
 	// else just print message
 	else{
-		cout << "   *** samFile for " << fastaFile << " does not exist" << endl;
+		cout << "   *** samFile " << samFile << " does not exist" << endl;
 	}
         
         // signal master when done
@@ -438,8 +288,8 @@ int main(int argc, char ** argv){
     
     MPI_Init(&argc, &argv);
 
-    string py_cmd_path, omega_cmd_path, samDir;
-    vector<string> fastaFilenames, outFilenames;
+    string exec_path, samDir;
+    vector<string> samFilenames, outFilenames;
     int myid;
     
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);
@@ -460,7 +310,7 @@ int main(int argc, char ** argv){
     */
 	
     /* initialize command line arguments */
-    int init = initializeArguments(argc, argv, fastaFilenames, outFilenames, samDir, py_cmd_path, omega_cmd_path);
+    int init = initializeArguments(argc, argv, samFilenames, outFilenames, samDir, exec_path);
 
     if(init != 0){
 	    MPI_Finalize();
@@ -468,7 +318,7 @@ int main(int argc, char ** argv){
     }
     else{
 	    double start_time, finish_time;
-	    int fileNum = (int) fastaFilenames.size();
+	    int fileNum = (int) samFilenames.size();
 	    
 	    if (myid == 0) {
 		start_time = MPI_Wtime();
@@ -478,7 +328,7 @@ int main(int argc, char ** argv){
 		<< "============================================================================"
 		<< endl << Utils::currentDateTime() << endl
 		<< " Beginning Error Correction" << endl
-		<< " [Step 1] Looking for fasta files: Running -> " << std::flush;
+		<< " [Step 1] Looking for sam files: Running -> " << std::flush;
 	    }
 	    
 	    if ( myid == 0 ) {
@@ -489,7 +339,7 @@ int main(int argc, char ** argv){
 	    
 	    else
 	    {
-		SlaveProcess(fastaFilenames, outFilenames, py_cmd_path, omega_cmd_path, samDir);
+		SlaveProcess(samFilenames, outFilenames, exec_path, samDir);
 	    }
 	    
 	    if( myid == 0 )
