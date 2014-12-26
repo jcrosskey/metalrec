@@ -199,22 +199,22 @@ int main(int argc, char **argv)
 			FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no edge in it, quitting...";
 		else
 		{
-		graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
-		FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
-		graph->removeAllSimpleEdgesWithoutFlow();
-		graph->simplifyGraph();
-		if (loglevel > 3)
-			graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
-		graph->printGraph(outputFastaName);
+			graph->calculateFlow1(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
+			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+			graph->removeAllSimpleEdgesWithoutFlow();
+			graph->simplifyGraph();
+			if (loglevel > 3)
+				graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
+			graph->printGraph(outputFastaName);
 
-		delete ht;
-		delete graph;
+			delete ht;
+			delete graph;
 		}
 	}
 
 	delete dataSet;
 	/*** For debugging, print the read containing information and the overlap information ***/
 	//dataSet->printReadsTiling(allFileName + "_reads.tiling");
-	
+
 	CLOCKSTOP;
 }
