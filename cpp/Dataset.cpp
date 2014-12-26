@@ -37,7 +37,7 @@ Dataset::Dataset(void)
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -75,7 +75,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 				{
 					Read *r = new Read(line);
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if (testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -87,7 +87,13 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap)
 						goodReads++;
 					}
 					else
+					{
 						badReads++;
+						if (!(r->isReadGood(indelRate, subRate)))
+							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
+						else
+							FILE_LOG(logDEBUG3) << "Read is not valid";
+					}
 				}
 			}
 		}

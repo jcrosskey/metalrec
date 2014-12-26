@@ -184,7 +184,7 @@ int main(int argc, char **argv)
 	//UINT64 counter;
 	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
-	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength);	// now reads the .sam file, later should be able to take the string stream TODO**
+	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength, 0.25, 0.05);	// now reads the .sam file, later should be able to take the string stream TODO**
 	if (dataSet->getNumberOfReads() == 0)
 		FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no read in it, quitting...";
 	else
