@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 			FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no edge in it, quitting...";
 		else
 		{
-			graph->calculateFlow1(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
+			graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
 			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
 			graph->removeAllSimpleEdgesWithoutFlow();
 			graph->simplifyGraph();
