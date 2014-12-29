@@ -1100,31 +1100,28 @@ UINT64 OverlapGraph::popBubbles(void)
 						 * 1. Edge without error wins
 						 * 2. Edge with longer overlap offset wins
 						 * 3. Edge with more contained reads wins 
-						 * 4. What if they are all the same??!!*/
+						 * 4. What if they are all the same??!! Do not pop bubbles in this case*/
 						if (l == listOfEdgesToRemove.size()){
-							bool keep_e1;
+							int keep = 0;
 							if (e1->getNumOfSubstitutions() == 0 && e2->getNumOfSubstitutions() > 0)
-								keep_e1 = true;
+								keep = 1;
 							else if (e2->getNumOfSubstitutions() == 0 && e1->getNumOfSubstitutions() > 0) 
-								keep_e1 = false;
+								keep = 2;
 							else if (e1->getOverlapOffset() < e2->getOverlapOffset())
-								keep_e1 = false;
+								keep = 2;
 							else if (e1->getOverlapOffset() > e1->getOverlapOffset())
-								keep_e1 = true;
+								keep = 1;
 							else if (e1->getListOfReads()->size() > e2->getListOfReads()->size())
-								keep_e1 = true;
+								keep = 1;
 							else if (e2->getListOfReads()->size() > e1->getListOfReads()->size())
-								keep_e1 = false;
+								keep = 2;
 							else
-							{
 								FILE_LOG(logWARNING) << "Comparing two edges, but neither of the edges wins: " << source1 << " --> " << dest1;
-								keep_e1 = true;
-							}
-							if (keep_e1){
+							if (keep == 1) {
 								listOfEdgesToRemove.push_back(e2);
 								listOfEdgesToKeep.push_back(e1);
 							}
-							else{
+							else if (keep = 2) {
 								listOfEdgesToRemove.push_back(e1);
 								listOfEdgesToKeep.push_back(e2);
 							}
