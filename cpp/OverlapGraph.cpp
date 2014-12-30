@@ -1628,3 +1628,62 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
 	//cout << s1 << endl << s2 << endl << result<< endl;
 	return result;
 }
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  findPaths
+ *  Description:  Find all the paths from the source-nodes to the dest-nodes
+ * =====================================================================================
+ */
+bool OverlapGraph::findPaths(vector<string> * paths)
+{
+	CLOCKSTART; /* Clock the function */
+	vector<bool> *pathFound = new vector<bool>; /* boolean values indicating if the path starting from the read has been found */
+	vector<vector <string> * > *pathsStartingAtReads = new vector<vector * <string> >; /* paths starting at each read, there could be multiple ones at some nodes */
+	pathFound->reserve(dataSet->getNumberOfUniqueReads() + 1);
+	pathsStartingAtReads->reserve(dataSet->getNumberOfUniqueReads() + 1);
+	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++) /* Initialize the pathFound to all false */
+		pathFound->push_back(false);
+	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++)
+	{
+		findPathAtNode(pathsStartingAtReads->at(i), i, pathFound);
+	}
+
+	CLOCKSTOP;
+}
+
+bool OverlapGraph::findPathAtNode(vector<string> * pathsAtNode, UINT64 readID, vector<bool> *pathFound)
+{
+	CLOCKSTART;
+	Read * r = dataSet->getReadFromID(readID);
+	if(r->numOutEdges == 0)
+	{
+		pathFound->at(readID) = true;
+		pathsAtNode->resize(0);
+	}
+	else
+	{
+		for(UINT64 i = 0; i < graph->at(readID); i++) /* loop through all the neighbors of this node */
+		{
+			UINT64 readID1 = graph->at(readID)->at(i)->getDestinationRead()->getID(); /* neighbor's readID */
+			if (pathFound->at(readID1)) /* If paths at r1 are already found */
+			{
+				UINT64 overlapOffset = graph->at(readID)->at(i)->getOverlapOffset(); /* overlap offset between r and the neighbor */
+				for(UINT64 j = 0; j < pathsAtNode(readID1)->size(); j++) /* all the paths from the neighbor */
+				{
+					string s0 = pathsAtNode(readID1)->at(j); /* path from the neighbor */
+					string s1 = graph->at(readID)->at(i)->getStringInEdge(); /* string spelled by r and r1 */
+					string s = s1.substr(0,overlapOffset) + s0; /* join the two strings together */
+					pathsAtNode(readID)->push_back(s);
+				}
+			}
+			else
+			{
+				findPathAtNode(pathsAtNode, readID1, pathFound);
+			}
+		}
+	}
+	CLOCKSTOP;
+	return true;
+}
