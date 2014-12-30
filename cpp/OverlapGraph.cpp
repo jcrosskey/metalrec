@@ -1121,7 +1121,7 @@ UINT64 OverlapGraph::popBubbles(void)
 								listOfEdgesToRemove.push_back(e2);
 								listOfEdgesToKeep.push_back(e1);
 							}
-							else if (keep = 2) {
+							else if (keep == 2) {
 								listOfEdgesToRemove.push_back(e1);
 								listOfEdgesToKeep.push_back(e2);
 							}
@@ -1636,54 +1636,119 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
  *  Description:  Find all the paths from the source-nodes to the dest-nodes
  * =====================================================================================
  */
-bool OverlapGraph::findPaths(vector<string> * paths)
+bool OverlapGraph::findPaths(vector<string> * paths, ostream & outputStream)
 {
 	CLOCKSTART; /* Clock the function */
+
 	vector<bool> *pathFound = new vector<bool>; /* boolean values indicating if the path starting from the read has been found */
-	vector<vector <string> * > *pathsStartingAtReads = new vector<vector * <string> >; /* paths starting at each read, there could be multiple ones at some nodes */
-	pathFound->reserve(dataSet->getNumberOfUniqueReads() + 1);
+	vector<vector<string> * > *pathsStartingAtReads = new vector<vector <string> * >; /* paths starting at each read, there could be multiple ones at some nodes */
+	pathFound->reserve(dataSet->getNumberOfUniqueReads() + 1); /* Reserve memory for the vectors */
 	pathsStartingAtReads->reserve(dataSet->getNumberOfUniqueReads() + 1);
-	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++) /* Initialize the pathFound to all false */
+
+	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i++) /* Initialize the pathFound to all false, and the paths at all the nodes to empty vectors */
+	{
 		pathFound->push_back(false);
+		vector<string> * pathsAtnode = new vector<string>;
+		pathsStartingAtReads->push_back(pathsAtnode);
+	}
+
+	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++) /* Find all the paths starting from all the nodes */
+	{
+		if(!pathFound->at(i))
+			findPathAtNode(i, pathFound, pathsStartingAtReads);
+	}
+
 	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++)
 	{
-		findPathAtNode(pathsStartingAtReads->at(i), i, pathFound);
-	}
-
-	CLOCKSTOP;
-}
-
-bool OverlapGraph::findPathAtNode(vector<string> * pathsAtNode, UINT64 readID, vector<bool> *pathFound)
-{
-	CLOCKSTART;
-	Read * r = dataSet->getReadFromID(readID);
-	if(r->numOutEdges == 0)
-	{
-		pathFound->at(readID) = true;
-		pathsAtNode->resize(0);
-	}
-	else
-	{
-		for(UINT64 i = 0; i < graph->at(readID); i++) /* loop through all the neighbors of this node */
+		if (dataSet->getReadFromID(i)->numInEdges == 0 && dataSet->getReadFromID(i)->numOutEdges > 0) /* Get the paths starting from the source nodes */
 		{
-			UINT64 readID1 = graph->at(readID)->at(i)->getDestinationRead()->getID(); /* neighbor's readID */
-			if (pathFound->at(readID1)) /* If paths at r1 are already found */
+			FILE_LOG(logDEBUG4) << "Get paths starting from " << i << " number of paths: " << pathsStartingAtReads->at(i)->size();
+			for(UINT64 j = 0; j < pathsStartingAtReads->at(i)->size(); j++)
 			{
-				UINT64 overlapOffset = graph->at(readID)->at(i)->getOverlapOffset(); /* overlap offset between r and the neighbor */
-				for(UINT64 j = 0; j < pathsAtNode(readID1)->size(); j++) /* all the paths from the neighbor */
+				string s = pathsStartingAtReads->at(i)->at(j);
+				paths->push_back(s);
+				outputStream << ">path_" << j+1 << " starting from " << i << " length: " << s.length() << endl;
+				
+				UINT32 start=0;
+				do
 				{
-					string s0 = pathsAtNode(readID1)->at(j); /* path from the neighbor */
-					string s1 = graph->at(readID)->at(i)->getStringInEdge(); /* string spelled by r and r1 */
-					string s = s1.substr(0,overlapOffset) + s0; /* join the two strings together */
-					pathsAtNode(readID)->push_back(s);
-				}
-			}
-			else
-			{
-				findPathAtNode(pathsAtNode, readID1, pathFound);
+					outputStream << s.substr(start, 100) << endl;  // save 100 BP in each line.
+					start+=100;
+				} while (start < s.length());
 			}
 		}
 	}
+	paths->resize(paths->size());
+	FILE_LOG(logINFO) << "Total number of paths in the graph: " << paths->size();
+	if(loglevel > 6)
+	{
+		FILE_LOG(logDEBUG4) << "They are: \n";
+		for (UINT64 i = 0; i < paths->size(); i++)
+			FILE_LOG(logDEBUG4) << paths->at(i);
+	}
+
+	delete pathFound;                       /* release memory */
+	for(UINT64 i = 0; i < pathsStartingAtReads->size(); i++)
+		delete pathsStartingAtReads->at(i);
+	delete pathsStartingAtReads;
+
 	CLOCKSTOP;
+	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  findPathAtNode
+ *  Description:  Find the path starting from a node, using recursion, and a vector to record 
+ *  		  if the paths from a node were already found.
+ * =====================================================================================
+ */
+bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads)
+{
+	Read * r = dataSet->getReadFromID(readID);
+	if((r->numOutEdges + r->numInEdges)== 0) /* If the node is isolated, then there is no path */
+	{
+		pathFound->at(readID) = true;
+		pathsStartingAtReads->at(readID)->resize(0);
+
+	}
+	else if(r->numOutEdges == 0)            /* If it's a dest node, then there is only 1 path, which is itself */
+	{
+		FILE_LOG(logDEBUG4) << "Find path starting from destination node " << readID;
+		pathFound->at(readID) = true;
+		pathsStartingAtReads->at(readID)->push_back(r->getDnaStringForward());
+		pathsStartingAtReads->at(readID)->resize(1);
+	}
+	else                                    /* If it connects to other nodes, join the string in the edge between this node and its neighbor, and the string from its neighbor */
+	{
+		FILE_LOG(logDEBUG4) << "Find path starting from node " << readID;
+		for(UINT64 i = 0; i < graph->at(readID)->size(); i++) /* loop through all the neighbors of this node */
+		{
+			UINT64 readID1 = graph->at(readID)->at(i)->getDestinationRead()->getID(); /* neighbor's readID */
+			if (!pathFound->at(readID1)) /* If paths at r1 are not found yet */
+			{
+				findPathAtNode(readID1, pathFound, pathsStartingAtReads);
+			}
+		}
+		for(UINT64 i = 0; i < graph->at(readID)->size(); i++) /* loop through all the neighbors of this node */
+		{
+			UINT64 readID1 = graph->at(readID)->at(i)->getDestinationRead()->getID(); /* neighbor's readID */
+			UINT64 overlapOffset = graph->at(readID)->at(i)->getOverlapOffset(); /* overlap offset between r and the neighbor */
+			for(UINT64 j = 0; j < pathsStartingAtReads->at(readID1)->size(); j++) /* all the paths from the neighbor */
+			{
+				string s0 = pathsStartingAtReads->at(readID1)->at(j); /* path from the neighbor */
+				FILE_LOG(logDEBUG4) << "from " << readID << " to " << readID1;
+				string s1 = getStringInEdge(graph->at(readID)->at(i)); /* string spelled by r and r1 */
+				string s = s1.substr(0,overlapOffset) + s0; /* join the two strings together */
+				//FILE_LOG(logDEBUG4) << "s1: " << s1;
+				//FILE_LOG(logDEBUG4) << "s0: " << s0;
+				FILE_LOG(logDEBUG4) << s;
+				pathsStartingAtReads->at(readID)->push_back(s);
+			}
+		}
+	}
+	pathsStartingAtReads->at(readID)->resize(pathsStartingAtReads->at(readID)->size());
+	pathFound->at(readID) = true;
 	return true;
 }

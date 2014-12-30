@@ -206,7 +206,17 @@ int main(int argc, char **argv)
 			if (loglevel > 3)
 				graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
 			graph->printGraph(outputFastaName);
+			vector<string> * paths = new vector<string>;
 
+			// Save the strings contained in the paths in fasta file
+			ofstream pathFilePointer; 
+			pathFilePointer.open((outputDir + "/" + allFileName + "_paths.fasta").c_str());
+			if(!pathFilePointer.is_open())
+				MYEXIT("Unable to open file: "+ outputDir + "/" + allFileName + "_paths.fasta");
+			graph->findPaths(paths, pathFilePointer);
+			pathFilePointer.close();
+
+			delete paths;
 			delete ht;
 			delete graph;
 		}
