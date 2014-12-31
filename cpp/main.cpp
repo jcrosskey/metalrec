@@ -189,7 +189,7 @@ int main(int argc, char **argv)
 		FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no read in it, quitting...";
 	else
 	{
-		UINT64 mostLikelyID = dataSet->findMostLikelyReadID();
+		//UINT64 mostLikelyID = dataSet->findMostLikelyReadID(); /* find the most likely read/contig, for testing here */
 		//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
 		FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 		HashTable *ht = new HashTable();
