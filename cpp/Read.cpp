@@ -21,6 +21,7 @@ Read::Read(void)
 	numOutEdges = 0;
 	numOfInsertions = 0;
 	numOfDeletions = 0;
+	numOfMatchMismatches = 0;
 	editDistance = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
@@ -50,6 +51,7 @@ Read::Read(const string & s)
 	numInEdges = 0;
 	numOutEdges = 0;
 	numOfInsertions = 0;
+	numOfMatchMismatches = 0;
 	numOfDeletions = 0;
 	editDistance = 0;
 
@@ -149,6 +151,10 @@ bool Read::setEdits(const string & s)
 				case 'I':
 					num = Utils::stringToInt(s.substr(pos1, length));
 					numOfInsertions += num;
+					break;
+				case 'M':
+					num = Utils::stringToInt(s.substr(pos1, length));
+					numOfMatchMismatches += num;
 					break;
 				default:
 					;
@@ -269,4 +275,19 @@ INT32 Read::getTag(const string & tagName, const string & alignRecord)
 		return -1;	// if the tag is not found, set the value to -1 ( another value might be better)
 	}
 
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  calculateLikelihoodWithReadID
+ *  Description:  Calculate the likelihood of a read/contig from which the PacBio read came from
+ * =====================================================================================
+ */
+double Read::calculateLikelihood(UINT64 PacBioReadLength)
+{
+	UINT64 numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
+	UINT64 numOfMatches = numOfMatchMismatches - numOfSubstitions; /* number of mathes in the alignment */
+	UINT64 numOfNs = PacBioReadLength - numOfMatchMismatches - numOfDeletions; /* number of bases aligned to the PacBio read */
+	return numOfMatches*log(0.84) + numOfSubstitions*log(0.01) + (numOfInsertions+numOfDeletions)*log(0.15) - numOfNs*log(6.0);
 }

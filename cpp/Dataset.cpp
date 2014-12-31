@@ -67,6 +67,12 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 			if (line[0] == '@')
 			{
 				FILE_LOG(logDEBUG3) << "header line";
+				if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
+				{
+					size_t LNPos = line.find("LN:");
+					size_t nextTabPos = line.find("\t", LNPos+3);
+					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
+				}
 			}
 			else	// not header line, alignment record
 			{
@@ -315,4 +321,34 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 	}
 	outputFile.close();
 	CLOCKSTOP;
+}
+
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  findMostLikelyReadID
+ *  Description:  Find the ID of the read/contig that is most likely to have generated the PacBio read
+ * =====================================================================================
+ */
+UINT64 Dataset::findMostLikelyReadID()
+{
+	double bestLikelihood = -numeric_limits<double>::max();
+	UINT64 mostLikelyID = 0;
+	FILE_LOG(logDEBUG3) << "Initialize the best likelihood to be " << bestLikelihood;
+	for (UINT64 i = 1; i <= numberOfUniqueReads; i++)
+	{
+		Read * r = getReadFromID(i);
+		if (r->calculateLikelihood(PacBioReadLength) > bestLikelihood)
+		{
+			bestLikelihood = r->calculateLikelihood(PacBioReadLength);
+			mostLikelyID = i;
+		}
+	}
+	if (mostLikelyID != 0)
+		FILE_LOG(logDEBUG3) << "Most likely read/contig to generate the PacBio read is: " << getReadFromID(mostLikelyID)->getReadName();
+	else
+		FILE_LOG(logDEBUG3) << "Something is wrong... most likely read ID is 0";
+
+	return mostLikelyID;
 }

@@ -17,7 +17,10 @@ bool compareEdgeByStringLength (Edge *edge1, Edge* edge2)
 	return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() < edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
 }
 
-
+bool compareStringsByLength(string *s1, string *s2)
+{
+	return (s1->length() < s2->length());
+}
 /*******************************************************
  * Function to compare two edges. Used for sorting.
  * Edges are sorted by the overlap offset.
@@ -1097,13 +1100,16 @@ UINT64 OverlapGraph::popBubbles(void)
 								break;
 						}
 						/* Criterion for choosing between 2 edges:
+						 * 0. Choose random one between equivalent edges
 						 * 1. Edge without error wins
 						 * 2. Edge with longer overlap offset wins
 						 * 3. Edge with more contained reads wins 
 						 * 4. What if they are all the same??!! Do not pop bubbles in this case*/
 						if (l == listOfEdgesToRemove.size()){
 							int keep = 0;
-							if (e1->getNumOfSubstitutions() == 0 && e2->getNumOfSubstitutions() > 0)
+							if (getStringInEdge(e1).compare(getStringInEdge(e2))==0) /* If the strings spelled by the edges are the same, keep either one */
+								keep = 1;
+							else if (e1->getNumOfSubstitutions() == 0 && e2->getNumOfSubstitutions() > 0)
 								keep = 1;
 							else if (e2->getNumOfSubstitutions() == 0 && e1->getNumOfSubstitutions() > 0) 
 								keep = 2;
