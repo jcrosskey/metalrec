@@ -17,10 +17,11 @@ bool compareEdgeByStringLength (Edge *edge1, Edge* edge2)
 	return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() < edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
 }
 
-bool compareStringsByLength(string *s1, string *s2)
+bool compareStringsByLength(string s1, string s2)
 {
-	return (s1->length() < s2->length());
+	return (s1.length() < s2.length());
 }
+
 /*******************************************************
  * Function to compare two edges. Used for sorting.
  * Edges are sorted by the overlap offset.
@@ -1642,7 +1643,7 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
  *  Description:  Find all the paths from the source-nodes to the dest-nodes
  * =====================================================================================
  */
-bool OverlapGraph::findPaths(vector<string> * paths, ostream & outputStream)
+bool OverlapGraph::findPaths(vector<string> & paths)
 {
 	CLOCKSTART; /* Clock the function */
 
@@ -1672,26 +1673,14 @@ bool OverlapGraph::findPaths(vector<string> * paths, ostream & outputStream)
 			for(UINT64 j = 0; j < pathsStartingAtReads->at(i)->size(); j++)
 			{
 				string s = pathsStartingAtReads->at(i)->at(j);
-				paths->push_back(s);
-				outputStream << ">path_" << j+1 << " starting from " << i << " length: " << s.length() << endl;
-				
-				UINT32 start=0;
-				do
-				{
-					outputStream << s.substr(start, 100) << endl;  // save 100 BP in each line.
-					start+=100;
-				} while (start < s.length());
+				paths.push_back(s);
 			}
 		}
 	}
-	paths->resize(paths->size());
-	FILE_LOG(logINFO) << "Total number of paths in the graph: " << paths->size();
-	if(loglevel > 6)
-	{
-		FILE_LOG(logDEBUG4) << "They are: \n";
-		for (UINT64 i = 0; i < paths->size(); i++)
-			FILE_LOG(logDEBUG4) << paths->at(i);
-	}
+	paths.resize(paths.size());
+	sort(paths.begin(),paths.end(),compareStringsByLength);
+	reverse(paths.begin(), paths.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
+	FILE_LOG(logINFO) << "Total number of paths in the graph: " << paths.size();
 
 	delete pathFound;                       /* release memory */
 	for(UINT64 i = 0; i < pathsStartingAtReads->size(); i++)

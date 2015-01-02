@@ -90,7 +90,7 @@ class OverlapGraph
 //		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.
 		UINT64 calculateEditDistance(const std::string &s1, const std::string &s2);	// Find the edit distance between two strings.
-		bool findPaths(vector<string> * paths, ostream & outputStream);               /* Find all the paths from the out-nodes to the in-nodes */
+		bool findPaths(vector<string> & paths);               /* Find all the paths from the out-nodes to the in-nodes */
 		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
 };
 
