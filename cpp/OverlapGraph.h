@@ -92,6 +92,7 @@ class OverlapGraph
 		UINT64 calculateEditDistance(const std::string &s1, const std::string &s2);	// Find the edit distance between two strings.
 		bool findPaths(vector<string> & paths);               /* Find all the paths from the out-nodes to the in-nodes */
 		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
+		UINT64 getLengthInPacBio(Edge *edge);
 };
 
 #endif /* OVERLAPGRAPH_H_ */

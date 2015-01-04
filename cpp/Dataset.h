@@ -49,6 +49,7 @@ class Dataset
 
 		/* accessors */
 		string getPacBioReadName(void){return PacBioReadName;}	// Get the name for the PacBio filtered subread
+		UINT64 getPacBioReadLength(void){return PacBioReadLength;}	// Get the length of the PacBio filtered subread
 		UINT64 getNumberOfReads(void){return numberOfReads;}	// Get the number of total reads in the database.
 		UINT64 getNumberOfUniqueReads(void){return numberOfUniqueReads;}	// Get the number of unique reads in the database.
 

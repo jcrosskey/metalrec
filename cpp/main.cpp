@@ -215,46 +215,46 @@ int main(int argc, char **argv)
 			graph->simplifyGraph();
 			if (loglevel > 3)
 				graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
-			//graph->printGraph(outputFastaName);
+			graph->printGraph(outputFastaName);
 
-			/* Use the paths instead of the unitigs for the output. First find all the paths, then pick the longest one.
-			 * At this point, they are not chosen based on the likelihood, but on the lengths only. */
-
-			vector<string> paths;
-			graph->findPaths(paths);
-			// Save all the strings contained in the paths in fasta file
-			if (loglevel > 3)
-			{
-				ofstream pathFilePointer; 
-				pathFilePointer.open((outputDir + "/" + allFileName + "_paths.fasta").c_str());
-				if(!pathFilePointer.is_open())
-					MYEXIT("Unable to open file: "+ outputDir + "/" + allFileName + "_paths.fasta");
-				for(size_t i = 0; i < paths.size(); i++){
-					string s = paths.at(i);
-					pathFilePointer << ">path_" << i+1 << " String Length: " << s.length() << endl;
-					UINT32 start=0;
-					do
-					{
-						pathFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
-						start+=100;
-					} while (start < s.length());
-				}
-				pathFilePointer.close();
-			}
-			// Only the longest path, as the final output
-			ofstream outputPathPointer;
-			outputPathPointer.open(outputFastaName.c_str());
-			if(!outputPathPointer.is_open())
-				MYEXIT("Unable to open file: " + outputFastaName);
-			string s = paths.at(0);
-			outputPathPointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
-			UINT32 start=0;
-			do
-			{
-				outputPathPointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
-				start+=100;
-			} while (start < s.length());
-			outputPathPointer.close();
+//			/* Use the paths instead of the unitigs for the output. First find all the paths, then pick the longest one.
+//			 * At this point, they are not chosen based on the likelihood, but on the lengths only. */
+//
+//			vector<string> paths;
+//			graph->findPaths(paths);
+//			// Save all the strings contained in the paths in fasta file
+//			if (loglevel > 3)
+//			{
+//				ofstream pathFilePointer; 
+//				pathFilePointer.open((outputDir + "/" + allFileName + "_paths.fasta").c_str());
+//				if(!pathFilePointer.is_open())
+//					MYEXIT("Unable to open file: "+ outputDir + "/" + allFileName + "_paths.fasta");
+//				for(size_t i = 0; i < paths.size(); i++){
+//					string s = paths.at(i);
+//					pathFilePointer << ">path_" << i+1 << " String Length: " << s.length() << endl;
+//					UINT32 start=0;
+//					do
+//					{
+//						pathFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+//						start+=100;
+//					} while (start < s.length());
+//				}
+//				pathFilePointer.close();
+//			}
+//			// Only the longest path, as the final output
+//			ofstream outputPathPointer;
+//			outputPathPointer.open(outputFastaName.c_str());
+//			if(!outputPathPointer.is_open())
+//				MYEXIT("Unable to open file: " + outputFastaName);
+//			string s = paths.at(0);
+//			outputPathPointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
+//			UINT32 start=0;
+//			do
+//			{
+//				outputPathPointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+//				start+=100;
+//			} while (start < s.length());
+//			outputPathPointer.close();
 
 			delete ht;
 			delete graph;

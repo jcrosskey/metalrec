@@ -8,13 +8,17 @@
 #include "OverlapGraph.h"
 #include "CS2/cs2.h"
 
+
 /**************************************************
  * Function to compare two edges. Used for sorting.
  * Edges are sorted by the destination read number.
  **************************************************/
 bool compareEdgeByStringLength (Edge *edge1, Edge* edge2)
 {
-	return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() < edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
+	UINT64 length1 = edge1->getStringLengthInRange();
+	UINT64 length2 = edge2->getStringLengthInRange();
+	return (length1 < length2);
+	//return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() < edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
 }
 
 bool compareStringsByLength(string s1, string s2)
@@ -663,6 +667,7 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 				if( e->getDestinationRead()->superReadID==0 || e->getSourceRead()->superReadID==0 )
 				{
 					contigEdges.push_back(e); // List of contigs.
+					e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
 					thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
 					edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
 					// Now there is only 1 kind of edge since the graph is directed, color doesn't matter either.
@@ -694,7 +699,7 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 		for(UINT64 i = 0; i < contigEdges.size(); i++) 
 		{
 			string s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  " Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
+			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  " Length in region: " << contigEdges.at(i)->getStringLengthInRange() << " Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
 			sum += s.length();
 			UINT32 start=0;
 			do
@@ -753,6 +758,7 @@ bool OverlapGraph::printGraph(string outputFastaName)
 				if( e->getDestinationRead()->superReadID==0 || e->getSourceRead()->superReadID==0 )
 				{
 					contigEdges.push_back(e); // List of contigs.
+					e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
 				}
 			}
 		}
@@ -1587,7 +1593,7 @@ void OverlapGraph::sortEdges()
 	{
 		if(!graph->at(i)->empty())
 		{
-			sort(graph->at(i)->begin(), graph->at(i)->end(), compareEdgeByStringLength);
+			sort(graph->at(i)->begin(), graph->at(i)->end());
 		}
 	}
 }

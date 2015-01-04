@@ -23,6 +23,7 @@ class Edge{
 		//	u ACTTACGGGATTATACCATCGAGA
 		//	v       GGGATTATACCATCGAGATTCAAT
 		UINT16 numOfSubstitions;             /* number of substitutions in the edge */
+		UINT32 endCoordinateLimit;      /* Limit of the ending coordinate */
 		vector<UINT64> * listOfReads; 	// List of ordered reads in the current edge.
 		vector<UINT16> * listOfOverlapOffsets; 	// List of overlap offsets of the ordered reads in the current edge.
 		vector<UINT64> * listOfSubstitutionPoses; /* List of substitution positions */
@@ -39,11 +40,15 @@ class Edge{
 
 		bool makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs);
 		bool makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
+		bool setEndCorrdinateLimit(UINT64 endCoordLimit){endCoordinateLimit = endCoordLimit;} /* set the end coordinate limit */
+		bool operator<(Edge & anotherEdge);
 
+		UINT64 getStringLengthInRange(); /* Get the string length in the edge that is also in the range limit */
 		Read * getSourceRead() {return source;}	// Get the read object of the source node.
 		Read * getDestinationRead() {return destination; }	// Get the read object of the destination node.
 		UINT64 getOverlapOffset() {return overlapOffset;}	// Return the overlap offset.
 		UINT16 getNumOfSubstitutions() {return numOfSubstitions;}	// Return the number of substitutions in the edge.
+
 
 		vector<UINT64> * getListOfReads() {return listOfReads;}	// Get the ordered list of reads in the current edge.
 		vector<UINT16> * getListOfOverlapOffsets() {return listOfOverlapOffsets;} // Get the list of ordered offset.
