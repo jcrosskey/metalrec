@@ -194,6 +194,7 @@ int main(int argc, char **argv)
 	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
 	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength, indelRate, subRate);	// now reads the .sam file, later should be able to take the string stream TODO**
+	FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength();
 	if (dataSet->getNumberOfReads() == 0)
 		FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no read in it, quitting...";
 	else
