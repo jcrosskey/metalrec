@@ -119,7 +119,7 @@ UINT64 Edge::getStringLengthInRange()
 	{
 		totalLength = totalLength + getSourceRead()->getStartCoord();
 	}
-	if (getDestinationRead()->getEndCoord() > endCoordinateLimit )
+	if ((UINT32) (getDestinationRead()->getEndCoord()) > endCoordinateLimit )
 	{
 		totalLength = totalLength - (getDestinationRead()->getEndCoord() - endCoordinateLimit);
 	}

@@ -699,7 +699,7 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 		for(UINT64 i = 0; i < contigEdges.size(); i++) 
 		{
 			string s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  " Length in region: " << contigEdges.at(i)->getStringLengthInRange() << " Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
+			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  ". Length in region: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
 			sum += s.length();
 			UINT32 start=0;
 			do
@@ -790,7 +790,6 @@ bool OverlapGraph::printGraph(string outputFastaName)
 	}
 	return true;
 }
-
 
 
 /* 

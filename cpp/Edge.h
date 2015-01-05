@@ -40,7 +40,7 @@ class Edge{
 
 		bool makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs);
 		bool makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
-		bool setEndCorrdinateLimit(UINT64 endCoordLimit){endCoordinateLimit = endCoordLimit;} /* set the end coordinate limit */
+		bool setEndCorrdinateLimit(UINT64 endCoordLimit){endCoordinateLimit = endCoordLimit; return true;} /* set the end coordinate limit */
 		bool operator<(Edge & anotherEdge);
 
 		UINT64 getStringLengthInRange(); /* Get the string length in the edge that is also in the range limit */
