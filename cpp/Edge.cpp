@@ -20,6 +20,7 @@ Edge::Edge(void)
 	transitiveRemovalFlag = false;
 	flow = 0;
 	coverageDepth = 0;
+	endCoordinateLimit = 0;
 }
 
 /**********************************************************************************************************************
@@ -28,6 +29,7 @@ Edge::Edge(void)
 Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs) 	// Another constructor.
 {
 	makeEdge(from, to, length, numSub, listSubs);
+	endCoordinateLimit = 0;
 }
 
 /**********************************************************************************************************************
@@ -36,6 +38,7 @@ Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *l
 Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
 {
 	makeEdge(from, to, length, numSub, listReads, listOverlapOffsets, listSubs);
+	endCoordinateLimit = 0;
 }
 
 /**********************************************************************************************************************
@@ -100,4 +103,40 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<
 	listOfSubstitutionPoses->resize(listOfSubstitutionPoses->size());	// Resize to reduce space.
 
 	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getStringLengthInRange
+ *  Description:  Get the string length in the edge that is also in the range limit
+ * =====================================================================================
+ */
+UINT64 Edge::getStringLengthInRange() 
+{
+	INT32 totalLength = getOverlapOffset() + getDestinationRead()->getReadLength();
+	if (getSourceRead()->getStartCoord() < 0 )
+	{
+		totalLength = totalLength + getSourceRead()->getStartCoord();
+	}
+	if (getDestinationRead()->getEndCoord() > endCoordinateLimit )
+	{
+		totalLength = totalLength - (getDestinationRead()->getEndCoord() - endCoordinateLimit);
+	}
+	if (totalLength > 0)
+		return (INT64) totalLength;
+	else
+		return 0;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  <
+ *  Description:  Overloading comparing operator for edge object
+ * =====================================================================================
+ */
+bool Edge::operator<(Edge & anotherEdge)
+{
+	return (getStringLengthInRange() < anotherEdge.getStringLengthInRange());
 }

@@ -20,7 +20,7 @@
 int loglevel; // logging level in integer format, for different levels of verbosity
 
 void usage();
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName);
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName, float & indelRate, float & subRate);
 
 /************************
  * Help usage
@@ -44,6 +44,8 @@ void usage()
 		<< "    -r\trubber length (default: 10)" << std::endl  // hash string length
 		<< "    -e\tMaximum (substitution) errors allowed in the overlap (default: 0)" << std::endl    // Maximum (substitution) errors allowed in the overlap between Illumina reads
 		<< "    -er\tMaximum (substitution) error rate allowed in the overlap (default: 0)" << std::endl    // Maximum (substitution) error rate allowed in the overlap
+		<< "    -indelRate\tMaximum indel error rate allowed in the alignment to the PacBio read (default: 1)" << std::endl
+		<< "    -subRate\tMaximum substitution error rate allowed in the alignment to the PacBio read (default: 1)" << std::endl
 		<< "    -noCV\tdo not use coverage depth information, specify if the reads are not random or normalized" << std::endl 
 		<< "    -log\tSpecify log/output verbosity level, from ERROR, WARNING, INFO, DEBUG (default: INFO)" << std::endl 
 		<< std::endl;
@@ -52,13 +54,15 @@ void usage()
 /**********************************************************************************************************************
   Parse the input arguments
  **********************************************************************************************************************/
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName)
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, bool & useCoverageDepth, string & outputDir, string & outputFastaName, float & indelRate, float & subRate)
 {
 	allFileName = "metalrec";
 	minimumOverlapLength = 0;
 	hashStringLength = 31;
 	maxError = 0;
 	maxErrorRate = 0.0;
+	indelRate = 1.0;
+	subRate = 1.0;
 	rubPos = 10;
 	useCoverageDepth = true;
 	inputSamFile = "";
@@ -97,6 +101,10 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 			maxError = atoi(argumentsList[++i].c_str());
 		else if (argumentsList[i] == "-er")
 			maxErrorRate = atof(argumentsList[++i].c_str());
+		else if (argumentsList[i] == "-indelRate")
+			indelRate = atof(argumentsList[++i].c_str());
+		else if (argumentsList[i] == "-subRate")
+			subRate = atof(argumentsList[++i].c_str());
 		else if (argumentsList[i] == "-r")
 			rubPos = atoi(argumentsList[++i].c_str());
 		else if (argumentsList[i] == "-od")
@@ -157,10 +165,11 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 	FILE_LOG(logDEBUG) << "hash string length: " << hashStringLength;
 	FILE_LOG(logDEBUG) << "maximum error allowed in the overlap: " << maxError;
 	FILE_LOG(logDEBUG) << "maximum error rate allowed in the overlap: " << maxErrorRate;
+	FILE_LOG(logDEBUG) << "maximum indel error rate allowed in the alignment: " << indelRate;
+	FILE_LOG(logDEBUG) << "maximum substitution error rate allowed in the alignment: " << subRate;
 	FILE_LOG(logDEBUG) << "rubber length: " << rubPos;
 	FILE_LOG(logDEBUG) << "use coverage depth: " << (useCoverageDepth ? "True":"False");
 }
-
 
 /************************
  * main function
@@ -172,10 +181,10 @@ int main(int argc, char **argv)
 	string inputSamFile, allFileName, outputDir, outputFastaName;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError;
-	float maxErrorRate;
+	float maxErrorRate, indelRate, subRate;
 	UINT32 rubberPos;
 	bool useCoverageDepth;
-	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, hashStringLength, maxError, rubberPos, maxErrorRate, useCoverageDepth, outputDir, outputFastaName);
+	parseArguments(argc, argv, inputSamFile, allFileName, minimumOverlapLength, hashStringLength, maxError, rubberPos, maxErrorRate, useCoverageDepth, outputDir, outputFastaName,indelRate,subRate);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 	FILE_LOG(logDEBUG1) << "Parsing argument list finished";
 	//cout << "logging level is " << loglevel << endl;	// For debugging only
@@ -184,13 +193,15 @@ int main(int argc, char **argv)
 	//UINT64 counter;
 	//UINT64 iteration = 0;
 	/** Read sam file and store all the reads **/
-	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength);	// now reads the .sam file, later should be able to take the string stream TODO**
+	Dataset *dataSet = new Dataset(inputSamFile, minimumOverlapLength, indelRate, subRate);	// now reads the .sam file, later should be able to take the string stream TODO**
+	FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength();
 	if (dataSet->getNumberOfReads() == 0)
 		FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no read in it, quitting...";
 	else
 	{
+		//UINT64 mostLikelyID = dataSet->findMostLikelyReadID(); /* find the most likely read/contig, for testing here */
 		//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
-		FILE_LOG(logDEBUG4) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
+		FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 		HashTable *ht = new HashTable();
 		ht->insertDataset(dataSet, hashStringLength);
 		OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
@@ -199,22 +210,61 @@ int main(int argc, char **argv)
 			FILE_LOG(logERROR) << "Data set " << inputSamFile << " has no edge in it, quitting...";
 		else
 		{
-		graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
-		FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
-		graph->removeAllSimpleEdgesWithoutFlow();
-		graph->simplifyGraph();
-		if (loglevel > 3)
-			graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
-		graph->printGraph(outputFastaName);
+			graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
+			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+			graph->removeAllSimpleEdgesWithoutFlow();
+			graph->simplifyGraph();
+			if (loglevel > 3)
+				graph->printGraph(outputDir + "/" + allFileName+"_graph.gdl", outputDir + "/" + allFileName+"_contigs.fasta");
+			graph->printGraph(outputFastaName);
 
-		delete ht;
-		delete graph;
+//			/* Use the paths instead of the unitigs for the output. First find all the paths, then pick the longest one.
+//			 * At this point, they are not chosen based on the likelihood, but on the lengths only. */
+//
+//			vector<string> paths;
+//			graph->findPaths(paths);
+//			// Save all the strings contained in the paths in fasta file
+//			if (loglevel > 3)
+//			{
+//				ofstream pathFilePointer; 
+//				pathFilePointer.open((outputDir + "/" + allFileName + "_paths.fasta").c_str());
+//				if(!pathFilePointer.is_open())
+//					MYEXIT("Unable to open file: "+ outputDir + "/" + allFileName + "_paths.fasta");
+//				for(size_t i = 0; i < paths.size(); i++){
+//					string s = paths.at(i);
+//					pathFilePointer << ">path_" << i+1 << " String Length: " << s.length() << endl;
+//					UINT32 start=0;
+//					do
+//					{
+//						pathFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+//						start+=100;
+//					} while (start < s.length());
+//				}
+//				pathFilePointer.close();
+//			}
+//			// Only the longest path, as the final output
+//			ofstream outputPathPointer;
+//			outputPathPointer.open(outputFastaName.c_str());
+//			if(!outputPathPointer.is_open())
+//				MYEXIT("Unable to open file: " + outputFastaName);
+//			string s = paths.at(0);
+//			outputPathPointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
+//			UINT32 start=0;
+//			do
+//			{
+//				outputPathPointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+//				start+=100;
+//			} while (start < s.length());
+//			outputPathPointer.close();
+
+			delete ht;
+			delete graph;
 		}
 	}
 
 	delete dataSet;
 	/*** For debugging, print the read containing information and the overlap information ***/
 	//dataSet->printReadsTiling(allFileName + "_reads.tiling");
-	
+
 	CLOCKSTOP;
 }

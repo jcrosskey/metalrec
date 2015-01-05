@@ -83,12 +83,16 @@ class OverlapGraph
 		bool isEdgePresent(UINT64 source, UINT64 destination);	// Check if an edge is present in the overlap graph between source and destination.
 		UINT64 popBubbles(void);	//If there is more than 1 edges connecting a pair of same nodes, pick one if possible
 		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.
+		bool calculateFlow1(string inputFileName, string outputFileName);
 		bool calculateFlow(string inputFileName, string outputFileName);									// Calculate the minimum cost flow of the overlap graph.
 		string getStringInEdge(Edge *edge);	// Get the string in an edge by overlapping the ordered reads in the edge.
 		bool simplifyGraph(void);	// Some simple simplification.
 //		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.
 		UINT64 calculateEditDistance(const std::string &s1, const std::string &s2);	// Find the edit distance between two strings.
+		bool findPaths(vector<string> & paths);               /* Find all the paths from the out-nodes to the in-nodes */
+		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
+		UINT64 getLengthInPacBio(Edge *edge);
 };
 
 #endif /* OVERLAPGRAPH_H_ */

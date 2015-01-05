@@ -22,6 +22,7 @@ class Dataset
 		UINT64 numberOfUniqueReads;	// number of unique reads in the dataset.
 		UINT64 minimumOverlapLength;	// Length of the shortest read in the dataset.
 		string PacBioReadName;	// Name of the PacBio read
+		UINT64 PacBioReadLength; // Length of the PacBio read
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
 		vector<Read *> *reads;	// List of reads in the dataset.
@@ -39,7 +40,7 @@ class Dataset
 
 		/* Constructors and destructor */
 		Dataset(void);	// Default constructor.
-		Dataset(const string & inputSamFile, UINT64 minOverlap );// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
+		Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate);// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
 //		Dataset(stringstream * inputSamStream, UINT64 minOverlap);// anotherconstructor, uses string stream directly instead of reading the file
 		~Dataset(void);	// Default destructor.
 
@@ -48,6 +49,7 @@ class Dataset
 
 		/* accessors */
 		string getPacBioReadName(void){return PacBioReadName;}	// Get the name for the PacBio filtered subread
+		UINT64 getPacBioReadLength(void){return PacBioReadLength;}	// Get the length of the PacBio filtered subread
 		UINT64 getNumberOfReads(void){return numberOfReads;}	// Get the number of total reads in the database.
 		UINT64 getNumberOfUniqueReads(void){return numberOfUniqueReads;}	// Get the number of unique reads in the database.
 
@@ -55,7 +57,7 @@ class Dataset
 		Read * getReadFromID(UINT64 ID);	// Find a read in the database given the ID in constant time.
 		void saveReads(string fileName);	// Save all the sorted unique reads in a text file. Used for debugging.
 		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
-
+		UINT64 findMostLikelyReadID();  /* Find the read/contig that is most likely to have generated the PacBio read */
 };
 
 
