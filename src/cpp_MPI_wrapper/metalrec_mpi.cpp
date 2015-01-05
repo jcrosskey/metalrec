@@ -261,7 +261,7 @@ void SlaveProcess(const vector<string> & samFilenames, const vector<string> & ou
 
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
-		string metalrec_cmd =  exec_path + " -s " + samFile + " -o " + outFile + " -od " + samDir + " -f " + output_prefix + " -l 40 -k 15 -er 0.000 -log ERROR";
+		string metalrec_cmd =  exec_path + " -s " + samFile + " -o " + outFile + " -od " + samDir + " -f " + output_prefix + " -l 40 -k 15 -er 0.000 -log ERROR -indelRate 0.25 -subRate 0.1";
 		//cout << metalrec_cmd << endl;
 		int res = system(metalrec_cmd.c_str());
 		if(res != 0){
