@@ -201,6 +201,7 @@ int main(int argc, char **argv)
 	else
 	{
 		//UINT64 mostLikelyID = dataSet->findMostLikelyReadID(); /* find the most likely read/contig, for testing here */
+		//cout << "most likely contig has ID " << mostLikelyID << " and the string is " << dataSet->getReadFromID(mostLikelyID)->getDnaStringForward() << endl;
 		//dataSet->printReadsTiling(allFileName + "0_reads.tiling");
 		FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 		HashTable *ht = new HashTable();
