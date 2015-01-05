@@ -520,7 +520,7 @@ UINT64 OverlapGraph::contractCompositePaths(void)
 
 				if (read->numInEdges == 1 && read->numOutEdges == 1)	// If the destination read only has 1 edge in and 1 edge out, there are a pair of composite edges
 				{
-					mergeEdges(graph->at(index)->at(i), graph->at(read->getID())->at(0));	// merge the two edges, need to check
+					insertEdge(mergeEdges(graph->at(index)->at(i), graph->at(read->getID())->at(0)));	// merge the two edges and insert into the graph, update the related reads' information, need to check
 					removeEdge(graph->at(index)->at(i));	// delete the two edges that were contracted
 					removeEdge(graph->at(read->getID())->at(0));
 					counter++;
@@ -739,9 +739,7 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 
 
 /**********************************************************************************************************************
- * This function prints the overlap graph in overlap_graph->gdl file. 
- * The graph can be viewed by aisee (free software available at http://www.aisee.com/) 
- * It also stores the contigs in a file.
+ * This function stores only the longest contig in a file.
  **********************************************************************************************************************/
 bool OverlapGraph::printGraph(string outputFastaName)
 {
@@ -764,24 +762,56 @@ bool OverlapGraph::printGraph(string outputFastaName)
 		}
 	}
 
+	printContigs(outputFastaName, contigEdges, true);
+	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  printContigs
+ *  Description:  Print contigs(strings spelled by edges) to file
+ * =====================================================================================
+ */
+bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> contigEdges, bool longestOnly)
+{
 	/************************* Store the contigs in a file. ************************/
 	if (contigEdges.size() > 0) // Sort the contigs by their length if there are edges in the graph.
 	{
 		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByStringLength);	// Sort the contigs by their total string length
-		//reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
+		reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
 		/* Output the longest one for result */
 		ofstream outputContigFilePointer;
 		outputContigFilePointer.open(outputFastaName.c_str());
 		if(!outputContigFilePointer.is_open())
 			MYEXIT("Unable to open file: " + outputFastaName);
-		string s = getStringInEdge(contigEdges.at(contigEdges.size()-1)); // get the string in the longest edge. This function need to be rewritten too.
-		outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length()  << endl;
-		UINT32 start=0;
-		do
+		if (longestOnly)
 		{
-			outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
-			start+=100;
-		} while (start < s.length());
+			string s = getStringInEdge(contigEdges.at(0)); // get the string in the longest edge. This function need to be rewritten too.
+			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length() << endl;
+			UINT32 start=0;
+			do
+			{
+				outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+				start+=100;
+			} while (start < s.length());
+		}
+		else 
+		{
+			for (size_t i = 0; i< contigEdges.size(); i++)
+			{
+				string s = getStringInEdge(contigEdges.at(i)); // get the string in the longest edge. This function need to be rewritten too.
+				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << s.length() << ". Length in Read: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
+
+				UINT32 start=0;
+				do
+				{
+					outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+					start+=100;
+				} while (start < s.length());
+			}
+			
+		}
 		outputContigFilePointer.close();
 	}
 	else
@@ -962,7 +992,7 @@ bool OverlapGraph::removeEdgesOfRead(Read * read)
 /**********************************************************************************************************************
   Merge two edges in the overlap graph.
  **********************************************************************************************************************/
-bool OverlapGraph::mergeEdges(Edge *edge1, Edge *edge2)
+Edge * OverlapGraph::mergeEdges(Edge *edge1, Edge *edge2)
 {
 	Edge *newEdge = new Edge();
 	Read *read1 = edge1->getSourceRead(), *read2 = edge2->getDestinationRead();
@@ -975,7 +1005,7 @@ bool OverlapGraph::mergeEdges(Edge *edge1, Edge *edge2)
 
 	newEdge->makeEdge(read1,read2, edge1->getOverlapOffset() + edge2->getOverlapOffset(), edge1->getNumOfSubstitutions() + edge2->getNumOfSubstitutions(), listReadsForward, listOverlapOffsetsForward, listOfSubstitutionPoses); // Make the forward edge TODO: number of substitutions and list of substitution positions are not handled correctly now.
 
-	insertEdge(newEdge);	// Insert the new forward edge in the graph.
+	//insertEdge(newEdge);	// Insert the new forward edge in the graph.
 
 	// Delete edges that were merged into the new edge 
 	// Q: These were only deleted when there is no flow left in the edges. Does it matter?
@@ -983,7 +1013,8 @@ bool OverlapGraph::mergeEdges(Edge *edge1, Edge *edge2)
 	//removeEdge(edge1);
 	//removeEdge(edge2);
 
-	return true;
+	return newEdge;
+	//return true;
 
 }
 
@@ -1648,19 +1679,19 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
  *  Description:  Find all the paths from the source-nodes to the dest-nodes
  * =====================================================================================
  */
-bool OverlapGraph::findPaths(vector<string> & paths)
+bool OverlapGraph::findPaths(vector< Edge *> & paths)
 {
 	CLOCKSTART; /* Clock the function */
 
 	vector<bool> *pathFound = new vector<bool>; /* boolean values indicating if the path starting from the read has been found */
-	vector<vector<string> * > *pathsStartingAtReads = new vector<vector <string> * >; /* paths starting at each read, there could be multiple ones at some nodes */
+	vector<vector<Edge *> * > *pathsStartingAtReads = new vector<vector <Edge *> * >; /* paths starting at each read, there could be multiple ones at some nodes */
 	pathFound->reserve(dataSet->getNumberOfUniqueReads() + 1); /* Reserve memory for the vectors */
 	pathsStartingAtReads->reserve(dataSet->getNumberOfUniqueReads() + 1);
 
 	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i++) /* Initialize the pathFound to all false, and the paths at all the nodes to empty vectors */
 	{
 		pathFound->push_back(false);
-		vector<string> * pathsAtnode = new vector<string>;
+		vector<Edge *> * pathsAtnode = new vector<Edge *>;
 		pathsStartingAtReads->push_back(pathsAtnode);
 	}
 
@@ -1677,14 +1708,14 @@ bool OverlapGraph::findPaths(vector<string> & paths)
 			FILE_LOG(logDEBUG4) << "Get paths starting from " << i << " number of paths: " << pathsStartingAtReads->at(i)->size();
 			for(UINT64 j = 0; j < pathsStartingAtReads->at(i)->size(); j++)
 			{
-				string s = pathsStartingAtReads->at(i)->at(j);
-				paths.push_back(s);
+				Edge * e = pathsStartingAtReads->at(i)->at(j);
+				e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
+				paths.push_back(e);
 			}
 		}
 	}
 	paths.resize(paths.size());
-	sort(paths.begin(),paths.end(),compareStringsByLength);
-	reverse(paths.begin(), paths.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
+
 	FILE_LOG(logINFO) << "Total number of paths in the graph: " << paths.size();
 
 	delete pathFound;                       /* release memory */
@@ -1704,21 +1735,14 @@ bool OverlapGraph::findPaths(vector<string> & paths)
  *  		  if the paths from a node were already found.
  * =====================================================================================
  */
-bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads)
+bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads)
 {
 	Read * r = dataSet->getReadFromID(readID);
-	if((r->numOutEdges + r->numInEdges)== 0) /* If the node is isolated, then there is no path */
+	if( r->numOutEdges == 0) /* If the node is a desstination node, then there is no path from the node */
 	{
 		pathFound->at(readID) = true;
 		pathsStartingAtReads->at(readID)->resize(0);
 
-	}
-	else if(r->numOutEdges == 0)            /* If it's a dest node, then there is only 1 path, which is itself */
-	{
-		FILE_LOG(logDEBUG4) << "Find path starting from destination node " << readID;
-		pathFound->at(readID) = true;
-		pathsStartingAtReads->at(readID)->push_back(r->getDnaStringForward());
-		pathsStartingAtReads->at(readID)->resize(1);
 	}
 	else                                    /* If it connects to other nodes, join the string in the edge between this node and its neighbor, and the string from its neighbor */
 	{
@@ -1733,18 +1757,24 @@ bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector
 		}
 		for(UINT64 i = 0; i < graph->at(readID)->size(); i++) /* loop through all the neighbors of this node */
 		{
-			UINT64 readID1 = graph->at(readID)->at(i)->getDestinationRead()->getID(); /* neighbor's readID */
-			UINT64 overlapOffset = graph->at(readID)->at(i)->getOverlapOffset(); /* overlap offset between r and the neighbor */
-			for(UINT64 j = 0; j < pathsStartingAtReads->at(readID1)->size(); j++) /* all the paths from the neighbor */
+			Edge * e0 = graph->at(readID)->at(i);
+			Read * dest_r = graph->at(readID)->at(i)->getDestinationRead(); /* neighbor read */
+			UINT64 readID1 = dest_r->getID(); /* neighbor's readID */
+			if (dest_r->numOutEdges==0)
+				pathsStartingAtReads->at(readID)->push_back(e0);
+			else
 			{
-				string s0 = pathsStartingAtReads->at(readID1)->at(j); /* path from the neighbor */
-				FILE_LOG(logDEBUG4) << "from " << readID << " to " << readID1;
-				string s1 = getStringInEdge(graph->at(readID)->at(i)); /* string spelled by r and r1 */
-				string s = s1.substr(0,overlapOffset) + s0; /* join the two strings together */
-				//FILE_LOG(logDEBUG4) << "s1: " << s1;
-				//FILE_LOG(logDEBUG4) << "s0: " << s0;
-				FILE_LOG(logDEBUG4) << s;
-				pathsStartingAtReads->at(readID)->push_back(s);
+				for(UINT64 j = 0; j < pathsStartingAtReads->at(readID1)->size(); j++) /* all the paths from the neighbor */
+				{
+					Edge * e1 = pathsStartingAtReads->at(readID1)->at(j); /* path from the neighbor */
+					FILE_LOG(logDEBUG4) << "from " << readID << " to " << readID1;
+					FILE_LOG(logDEBUG4) << "e0: " << getStringInEdge(e0);
+					FILE_LOG(logDEBUG4) << "e1: " << getStringInEdge(e1);
+					Edge * e = mergeEdges(e0, e1); /* path from readID connected to the path from its neighbor */
+					pathsStartingAtReads->at(readID)->push_back(e);
+					FILE_LOG(logDEBUG4) << getStringInEdge(e);
+
+				}
 			}
 		}
 	}

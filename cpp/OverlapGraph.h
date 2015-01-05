@@ -67,10 +67,11 @@ class OverlapGraph
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
 		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
 		bool printGraph(string outputFastaName);	// Save the longest contig in the outputFastaName file
+		bool printContigs(string outputFastaName, vector<Edge *> contigEdges, bool longestOnly);
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
-		bool mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
+		Edge * mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
 		UINT64 removeAllSimpleEdgesWithoutFlow();	// Remove simple edges without flow
 		UINT64 removeDeadEndNodes(void); /* Remove dead end nodes from graph */
 		bool updateReadLocations(Edge *edge);	// Update the location of all the reads in the current edge. This function is called when a new edge is inserted.
@@ -90,8 +91,9 @@ class OverlapGraph
 //		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.
 		UINT64 calculateEditDistance(const std::string &s1, const std::string &s2);	// Find the edit distance between two strings.
-		bool findPaths(vector<string> & paths);               /* Find all the paths from the out-nodes to the in-nodes */
-		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
+		bool findPaths(vector< Edge *> & paths);               /* Find all the paths from the out-nodes to the in-nodes */
+//		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
+		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads);
 		UINT64 getLengthInPacBio(Edge *edge);
 };
 
