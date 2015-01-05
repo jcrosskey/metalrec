@@ -6,6 +6,7 @@
  */
 
 #include "Dataset.h"
+#include <limits>
 
 /**********************************************************************************************************************
  * Function to compare two reads by their start mapping coordinate. Used for sorting.
