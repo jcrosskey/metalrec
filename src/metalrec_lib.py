@@ -354,50 +354,52 @@ def read_and_process_sam_samread(samFile,rseq, maxSub=-1, maxIns=-1, maxDel=-1,m
                 record = line
                 if ' ' in line:
                     myread = samread.BlasrRead(record)
+                else:
+                    myread = samread.SamRead(record)
                     #print myread.qname # DEBUG
-                    if rname == '':
-                        rname = myread.rName
-                    if verbose and not header_written: # write header lines for the scrubbed sam file
-                        newsam.write("@HD\tVN:1.4\tSO:unsorted\n")
-                        newsam.write("@SQ\tSN:{}\tLN:{}\n".format(rname, rLen))
-                        newsam.write("@RG\tID:1\n")
-                        newsam.write("@PG\tID:metalrec\n")
-                        header_written = True
-                    if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
-                        #sys.stdout.write("realign\n") # DEBUG
-                        pos_dict, ins_dict = myread.re_align(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
-                        if len(pos_dict) + len(ins_dict) > 0:
-                            keepRec += 1
-                            if verbose:
-                                newsam.write(myread.generate_sam_record())
-                                outFasta.write('>{}\n{}\n'.format(myread.qname, re.sub('-', '', myread.qSeq)))
+                if rname == '':
+                    rname = myread.rName
+                if verbose and not header_written: # write header lines for the scrubbed sam file
+                    newsam.write("@HD\tVN:1.4\tSO:unsorted\n")
+                    newsam.write("@SQ\tSN:{}\tLN:{}\n".format(rname, rLen))
+                    newsam.write("@RG\tID:1\n")
+                    newsam.write("@PG\tID:metalrec\n")
+                    header_written = True
+                if not myread.is_read_bad(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate): # if this alignment is good
+                    #sys.stdout.write("realign\n") # DEBUG
+                    pos_dict, ins_dict = myread.re_align(maxSub, maxIns, maxDel, maxSubRate, maxInDelRate) # realign read to PacBio sequence
+                    if len(pos_dict) + len(ins_dict) > 0:
+                        keepRec += 1
+                        if verbose:
+                            newsam.write(myread.generate_sam_record())
+                            outFasta.write('>{}\n{}\n'.format(myread.qname, re.sub('-', '', myread.qSeq)))
 
-                            # update string dictionary for the read information
-                            # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
-                            read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
-                            # single end reads, different reads don't have same names
-                            if read_string not in readinfo: # new read_string(key) in the dictionary
-                                readinfo[read_string] = []
-                            readinfo[read_string].append(myread.qname)
+                        # update string dictionary for the read information
+                        # TODO: currently, exactly same reads are processed multiple times, computation can be reduced
+                        read_string = dict_to_string(pos_dict) + ':' +  dict_to_string(ins_dict)
+                        # single end reads, different reads don't have same names
+                        if read_string not in readinfo: # new read_string(key) in the dictionary
+                            readinfo[read_string] = []
+                        readinfo[read_string].append(myread.qname)
 
-                            for pos in pos_dict: # all the matching/mismatching/deletion positions
-                                ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
+                        for pos in pos_dict: # all the matching/mismatching/deletion positions
+                            ref_bps[pos][alphabet.find(pos_dict[pos])] += 1 # update the corresponding base call frequencies at the position
 
-                            for ins in ins_dict: # all the insertion positions
-                                ins_chars = ins_dict[ins]
-                                if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
-                                    ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
-                                elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
-                                    ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
-                                for i in xrange(len(ins_chars)):
-                                    ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
+                        for ins in ins_dict: # all the insertion positions
+                            ins_chars = ins_dict[ins]
+                            if ins not in ref_ins_dict: # if this position has not appeared in the big insertion dictionary, initialize it
+                                ref_ins_dict[ins] = [[0,0,0,0] for ii in xrange(len(ins_chars))] # length is 4 because there is no 'D' at insertion position
+                            elif len(ins_chars) > len(ref_ins_dict[ins]): # if the inserted bps is longer than the list corresponding to this position, make it longer
+                                ref_ins_dict[ins] += [[0,0,0,0] for ii in xrange(len(ref_ins_dict[ins]),len(ins_chars))]
+                            for i in xrange(len(ins_chars)):
+                                ref_ins_dict[ins][i][alphabet.find(ins_chars[i])] += 1
 
-                            if verbose and keepRec % 1000 == 0:
-                                sys.stdout.write('  processed {} good records\n'.format(keepRec))
-                        else:
-                            discardRec += 1
+                        if verbose and keepRec % 1000 == 0:
+                            sys.stdout.write('  processed {} good records\n'.format(keepRec))
                     else:
                         discardRec += 1
+                else:
+                    discardRec += 1
     
     if verbose:
         newsam.close()
