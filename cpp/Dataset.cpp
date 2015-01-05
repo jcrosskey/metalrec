@@ -324,8 +324,6 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 	CLOCKSTOP;
 }
 
-
-
 /* 
  * ===  FUNCTION  ======================================================================
  *         Name:  findMostLikelyReadID
@@ -334,7 +332,7 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
  */
 UINT64 Dataset::findMostLikelyReadID()
 {
-	double bestLikelihood = -numeric_limits<double>::max();
+	double bestLikelihood = -numeric_limits<double>::max(); /* Smallest double number(negative) */
 	UINT64 mostLikelyID = 0;
 	FILE_LOG(logDEBUG3) << "Initialize the best likelihood to be " << bestLikelihood;
 	for (UINT64 i = 1; i <= numberOfUniqueReads; i++)
