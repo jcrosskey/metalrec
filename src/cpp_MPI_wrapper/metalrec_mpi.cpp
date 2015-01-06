@@ -33,7 +33,9 @@ void usage()
     << " [Inputs]" << endl
     << "   -f <readNameFile> File including base names of read/sam files" << endl
     << "   -sd <samDir> directory with sam files including mapping results for each PacBio sequence" << endl
-    << "   -p <exec_path> full path of error correction executable" << endl
+    << "   -fd <samDir> directory with fasta files for each PacBio sequence" << endl
+    << "   -ec <ec_path> full path of error correction executable file" << endl
+    << "   -pick <pick_path> full path of contig picking executable file" << endl
     << endl
     
     << " [Outputs]" << endl
@@ -46,23 +48,26 @@ void usage()
 }
 
 /* Parse command line arguments */
-/* align_fasta [options] -d <fastaDir> -o <outDir> -s <py_path> */
 
 int initializeArguments(int argc, char ** argv,
                          vector<string> & samFilenames, // input fasta files
-                         vector<string> & outFilenames, //output fasta files for corrected sequences
-			 string & samDir, // output directory name
-                         string & exec_path)  // error correction executable file's path
+			 string & outDir,       /* output directory */
+			 string & samDir, // PacBio sam file directory name
+			 string & fastaDir, // PacBio fasta directory name
+			 string & pick_path, // contig picking executable file's path
+                         string & ec_path)  // error correction executable file's path
 {
 	vector<string> Arguments;
 	while(argc--)
 		Arguments.push_back(*argv++);
 
 	string baseNameFile = ""; /* File including base names of read/sam files */
-	string outDir = ""; /* output directory */
+	outDir = ""; /* output directory */
 
 	samDir  = ""; /* input directory for the sam files of PacBio sequences */
-	exec_path = ""; /* python commmand's prefix (including path and some options, no input and output) */
+	fastaDir = ""; /* directory with fasta files for each PacBio sequence */
+	ec_path = ""; /* full path of error correction executable file */
+	pick_path = ""; /* full path of contig picking executable file */
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
@@ -73,6 +78,16 @@ int initializeArguments(int argc, char ** argv,
 			}
 			catch(const out_of_range& oor){
 				baseNameFile = "";
+			}
+		}
+
+		// input directory for the sam files of PacBio sequences
+		else if (Arguments[i] == "-fd"){
+			try{
+			    fastaDir = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				fastaDir = "";
 			}
 		}
 
@@ -96,13 +111,23 @@ int initializeArguments(int argc, char ** argv,
 			}
 		}
 
-		// python commmand's prefix (including path and some options, no input and output)
-		else if (Arguments[i] == "-p"){
+		// contig picking executable file's path
+		else if (Arguments[i] == "-pick"){
 			try{
-			    exec_path = Arguments.at(++i);
+			    pick_path = Arguments.at(++i);
 			}
 			catch(const out_of_range& oor){
-				exec_path = "";
+				pick_path = "";
+			}
+		}
+		
+		// error correction executable file's path
+		else if (Arguments[i] == "-ec"){
+			try{
+			    ec_path = Arguments.at(++i);
+			}
+			catch(const out_of_range& oor){
+				ec_path = "";
 			}
 		}
 		
@@ -119,10 +144,11 @@ int initializeArguments(int argc, char ** argv,
 		    return 1;
 		}
 	}
+
 	/* check required arguments
-	* 1. fastaDir; 2. samDir 3. error correction executable path */
+	* 1. fastaDir; 2. samDir 3. error correction executable path 4. contig picking executable path */
 	//if ( ((baseNameFile == "") && (fastaDir== "")) || (exec_path == "") || (samDir == ""))
-	if ( ((baseNameFile == "") && (samDir== "")) || (exec_path == "") )
+	if ( ((baseNameFile == "") && (samDir== "")) || (ec_path == "") || (fastaDir == "") || (pick_path == "") )
 	{
 		cerr << "missing necessary parameter(s)"<<endl;
 		cerr << "use -h/--help for help" << endl;
@@ -132,11 +158,11 @@ int initializeArguments(int argc, char ** argv,
 	if (outDir == "")
 	    outDir = Utils::get_cwd(); /* output directory, default: current directory */
 
-	//cout << "python command's path is: " << py_cmd_path << endl;
-	//cout << "omega executable file's path is: " << omega_cmd_path << endl;
-	//cout << "output directory is: " << outDir << endl;
-	//cout << "input fasta directory is: " << fastaDir << endl;
-	//cout << "input sam file directory is: " << samDir << endl;
+//	cout << "error correction executable's path is: " << ec_path << endl;
+//	cout << "contig picking executable's path is: " << pick_path << endl;
+//	cout << "output directory is: " << outDir << endl;
+//	cout << "input fasta directory is: " << fastaDir << endl;
+//	cout << "input sam file directory is: " << samDir << endl;
 
 	// first check if starting from a file, instead of scanning a directory
 	if (baseNameFile != "") {
@@ -151,10 +177,8 @@ int initializeArguments(int argc, char ** argv,
 	// find all the sam files in the input directory, ends with .sam
 	else if (samDir != "") {
 		DirectoryStructure sam_dir(samDir);
-
 		sam_dir.setPattern(".sam");
 		sam_dir.getFiles(samFilenames);
-
 		//cout << "total number of sam files is " << samFilenames.size() << endl;
 	}
 
@@ -171,9 +195,7 @@ int initializeArguments(int argc, char ** argv,
 	// full path of the input files and the output files
 	for (int i = 0; i < fileNum; i++)
 	{
-		string outFilename = outDir + "/" + Utils::getFilename2(samFilenames.at(i)) + ".fasta"; // output file name for the corrected PacBio sequence
 		samFilenames.at(i) = samDir + "/" + samFilenames.at(i); // full path for the input sam files
-		outFilenames.push_back(outFilename);
 	}
 
 	// create the output directory if it does not exist already
@@ -234,8 +256,8 @@ void MasterProcess(const int & fileNum)
 }
 
 // slave job
-void SlaveProcess(const vector<string> & samFilenames, const vector<string> & outFilenames,
-                  const string & exec_path, const string & samDir)
+void SlaveProcess(const vector<string> & samFilenames,
+                  const string & ec_path, const string & pick_path, const string & samDir, const string & fastaDir, const string & outDir)
 {
     MPI_Status status;
     int currentWorkID, myid;
@@ -252,20 +274,74 @@ void SlaveProcess(const vector<string> & samFilenames, const vector<string> & ou
             break;
         }
         
+	/* input files */
 	string samFile = samFilenames[currentWorkID];	// sam file to work on
 	string basename = Utils::getFilename2(samFile); // base name of the fasta file, same for sam file
-	string outFile = outFilenames[currentWorkID]; // output corrected fasta file
+	string fastaFile = fastaDir + "/" + basename + ".fasta"; // fasta file
+
+	/* output file */
+	string outFile = outDir + "/" + basename + ".fasta"; // output corrected fasta file
+
+	/* intermediate files */
+	string contigFile = outDir + "/" + basename + ".contigs.fasta"; // contigs from miniassembly
+	string contigSamFile = outDir + "/" + basename + ".contigs.sam"; /* alignment of contigs to PacBio read */
 
 	cout << myid << ": working on " << basename << endl;
 	string output_prefix = basename + "_metalrec"; // prefix for omega's output files
 
 	// if the corresponding sam file exists, try to correct sequence
 	if(Utils::isFileExist(samFile)) {
-		string metalrec_cmd =  exec_path + " -s " + samFile + " -o " + outFile + " -od " + samDir + " -f " + output_prefix + " -l 40 -k 15 -er 0.000 -log ERROR -indelRate 0.25 -subRate 0.1";
+		string metalrec_cmd =  ec_path + " -s " + samFile + " -o " + contigFile + " -od " + samDir + " -f " + output_prefix + " -l 40 -k 15 -er 0.000 -log ERROR -indelRate 0.25 -subRate 0.05";
 		//cout << metalrec_cmd << endl;
 		int res = system(metalrec_cmd.c_str());
 		if(res != 0){
 			cout << "   *** Failed command " << metalrec_cmd << endl;
+		}
+		else if (Utils::isFileExist(contigFile))
+		{
+			/* First check how many contigs are assembled from the Illumina reads */
+			ifstream contig_in;
+			contig_in.open(contigFile.c_str());
+			if(!contig_in.is_open())
+			{
+				cout << "Unable to open file: " << contigFile << endl;
+			}
+			else
+			{
+				int num_reads = 0;
+				string s;
+				while(getline(contig_in, s))
+				{
+					if ( s[0] == ">"[0])
+						num_reads = num_reads + 1;
+					if (num_reads > 1)
+						break;
+				}
+				contig_in.close();
+				if(num_reads == 1)
+				{
+					cout << "mini assembly generated only 1 contig, No need to choose.\nDone.\n";
+					rename(contigFile.c_str(), outFile.c_str()); // rename ec's output to output File
+				}
+				else
+				{
+					cout << "mini assembly generated more than 1 contig\n";
+
+					// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and choose one
+					string blasr_cmd = "blasr " + contigFile + " " + fastaFile + " -noSplitSubreads -sam -clipping soft -out " + contigSamFile + " &> /dev/null";
+					res = system(blasr_cmd.c_str());
+					if(res != 0){
+						cout << "   *** Failed command " << blasr_cmd << endl;
+					}
+					else{
+						string pick_cmd = pick_path + " -log ERROR -s " +  contigSamFile + " -o " + outFile;
+						res = system(pick_cmd.c_str());
+						if(res != 0){
+							cout << "   *** Failed command " << pick_cmd << endl;
+						}
+					}
+				}
+			}
 		}
 	}
 	// else just print message
@@ -277,8 +353,6 @@ void SlaveProcess(const vector<string> & samFilenames, const vector<string> & ou
         MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
         
     }
-    return;
-    
 }
 
 
@@ -288,8 +362,8 @@ int main(int argc, char ** argv){
     
     MPI_Init(&argc, &argv);
 
-    string exec_path, samDir;
-    vector<string> samFilenames, outFilenames;
+    string samDir, fastaDir, outDir, pick_path, ec_path;
+    vector<string> samFilenames;
     int myid;
     
     MPI_Comm_rank(MPI_COMM_WORLD,&myid);
@@ -310,7 +384,7 @@ int main(int argc, char ** argv){
     */
 	
     /* initialize command line arguments */
-    int init = initializeArguments(argc, argv, samFilenames, outFilenames, samDir, exec_path);
+    int init = initializeArguments(argc, argv, samFilenames, outDir, samDir, fastaDir, pick_path, ec_path);
 
     if(init != 0){
 	    MPI_Finalize();
@@ -321,14 +395,19 @@ int main(int argc, char ** argv){
 	    int fileNum = (int) samFilenames.size();
 	    
 	    if (myid == 0) {
-		start_time = MPI_Wtime();
-		// display work start and time record
-		cout << "Initialization succeeded " << endl;
-		cout << endl
-		<< "============================================================================"
-		<< endl << Utils::currentDateTime() << endl
-		<< " Beginning Error Correction" << endl
-		<< " [Step 1] Looking for sam files: Running -> " << std::flush;
+		    cout << "error correction executable's path is: " << ec_path << endl;
+		    cout << "contig picking executable's path is: " << pick_path << endl;
+		    cout << "output directory is: " << outDir << endl;
+		    cout << "input fasta directory is: " << fastaDir << endl;
+		    cout << "input sam file directory is: " << samDir << endl;
+		    start_time = MPI_Wtime();
+		    // display work start and time record
+		    cout << "Initialization succeeded " << endl;
+		    cout << endl
+			    << "============================================================================"
+			    << endl << Utils::currentDateTime() << endl
+			    << " Beginning Error Correction" << endl
+			    << " [Step 1] Looking for sam files: Running -> " << std::flush;
 	    }
 	    
 	    if ( myid == 0 ) {
@@ -339,7 +418,7 @@ int main(int argc, char ** argv){
 	    
 	    else
 	    {
-		SlaveProcess(samFilenames, outFilenames, exec_path, samDir);
+		SlaveProcess(samFilenames, ec_path, pick_path, samDir, fastaDir, outDir);
 	    }
 	    
 	    if( myid == 0 )
