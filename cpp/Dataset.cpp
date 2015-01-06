@@ -123,6 +123,89 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 
 
 /**********************************************************************************************************************
+ * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
+ **********************************************************************************************************************/
+Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRate, const float & subRate)
+{
+	CLOCKSTART;
+	// Initialize the variables.
+	numberOfUniqueReads = 0;
+	numberOfReads = 0;                      /* number of good reads in the dataset */
+	numberOfNonContainedReads = 0;
+	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
+	longestReadLength = 0X0000000000000000;
+	reads = new vector<Read *>;
+	minimumOverlapLength = minOverlap;
+	//PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
+
+	UINT64 goodReads = 0, badReads = 0;
+	/** get reads from sam file **/
+	string line = "";
+	char buffer[1000];
+	while(!feof(inputSamStream))
+	{
+		if(fgets(buffer, 1000, inputSamStream)!=NULL) /* Get buffer of size 1000 */
+			line += buffer;
+		if (line.back() == '\n')        /* A whole line has been read, processing it */
+		{
+			line.pop_back();        /* Delete last character from line, which is EOL */
+			if (line[0] == '@')
+			{
+				FILE_LOG(logDEBUG3) << "header line";
+				if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
+				{
+					size_t LNPos = line.find("LN:");
+					size_t nextTabPos = line.find("\t", LNPos+3);
+					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
+					LNPos = line.find("SN:");
+					nextTabPos = line.find("\t", LNPos+3);
+					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
+				}
+			}
+			else	// not header line, alignment record
+			{
+				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
+				if (line.length() !=0)
+				{
+					Read *r = new Read(line);
+					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
+					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+					{
+						UINT32 len = r->getReadLength();
+						if (len > longestReadLength)
+							longestReadLength = len;
+						if (len < shortestReadLength)
+							shortestReadLength = len;
+						reads->push_back(r);
+						numberOfReads++;
+						goodReads++;
+					}
+					else
+					{
+						badReads++;
+						if (!(r->isReadGood(indelRate, subRate)))
+							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
+						else
+							FILE_LOG(logDEBUG3) << "Read is not valid";
+					}
+				}
+			}
+			line = "";              /* Set line to empty again */
+		}
+	}
+	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
+	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
+	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
+	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
+	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
+	sortReads();
+	removeDupicateReads();	// Remove duplicated reads for the dataset.
+	numberOfNonContainedReads = numberOfUniqueReads;
+	CLOCKSTOP;
+}
+
+
+/**********************************************************************************************************************
   Default destructor
  **********************************************************************************************************************/
 Dataset::~Dataset(void)

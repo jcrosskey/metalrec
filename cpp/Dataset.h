@@ -41,7 +41,7 @@ class Dataset
 		/* Constructors and destructor */
 		Dataset(void);	// Default constructor.
 		Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate);// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
-//		Dataset(stringstream * inputSamStream, UINT64 minOverlap);// anotherconstructor, uses string stream directly instead of reading the file
+		Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRate, const float & subRate);// anotherconstructor, uses input stream directly instead of reading the file
 		~Dataset(void);	// Default destructor.
 
 		/* mutators */
