@@ -49,7 +49,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
+	//PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
 	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
@@ -73,6 +73,9 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 					size_t LNPos = line.find("LN:");
 					size_t nextTabPos = line.find("\t", LNPos+3);
 					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
+					LNPos = line.find("SN:");
+					nextTabPos = line.find("\t", LNPos+3);
+					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
 				}
 			}
 			else	// not header line, alignment record
