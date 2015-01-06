@@ -229,7 +229,14 @@ int main(int argc, char **argv)
 			if (loglevel > 3)
 				graph->printContigs(outputDir + "/" + allFileName + "_paths.fasta", paths, false);
 			// Only the longest path, as the final output
-			graph->printContigs(outputFastaName, paths, true);
+			//graph->printContigs(outputFastaName, paths, true);
+
+			// print all the contigs in the paths, and then choose
+			if(paths.size() > 1)
+				graph->printContigs(outputFastaName, paths, false);
+			else
+				graph->printContigs(outputFastaName, paths, true);
+
 
 			delete ht;
 			delete graph;
