@@ -152,9 +152,9 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 		{
 			if(fgets(buffer, 1000, inputSamStream)!=NULL) /* Get buffer of size 1000 */
 				line += buffer;
-			if (line.back() == '\n')        /* A whole line has been read, processing it */
+			if (line.at(line.size() - 1) == '\n')        /* A whole line has been read, processing it */
 			{
-				line.pop_back();        /* Delete last character from line, which is EOL */
+				line.erase(line.size()-1, 1);        /* Delete last character from line, which is EOL */
 				if (line[0] == '@')
 				{
 					FILE_LOG(logDEBUG3) << "header line";
