@@ -142,57 +142,63 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 	/** get reads from sam file **/
 	string line = "";
 	char buffer[1000];
-	while(!feof(inputSamStream))
+	long streamSize;
+	fseek(inputSamStream, 0, SEEK_SET);
+	streamSize = ftell(inputSamStream);
+	FILE_LOG(logDEBUG) << "Stream size is: " << streamSize;
+	if (streamSize != 0)
 	{
-		if(fgets(buffer, 1000, inputSamStream)!=NULL) /* Get buffer of size 1000 */
-			line += buffer;
-		if (line.back() == '\n')        /* A whole line has been read, processing it */
+		while(!feof(inputSamStream))
 		{
-			line.pop_back();        /* Delete last character from line, which is EOL */
-			if (line[0] == '@')
+			if(fgets(buffer, 1000, inputSamStream)!=NULL) /* Get buffer of size 1000 */
+				line += buffer;
+			if (line.back() == '\n')        /* A whole line has been read, processing it */
 			{
-				FILE_LOG(logDEBUG3) << "header line";
-				if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
+				line.pop_back();        /* Delete last character from line, which is EOL */
+				if (line[0] == '@')
 				{
-					size_t LNPos = line.find("LN:");
-					size_t nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
-					LNPos = line.find("SN:");
-					nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
-				}
-			}
-			else	// not header line, alignment record
-			{
-				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
-				if (line.length() !=0)
-				{
-					Read *r = new Read(line);
-					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+					FILE_LOG(logDEBUG3) << "header line";
+					if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
 					{
-						UINT32 len = r->getReadLength();
-						if (len > longestReadLength)
-							longestReadLength = len;
-						if (len < shortestReadLength)
-							shortestReadLength = len;
-						reads->push_back(r);
-						numberOfReads++;
-						goodReads++;
+						size_t LNPos = line.find("LN:");
+						size_t nextTabPos = line.find("\t", LNPos+3);
+						PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
+						LNPos = line.find("SN:");
+						nextTabPos = line.find("\t", LNPos+3);
+						PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
 					}
-					else
+				}
+				else	// not header line, alignment record
+				{
+					FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
+					if (line.length() !=0)
 					{
-						badReads++;
-						if (!(r->isReadGood(indelRate, subRate)))
-							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
+						Read *r = new Read(line);
+						FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
+						if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+						{
+							UINT32 len = r->getReadLength();
+							if (len > longestReadLength)
+								longestReadLength = len;
+							if (len < shortestReadLength)
+								shortestReadLength = len;
+							reads->push_back(r);
+							numberOfReads++;
+							goodReads++;
+						}
 						else
-							FILE_LOG(logDEBUG3) << "Read is not valid";
+						{
+							badReads++;
+							if (!(r->isReadGood(indelRate, subRate)))
+								FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
+							else
+								FILE_LOG(logDEBUG3) << "Read is not valid";
+						}
 					}
 				}
+				line = "";              /* Set line to empty again */
 			}
-			line = "";              /* Set line to empty again */
 		}
-	}
 	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
 	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
 	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
@@ -201,6 +207,11 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 	sortReads();
 	removeDupicateReads();	// Remove duplicated reads for the dataset.
 	numberOfNonContainedReads = numberOfUniqueReads;
+	}
+	else
+	{
+		Utils::exitWithError("Input sam stream is empty, quit..");
+	}
 	CLOCKSTOP;
 }
 
