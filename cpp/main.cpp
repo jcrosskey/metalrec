@@ -20,7 +20,7 @@
 int loglevel; // logging level in integer format, for different levels of verbosity
 
 void usage();
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, string & outputDir, string & outputFastaName, float & indelRate, float & subRate);
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, string & outputDir, string & outputFastaName, float & indelRate, float & subRate, bool & useLikelihood, bool & scrub);
 
 /************************
  * Help usage
@@ -47,13 +47,15 @@ void usage()
 		<< "    -indelRate\tMaximum indel error rate allowed in the alignment to the PacBio read (default: 1)" << std::endl
 		<< "    -subRate\tMaximum substitution error rate allowed in the alignment to the PacBio read (default: 1)" << std::endl
 		<< "    -log\tSpecify log/output verbosity level, from ERROR, WARNING, INFO, DEBUG (default: INFO)" << std::endl 
+		<< "    -pick\tAfter contigs are generated, align them to PacBio read with BLASR and pick a best contig (default: FALSE)" << std::endl 
+		<< "    -scrub\tAfter contigs are generated, use the scrubbing module to IMPROVE the result (default: FALSE)" << std::endl 
 		<< std::endl;
 }
 
 /**********************************************************************************************************************
   Parse the input arguments
  **********************************************************************************************************************/
-void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, string & outputDir, string & outputFastaName, float & indelRate, float & subRate)
+void parseArguments(int argc, char **argv, string & inputSamFile, string & allFileName, UINT64 & minimumOverlapLength, UINT64 & hashStringLength, UINT32 & maxError, UINT32 & rubPos, float & maxErrorRate, string & outputDir, string & outputFastaName, float & indelRate, float & subRate, bool & useLikelihood, bool & scrub)
 {
 	allFileName = "metalrec";
 	minimumOverlapLength = 0;
@@ -66,6 +68,9 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 	inputSamFile = "";
 	outputDir = "./";
 	outputFastaName = "";
+
+	useLikelihood = false;
+	scrub = false;
 	FILELog::ReportingLevel();	// Initialize the log level to the default (INFO)
 	vector<string> argumentsList;
 	cout << endl;
@@ -109,6 +114,10 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 			outputDir = argumentsList[++i];
 		else if (argumentsList[i] == "-o")
 			outputFastaName = argumentsList[++i];
+		else if (argumentsList[i] == "-pick")
+			useLikelihood = !useLikelihood;
+		else if (argumentsList[i] == "-scrub")
+			scrub = !scrub;
 		else if (argumentsList[i] == "-log"){
 			try{
 				FILELog::ReportingLevel() = FILELog::FromString(argumentsList[++i]);
@@ -121,7 +130,7 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 		}
 		else
 		{
-			usage();
+			usage();                /* TODO should we ignore unrecognizable options or just quit...? */
 			exit(0);
 		}
 	}
