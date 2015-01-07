@@ -328,17 +328,12 @@ void SlaveProcess(const vector<string> & samFilenames,
 					cout << "mini assembly generated more than 1 contig\n";
 
 					// Step 4: if there is more than 1 output contig, use blasr to align them to the PacBio sequence, and choose one
-					string blasr_cmd = "blasr " + contigFile + " " + fastaFile + " -noSplitSubreads -sam -clipping soft -out " + contigSamFile + " &> /dev/null";
+					string blasr_cmd = "blasr " + contigFile + " " + fastaFile + " -noSplitSubreads -sam -clipping soft -out " + contigSamFile + " 2> /dev/null"; /* stderr not output to stream */
+					blasr_cmd += " | " + pick_path + " -log ERROR -o " + outFile;
+
 					res = system(blasr_cmd.c_str());
 					if(res != 0){
 						cout << "   *** Failed command " << blasr_cmd << endl;
-					}
-					else{
-						string pick_cmd = pick_path + " -log ERROR -s " +  contigSamFile + " -o " + outFile;
-						res = system(pick_cmd.c_str());
-						if(res != 0){
-							cout << "   *** Failed command " << pick_cmd << endl;
-						}
 					}
 				}
 			}
