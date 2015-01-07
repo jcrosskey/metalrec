@@ -98,6 +98,8 @@ bool Read::setRead(const string & s)
 	if (ss.good())
 	{
 		vector<string> fields = Utils::StringToVector(s, '\t');
+		if (fields.size() < 11)
+			Utils::exitWithError("Align record does not have 11 mandatory fields, quit...");
 		for (size_t i = 0 ; i < fields.size(); i++)
 			FILE_LOG(logDEBUG4) << "fileds[" << i << "]: " << fields[i]; 
 		readName = fields.at(0);	// 1. Query/Read name
