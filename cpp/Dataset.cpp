@@ -151,10 +151,17 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 		while(!feof(inputSamStream))
 		{
 			if(fgets(buffer, 1000, inputSamStream)!=NULL) /* Get buffer of size 1000 */
+			{
 				line += buffer;
+			}
+			else {
+				perror("Error in function fgets");
+				break;
+			}
 			if (line.at(line.size() - 1) == '\n')        /* A whole line has been read, processing it */
 			{
 				line.erase(line.size()-1, 1);        /* Delete last character from line, which is EOL */
+				FILE_LOG(logDEBUG4) << "Line: " << line;
 				if (line[0] == '@')
 				{
 					FILE_LOG(logDEBUG3) << "header line";
