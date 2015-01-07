@@ -60,8 +60,8 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & allFi
 	hashStringLength = 31;
 	maxError = 0;
 	maxErrorRate = 0.0;
-	indelRate = 1.0;
-	subRate = 1.0;
+	indelRate = 0.25;
+	subRate = 0.05;
 	rubPos = 10;
 	inputSamFile = "";
 	outputDir = "./";
