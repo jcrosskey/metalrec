@@ -85,9 +85,7 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & outpu
 
 	if(inputSamFile.size() == 0)
 	{
-		FILE_LOG(logERROR) << "missed input sam file!" << std::endl;
-		usage();
-		exit(0);
+		FILE_LOG(logWARNING) << "missed input sam file, use stdin as input" << std::endl;
 	}
 	if (outputFastaName.size() == 0)
 		outputFastaName = Utils::getFilename(inputSamFile) + ".fasta";
@@ -108,8 +106,12 @@ int main(int argc, char **argv)
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 	FILE_LOG(logDEBUG1) << "Parsing argument list finished";
 
+	Dataset * contigs;
 	/** Read sam file and store all the reads **/
-	Dataset *contigs = new Dataset(inputSamFile, 1, 1.0, 1.0);	// now reads the .sam file, later should be able to take the string stream TODO**
+	if (inputSamFile.size() != 0)
+		contigs = new Dataset(inputSamFile, 1, 1.0, 1.0);	// now reads the .sam file, later should be able to take the string stream TODO**
+	else
+		contigs = new Dataset(stdin, 1, 1.0, 1.0);
 	if (contigs->getNumberOfReads() == 0)
 		FILE_LOG(logERROR) << "Data set " << "contigs.sam " << " has no read in it, quitting...";
 	else
