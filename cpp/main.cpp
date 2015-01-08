@@ -277,8 +277,13 @@ int main(int argc, char **argv)
 					graph->printContigs(outputFastaName, contigEdges,true);
 				else
 				{
-					char * tmpFastaFile;
-					tmpFastaFile = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
+					char * tmpFastaFile = "XXXXXXXX";
+					if (mkstemp(tmpFastaFile)==-1)
+					{
+						perror("Encounter error in mkstemp");
+						Utils::exitWithError("Error");
+					}
+					//tmpFastaFile = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
 					graph->printContigs(tmpFastaFile, contigEdges,false); /* Save the contigs in this temporary fasta file */
 
 					int res;
@@ -294,8 +299,13 @@ int main(int argc, char **argv)
 					else if (scrub)
 					{
 
-						char * tmp_m5File;
-						tmp_m5File = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
+						char * tmp_m5File="XXXXXXXX";
+						if (mkstemp(tmp_m5File)==-1)
+						{
+							perror("Encounter error in mkstemp");
+							Utils::exitWithError("Error");
+						}
+						//tmp_m5File = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
 						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -m 5 -out " + tmp_m5File; /* scrub module currently doesn't take stream input, so need to write the m5 file */
 						res = system(blasr_cmd.c_str());
 						if(res != 0){
