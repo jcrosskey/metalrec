@@ -65,9 +65,9 @@ class OverlapGraph
 		bool insertEdge(Read *read1, Read *read2, UINT16 overlapOffset, UINT16 numSub, vector<UINT64> *listSubs); // Insert an edge in the overlap graph.
 		UINT64 contractCompositePaths(void); 	// Contract composite paths in the overlap graph.
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
-		bool printGraph(string graphFileName, string contigFileName);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
-		bool printGraph(string outputFastaName);	// Save the longest contig in the outputFastaName file
-		bool printContigs(string outputFastaName, vector<Edge *> contigEdges, bool longestOnly);
+		bool getEdges(vector<Edge *> & contigEdges); /* save all the edges in the graph in a vector of pointers to these edges */
+		bool printGraph(string graphFileName, const vector<Edge *> & contigEdges);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
+		bool printContigs(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly);
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read

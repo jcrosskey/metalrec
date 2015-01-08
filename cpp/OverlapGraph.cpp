@@ -17,8 +17,7 @@ bool compareEdgeByStringLength (Edge *edge1, Edge* edge2)
 {
 	UINT64 length1 = edge1->getStringLengthInRange();
 	UINT64 length2 = edge2->getStringLengthInRange();
-	return (length1 < length2);
-	//return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() < edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
+	return (length1 > length2);
 }
 
 bool compareStringsByLength(string s1, string s2)
@@ -191,17 +190,17 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	/* contracting composite edges, do not remove dead end nodes for now */
 	if (numberOfEdges > 0)
 	{
-		int iteration = 0;
+//		int iteration = 0;
 		do
 		{
-			if (loglevel > 4 )
-			{
-				FILE_LOG(logDEBUG1) << iteration << " iteration, after contracting " << counter <<  " composite edges";
-				stringstream ss;
-				ss << iteration;
-				this->printGraph("debug_" + ss.str() + ".gdl","debug_" + ss.str() + ".fasta");	// printGraph function needs to be rewritten 
-				iteration += 1;
-			}
+//			if (loglevel > 4 )
+//			{
+//				FILE_LOG(logDEBUG1) << iteration << " iteration, after contracting " << counter <<  " composite edges";
+//				stringstream ss;
+//				ss << iteration;
+//				this->printGraph("debug_" + ss.str() + ".gdl","debug_" + ss.str() + ".fasta");	// printGraph function needs to be rewritten 
+//				iteration += 1;
+//			}
 			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
 		} while (counter > 0);
 	}
@@ -620,16 +619,43 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 //}
 
 
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getEdges
+ *  Description:  save all the edges in the graph in a vector of pointers to these edges
+ * =====================================================================================
+ */
+bool OverlapGraph::getEdges(vector<Edge *> & contigEdges)
+{
+	CLOCKSTART;
+	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
+	{
+		if(!graph->at(i)->empty()) // if this read has some edge(s) going out of it (since now the graph is directed)
+		{
+			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
+			{
+				Edge * e = graph->at(i)->at(j);
+				if( e->getDestinationRead()->superReadID==0 || e->getSourceRead()->superReadID==0 ) /* Only consider the edges between non-contained reads */
+				{
+					contigEdges.push_back(e); // List of contigs.
+					//e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
+				}
+			}
+		}
+	}
+	CLOCKSTOP;
+	return true;
+}
+
 /**********************************************************************************************************************
  * This function prints the overlap graph in overlap_graph->gdl file. 
  * The graph can be viewed by aisee (free software available at http://www.aisee.com/) 
  * It also stores the contigs in a file.
  **********************************************************************************************************************/
-bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
+bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & contigEdges)
 {
 	CLOCKSTART;
-	vector <Edge *> contigEdges;	// vector of edges, each of which will form a contig
-	UINT64 thickness, highestDegree = 0, highestDegreeNode;
+	UINT64 thickness;
 	string edgeColor;
 	ofstream graphFilePointer; 
 
@@ -649,121 +675,20 @@ bool OverlapGraph::printGraph(string graphFileName, string contigFileName)
 	}
 
 	// All the edges
-	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
+	for (UINT64 i = 0; i < contigEdges.size(); i++)
 	{
-		if(!graph->at(i)->empty()) // if this read has some edge(s) going out of it (since now the graph is directed)
-		{
-			// check the out degree of the node
-			if(dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges > highestDegree)
-			{
-				highestDegree = dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges;
-				highestDegreeNode = i;
-
-			}
-			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
-			{
-				Edge * e = graph->at(i)->at(j);
-				UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
-				if( e->getDestinationRead()->superReadID==0 || e->getSourceRead()->superReadID==0 )
-				{
-					contigEdges.push_back(e); // List of contigs.
-					e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
-					thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
-					edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
-					// Now there is only 1 kind of edge since the graph is directed, color doesn't matter either.
-					graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
-				}
-			}
-		}
+		Edge * e = contigEdges.at(i);
+		UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
+		thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
+		edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
+		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
 	}
 	graphFilePointer << "}";
 	graphFilePointer.close();
 	FILE_LOG(logINFO) << "Aisee graph written." << endl;
-	/************************* Store the graph in a file done. ************************/
-
-
-	/************************* Store the contigs in a file. ************************/
-	if (contigEdges.size() > 0) // Sort the contigs by their length if there are edges in the graph.
-	{
-		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByStringLength);	// But this is sorted by overlap offset..?? (in a sense, if the offset is longer, the spelled edge is longer, given that the read lengths are more or less comparable.)
-		reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
-	}
-	UINT64 sum = 0;	// sum of contig lengths
-	ofstream contigFilePointer;
-	contigFilePointer.open(contigFileName.c_str());
-	if(!contigFilePointer.is_open())
-		MYEXIT("Unable to open file: " + contigFileName);
-	// All contigs read from the edges
-	if (contigEdges.size() > 0)
-	{
-		for(UINT64 i = 0; i < contigEdges.size(); i++) 
-		{
-			string s = getStringInEdge(contigEdges.at(i)); // get the string in the edge. This function need to be rewritten too.
-			contigFilePointer << ">contig_"<< i+1 << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") Coordinates: " << contigEdges.at(i)->getSourceRead()->getStartCoord() << " to " << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ". String Length: " << s.length() <<  ". Length in region: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads. Coverage: " << contigEdges.at(i)->coverageDepth << endl;
-			sum += s.length();
-			UINT32 start=0;
-			do
-			{
-				contigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
-				start+=100;
-			} while (start < s.length());
-		}
-	}
-	contigFilePointer.close();
-	/************************* Store the contigs in a file, done. ************************/
-
-	// Print some statistics about the graph.
-	FILE_LOG(logINFO)<< "Total contig length: " << sum <<" bps";
-	FILE_LOG(logINFO)<< "Number of Nodes in the graph: " << getNumberOfNodes();
-	FILE_LOG(logINFO)<< "Number of Edges in the graph: " << getNumberOfEdges();
-
-	if (contigEdges.size() > 0)
-	{
-		UINT64 simEdges = 0, comEdges = 0;
-		for(UINT64 i=0; i < graph->at(highestDegreeNode)->size(); i++)
-		{
-			if(graph->at(highestDegreeNode)->at(i)->getListOfReads()->empty())
-				simEdges++;
-			else
-				comEdges++;
-		}
-		// Print some more statistics on the node with highest degree.
-		FILE_LOG(logINFO)<< "Highest Degree Read " << highestDegreeNode << " has " << highestDegree << " neighbors.";
-		FILE_LOG(logDEBUG4)<< "Read string: " << dataSet->getReadFromID(highestDegreeNode)->getDnaStringForward();
-		FILE_LOG(logINFO) << "It has " << simEdges << " simple edges," << "  and " << comEdges << " composite edges."; 
-	}
-
 	CLOCKSTOP;
 	return true;
-}
-
-
-/**********************************************************************************************************************
- * This function stores only the longest contig in a file.
- **********************************************************************************************************************/
-bool OverlapGraph::printGraph(string outputFastaName)
-{
-	vector <Edge *> contigEdges;	// vector of edges, each of which will form a contig
-
-	// All the edges
-	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
-	{
-		if(!graph->at(i)->empty()) // if this read has some edge(s) going out of it (since now the graph is directed)
-		{
-			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
-			{
-				Edge * e = graph->at(i)->at(j);
-				if( e->getDestinationRead()->superReadID==0 || e->getSourceRead()->superReadID==0 )
-				{
-					contigEdges.push_back(e); // List of contigs.
-					e->setEndCorrdinateLimit(dataSet->getPacBioReadLength());
-				}
-			}
-		}
-	}
-
-	printContigs(outputFastaName, contigEdges, true);
-	return true;
+	/************************* Store the graph in a file done. ************************/
 }
 
 
@@ -773,22 +698,21 @@ bool OverlapGraph::printGraph(string outputFastaName)
  *  Description:  Print contigs(strings spelled by edges) to file
  * =====================================================================================
  */
-bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> contigEdges, bool longestOnly)
+bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly)
 {
 	/************************* Store the contigs in a file. ************************/
 	if (contigEdges.size() > 0) // Sort the contigs by their length if there are edges in the graph.
 	{
-		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByStringLength);	// Sort the contigs by their total string length
-		reverse(contigEdges.begin(), contigEdges.end());	// Reverse the order of edges in contigEdges, so that the edges are ordered increasingly by length
+		sort(contigEdges.begin(),contigEdges.end(),compareEdgeByStringLength);	// Sort the contigs by their total string length, in decreasing order
 		/* Output the longest one for result */
 		ofstream outputContigFilePointer;
 		outputContigFilePointer.open(outputFastaName.c_str());
 		if(!outputContigFilePointer.is_open())
 			MYEXIT("Unable to open file: " + outputFastaName);
-		if (longestOnly)
+		if (longestOnly || contigEdges.size() == 1) /* Only the longest one is written or there is only 1 edge in the graph */
 		{
 			string s = getStringInEdge(contigEdges.at(0)); // get the string in the longest edge. This function need to be rewritten too.
-			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length() << endl;
+			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length() << endl; /* If only the longest one is printed, then it's named the same as the PacBio read name */
 			UINT32 start=0;
 			do
 			{
