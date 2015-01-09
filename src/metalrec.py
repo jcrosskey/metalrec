@@ -162,7 +162,7 @@ def main(argv=None):
                     ## write the newly corrected sequence to the output sequence file
                     # header format: >1 (0, 1048) gap length: 16
                     #refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
-                    refOut.write('>{} ({}, {}) scrub; length: {}\n'.format(seqName, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1]))
+                    refOut.write('>{}/{} ({}, {}) scrub; length: {}\n'.format(seqName, good_region_index, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1]))
                     start = 0
                     outString = contiguous_seqs[max_ind]
                     while start < contiguous_lengths[max_ind]:
