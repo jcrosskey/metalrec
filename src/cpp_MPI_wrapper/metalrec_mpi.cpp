@@ -257,7 +257,7 @@ void SlaveProcess(const vector<string> & samFilenames,
 		string exec_cmd = "/chongle/shared/software/metalrec/cpp/metalrec -s " + samFile + " -pf " + fastaFile + \
 				   " -l 40 -k 10 -o " + outFile + " -f " + basename + " -od " + outDir + \
 				   " -scrub -blasr_path /chongle/shared/software/blasr-smrtanalysis-2.1/alignment/bin/blasr -scrub_path /chongle/shared/software/metalrec/src/metalrec.py -log ERROR";
-		cout << exec_cmd << endl;
+		//cout << exec_cmd << endl;
 		int res = system(exec_cmd.c_str());
 		if(res != 0){
 			cout << "   *** Failed command " << exec_cmd << endl;
