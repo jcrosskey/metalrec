@@ -13,11 +13,16 @@
  * Function to compare two edges. Used for sorting.
  * Edges are sorted by the destination read number.
  **************************************************/
-bool compareEdgeByStringLength (Edge *edge1, Edge* edge2)
+bool compareEdgeByStringLengthInPacBio (Edge *edge1, Edge* edge2)
 {
 	UINT64 length1 = edge1->getStringLengthInRange();
 	UINT64 length2 = edge2->getStringLengthInRange();
 	return (length1 > length2);
+}
+
+bool compareEdgeByStringLength (Edge *edge1, Edge *edge2)
+{
+	return (edge1->getOverlapOffset() + edge1->getDestinationRead()->getReadLength() > edge2->getOverlapOffset() + edge2->getDestinationRead()->getReadLength());
 }
 
 bool compareStringsByLength(string s1, string s2)
