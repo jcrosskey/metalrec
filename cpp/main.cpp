@@ -278,7 +278,7 @@ int main(int argc, char **argv)
 				else
 				{
 					FILE_LOG(logDEBUG) << "Start post-processing";
-					string tmpFastaFile = allFileName + "_tmp.contigs.fasta";
+					string tmpFastaFile = outputDir + "/" +  allFileName + "_tmp.contigs.fasta";
 //					if (mkstemp(tmpFastaFile)==-1)
 //					{
 //						perror("Encounter error in mkstemp");
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
 					/* Use BLASR to align the contigs to the PacBio read */
 					if (useLikelihood)
 					{
-						string tmp_samFile = allFileName + "_tmp.contigs.sam";
+						string tmp_samFile = outputDir + "/" +  allFileName + "_tmp.contigs.sam";
 						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -sam -clipping soft -out " + tmp_samFile + " 2> /dev/null";
 						//FILE_LOG(logINFO) << "running blasr_cmd " << blasr_cmd;
 						res = system(blasr_cmd.c_str());
@@ -307,13 +307,16 @@ int main(int argc, char **argv)
 								FILE_LOG(logERROR) << "   *** Failed likelihood based contig picking";
 							}
 						}
-						if (loglevel < 3)
+						if (loglevel < 3){
 							remove(tmpFastaFile.c_str());
+							remove(tmp_samFile.c_str());
+						}
+
 					}
 					else if (scrub)
 					{
 
-						string tmp_m5File = allFileName + "_tmp.contigs.m5";
+						string tmp_m5File = outputDir + "/" +  allFileName + "_tmp.contigs.m5";
 						FILE_LOG(logDEBUG3) << "Generating temporary .m5 file: " << tmp_m5File;
 						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -m 5 -out " + tmp_m5File + " 2> /dev/null"; /* scrub module currently doesn't take stream input, so need to write the m5 file */
 						res = system(blasr_cmd.c_str());
@@ -327,6 +330,10 @@ int main(int argc, char **argv)
 							if(res != 0){
 								cout << "   *** Failed scrubbing";
 							}
+						}
+						if (loglevel < 3){
+							remove(tmpFastaFile.c_str());
+							remove(tmp_m5File.c_str());
 						}
 							
 					}
