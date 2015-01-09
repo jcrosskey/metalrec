@@ -59,7 +59,7 @@ def main(argv=None):
     if argv is None:
         args = parser.parse_args()
 
-    sys.stdout.write("\n===========================================================\n")
+    sys.stderr.write("\n===========================================================\n")
     start_time = time.time()
     # check input and output file settings
     ## required input files: PacBio sequence file and sam file for this PacBio sequence
@@ -71,12 +71,12 @@ def main(argv=None):
     ## output file and directories, optional
     if args.oSeqFile is None: # default destination for the corrected PacBio sequence(contigs if the sequence is split into different regions)
         args.oSeqFile = os.path.dirname(os.path.abspath(args.seqFile))+ '/EC.fasta'
-    shortSeqFile = args.oSeqFile + '.short'
+    #shortSeqFile = args.oSeqFile + '.short'
     if os.path.exists(args.oSeqFile): # overwrite the output file if it already exists
         os.remove(args.oSeqFile)
-        sys.stdout.write("Output sequence file already exists, overwrite.\n")
-    if os.path.exists(shortSeqFile): # overwrite the output file if it already exists
-        os.remove(shortSeqFile)
+        sys.stderr.write("Output sequence file already exists, overwrite.\n")
+    #if os.path.exists(shortSeqFile): # overwrite the output file if it already exists
+    #    os.remove(shortSeqFile)
     elif not os.path.exists(os.path.dirname(os.path.abspath(args.oSeqFile))): # make sure the directory for the output file exists
         os.makedirs(os.path.dirname(os.path.abspath(args.oSeqFile)))
 
@@ -87,21 +87,21 @@ def main(argv=None):
             args.outDir = os.path.abspath(args.outDir) + '/'
         if not os.path.exists(args.outDir):
             os.makedirs(args.outDir)
-        sys.stdout.write("verbose output directory: {}.\n".format(args.outDir))
+        sys.stderr.write("verbose output directory: {}.\n".format(args.outDir))
 
     if args.verbose:
-        sys.stdout.write("minimum overlap length: {}\n".format(args.minOverlap))
-        sys.stdout.write("minimum overlap length ratio: {}\n".format(args.minOverlapRatio))
-        sys.stdout.write("maximum stretch of substitution: {}\n".format(args.maxSub))
-        sys.stdout.write("maximum stretch of insertion: {}\n".format(args.maxIns))
-        sys.stdout.write("maximum stretch of deletion: {}\n".format(args.maxDel))
-        sys.stdout.write("maximum substitution rate allowed: {}\n".format(args.maxSubRate))
-        sys.stdout.write("maximum indel rate allowed: {}\n".format(args.maxInDelRate))
-        sys.stdout.write("minimum coverage depth: {}\n".format(args.minCV))
-        sys.stdout.write("minimum PacBio read length to be considered: {}\n".format(args.minPacBioLen))
-        sys.stdout.write("minimum good region length: {}\n".format(args.minGoodLen))
-        sys.stdout.write("verbose mode: {}\n".format(args.verbose))
-        sys.stdout.write("check substitution error rate at ends: {}\n".format(args.checkEnds))
+        sys.stderr.write("minimum overlap length: {}\n".format(args.minOverlap))
+        sys.stderr.write("minimum overlap length ratio: {}\n".format(args.minOverlapRatio))
+        sys.stderr.write("maximum stretch of substitution: {}\n".format(args.maxSub))
+        sys.stderr.write("maximum stretch of insertion: {}\n".format(args.maxIns))
+        sys.stderr.write("maximum stretch of deletion: {}\n".format(args.maxDel))
+        sys.stderr.write("maximum substitution rate allowed: {}\n".format(args.maxSubRate))
+        sys.stderr.write("maximum indel rate allowed: {}\n".format(args.maxInDelRate))
+        sys.stderr.write("minimum coverage depth: {}\n".format(args.minCV))
+        sys.stderr.write("minimum PacBio read length to be considered: {}\n".format(args.minPacBioLen))
+        sys.stderr.write("minimum good region length: {}\n".format(args.minGoodLen))
+        sys.stderr.write("verbose mode: {}\n".format(args.verbose))
+        sys.stderr.write("check substitution error rate at ends: {}\n".format(args.checkEnds))
 
     # read the PacBio sequence into memory
     rseq = metalrec_lib.read_single_seq(args.seqFile)
@@ -109,27 +109,27 @@ def main(argv=None):
     s_time = time.time()
     ref_bps, ref_ins_dict, read_info = metalrec_lib.read_and_process_sam_samread(args.samFile, rseq, maxSub=args.maxSub, maxIns=args.maxIns, maxDel=args.maxDel,maxSubRate=args.maxSubRate, maxInDelRate=args.maxInDelRate, minPacBioLen=args.minPacBioLen, checkEnds=args.checkEnds, outDir=args.outDir, verbose=args.verbose)
     e_time = time.time()
-    sys.stdout.write("processing sam file time :" + str(e_time - s_time) +  " second\n")
+    sys.stderr.write("processing sam file time :" + str(e_time - s_time) +  " second\n")
 
     if len(ref_bps) == 0: # empty sam file, or nothing
-        sys.stdout.write("PacBio read does not have any coverage from Illumina reads\n")
+        sys.stderr.write("PacBio read does not have any coverage from Illumina reads\n")
     else:
         good_regions, cov_bps, avg_cov_depth = metalrec_lib.get_good_regions(ref_bps, rseq, minGoodLen=args.minGoodLen, minCV=args.minCV) # find good regions for the Good read
-        sys.stdout.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
+        sys.stderr.write("covered bps: {}\naverage coverage depth: {}\n".format(cov_bps, avg_cov_depth))
         if len(good_regions) == 0 :
-            sys.stdout.write("PacBio read does not have any good region covered by the Illumina reads")
+            sys.stderr.write("PacBio read does not have any good region covered by the Illumina reads")
         else: # examine good regions one by one
             # first print out all good regions
-            sys.stdout.write("Good regions:\n")
+            sys.stderr.write("Good regions:\n")
             for i in good_regions:
-                sys.stdout.write('({}, {}): {}\t'.format(i[0], i[1], i[1] - i[0])) # (start_pos, end_pos): length of this good region
-            sys.stdout.write('\n')
+                sys.stderr.write('({}, {}): {}\t'.format(i[0], i[1], i[1] - i[0])) # (start_pos, end_pos): length of this good region
+            sys.stderr.write('\n')
 
             seqName = os.path.basename(args.seqFile).split('.')[0] # e.g. m130828_041445_00123_c100564312550000001823090912221381_s1_p0__58103__7045_8127.fasta
             seqName = re.sub('__','/',seqName) # change __ back to /
             # try to correct PacBio sequence at each good region
             for good_region_index in xrange(len(good_regions)):
-                sys.stdout.write("====\nworking on region {}\n".format(good_region_index))
+                sys.stderr.write("====\nworking on region {}\n".format(good_region_index))
                 # step 1 - find consensus, polymorphic positions, and coverage depths for the PacBio read
                 poly_bps, poly_ins, consensus_bps, consensus_ins, cvs = metalrec_lib.get_poly_pos(ref_bps, ref_ins_dict, good_regions[good_region_index])
                 # step 2 - extend the PacBio sequence to include the insertion positions, and find the correspondance between positions from original and extened sequences
@@ -141,10 +141,10 @@ def main(argv=None):
                 # step 5 - construct array for all the reads that passed the specified threshold, and number of repeats for each unique read (single or paired)
                 read_array, read_counts = metalrec_lib.make_read_array(read_info, bp_pos_dict, ins_pos_dict, type_array, poly_bps_ext, poly_ins_ext, consensus_bps_ext, consensus_ins_ext, ext_region=coordinates)
                 if not numpy.any(read_array != 0): # if all read calls for 0
-                    sys.stdout.write("PacBio read does not have any good reads covering the region.\n")
+                    sys.stderr.write("PacBio read does not have any good reads covering the region.\n")
                 else:
                     refOut = open(args.oSeqFile, 'a') # output file for the corrected PacBio sequence (contigs if it is split)
-                    shortOut = open(shortSeqFile,'a')
+                    #shortOut = open(shortSeqFile,'a')
 
                     # step 6 - find error corrected sequence by filling the gaps in the greedy fashion
                     if args.verbose:
@@ -161,16 +161,22 @@ def main(argv=None):
                     # in verbose mode, print the comparison between the original sequence, the extended sequence, and the corrected sequence
                     ## write the newly corrected sequence to the output sequence file
                     # header format: >1 (0, 1048) gap length: 16
-                    refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
-                    if len(contiguous_seqs) > 1:
-                        for i in xrange(len(contiguous_seqs)):
-                            if i != max_ind:
-                                shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
+                    #refOut.write('>{}/{}_{}_M ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index,max_ind, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1], contiguous_seqs[max_ind]))
+                    refOut.write('>{} ({}, {}) scrub; length: {}\n'.format(seqName, good_regions[good_region_index][0], good_regions[good_region_index][1], ref_new[1]))
+                    start = 0
+                    outString = contiguous_seqs[max_ind]
+                    while start < contiguous_lengths[max_ind]:
+                        refOut.write(outString[start:min(start+100, len(outString))] + "\n")
+                        start = start + 100
+                    #if len(contiguous_seqs) > 1:
+                    #    for i in xrange(len(contiguous_seqs)):
+                    #        if i != max_ind:
+                    #            shortOut.write('>{}/{}_{} ({}, {}) length: {}\n{}\n'.format(seqName, good_region_index, i,  good_regions[good_region_index][0], good_regions[good_region_index][1], contiguous_lengths[i], contiguous_seqs[i]))
 
                     refOut.close()
-                    shortOut.close()
-    sys.stdout.write("total time :" + str(time.time() - start_time) +  " seconds")
-    sys.stdout.write("\n===========================================================\nDone\n")
+                    #shortOut.close()
+    sys.stderr.write("total time :" + str(time.time() - start_time) +  " seconds")
+    sys.stderr.write("\n===========================================================\nDone\n")
 ##==============================================================
 ## call from command line (instead of interactively)
 ##==============================================================
