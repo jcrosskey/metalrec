@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 		outputFilePointer.open(outputFastaName.c_str());
 		if(!outputFilePointer.is_open())
 			MYEXIT("Unable to open file: "+ outputFastaName);
-		outputFilePointer << ">" << contigs->getPacBioReadName() << " " << contigs->getReadFromID(mostLikelyID)->getReadName() << " Length: " << s.length() << endl;
+		outputFilePointer << ">" << contigs->getPacBioReadName() << " " << contigs->getReadFromID(mostLikelyID)->getReadName() << " pick; Length: " << s.length() << endl;
 		UINT32 start=0;
 		do
 		{
