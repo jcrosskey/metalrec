@@ -70,8 +70,8 @@ void parseArguments(int argc, char **argv, string & inputSamFile, string & PacBi
 		bool & useLikelihood, bool & scrub, string & blasr_path, string & scrub_path, string & pick_path)
 {
 	allFileName = "metalrec";
-	minimumOverlapLength = 0;
-	hashStringLength = 31;
+	minimumOverlapLength = 40;
+	hashStringLength = 10;
 	maxError = 0;
 	maxErrorRate = 0.0;
 	indelRate = 0.25;
@@ -277,12 +277,14 @@ int main(int argc, char **argv)
 					graph->printContigs(outputFastaName, contigEdges,true);
 				else
 				{
-					char * tmpFastaFile = "XXXXXXXX";
-					if (mkstemp(tmpFastaFile)==-1)
-					{
-						perror("Encounter error in mkstemp");
-						Utils::exitWithError("Error");
-					}
+					FILE_LOG(logDEBUG) << "Start post-processing";
+					string tmpFastaFile = allFileName + "_tmp.contigs.fasta";
+//					if (mkstemp(tmpFastaFile)==-1)
+//					{
+//						perror("Encounter error in mkstemp");
+//						Utils::exitWithError("Error");
+//					}
+					FILE_LOG(logDEBUG3) << "Generating temporary fasta file: " << tmpFastaFile;
 					//tmpFastaFile = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
 					graph->printContigs(tmpFastaFile, contigEdges,false); /* Save the contigs in this temporary fasta file */
 
@@ -290,34 +292,40 @@ int main(int argc, char **argv)
 					/* Use BLASR to align the contigs to the PacBio read */
 					if (useLikelihood)
 					{
-						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -sam -clipping soft 2> /dev/null | " + pick_path + " -log ERROR -o " + outputFastaName; 
+						string tmp_samFile = allFileName + "_tmp.contigs.sam";
+						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -sam -clipping soft -out " + tmp_samFile + " 2> /dev/null";
+						//FILE_LOG(logINFO) << "running blasr_cmd " << blasr_cmd;
 						res = system(blasr_cmd.c_str());
 						if(res != 0){
-							FILE_LOG(logERROR) << "   *** Failed post-processing with likelihood based contig picking";
+							FILE_LOG(logERROR) << "   *** Failed BLASR alignment to generate sam file";
 						}
+						else
+						{
+							string pick_cmd = pick_path + " -log ERROR -o " + outputFastaName + " -s " + tmp_samFile;
+							res = system(pick_cmd.c_str());
+							if(res != 0){
+								FILE_LOG(logERROR) << "   *** Failed likelihood based contig picking";
+							}
+						}
+						if (loglevel < 3)
+							remove(tmpFastaFile.c_str());
 					}
 					else if (scrub)
 					{
 
-						char * tmp_m5File="XXXXXXXX";
-						if (mkstemp(tmp_m5File)==-1)
-						{
-							perror("Encounter error in mkstemp");
-							Utils::exitWithError("Error");
-						}
-						//tmp_m5File = tmpnam(NULL); /* Generate a temporary file name different from the name of any existing file */
-						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -m 5 -out " + tmp_m5File; /* scrub module currently doesn't take stream input, so need to write the m5 file */
+						string tmp_m5File = allFileName + "_tmp.contigs.m5";
+						FILE_LOG(logDEBUG3) << "Generating temporary .m5 file: " << tmp_m5File;
+						string blasr_cmd = blasr_path + " " + tmpFastaFile + " " + PacBioFasta + " -noSplitSubreads -m 5 -out " + tmp_m5File + " 2> /dev/null"; /* scrub module currently doesn't take stream input, so need to write the m5 file */
 						res = system(blasr_cmd.c_str());
 						if(res != 0){
 							FILE_LOG(logERROR) << "   *** Failed BLASR alignment to generate m5 file";
 						}
 						else
 						{
-							string scrub_cmd = "python " + scrub_path + " -i " + PacBioFasta + " -s " + tmp_m5File + " -o " + outputFastaName + " > /dev/null"; /* scrubbing */
+							string scrub_cmd = "python " + scrub_path + " -i " + PacBioFasta + " -s " + tmp_m5File + " -o " + outputFastaName + " &> /dev/null"; /* scrubbing */
 							res = system(scrub_cmd.c_str());
 							if(res != 0){
 								cout << "   *** Failed scrubbing";
-								exit(0);
 							}
 						}
 							
