@@ -1135,7 +1135,7 @@ bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWU
 
 	if(!edge->getListOfReads()->empty()) // Composite Edge
 	{
-		if(edge->getListOfReads()->size() > 5 || edge->getOverlapOffset() > 1000 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
+		if(edge->getListOfReads()->size() > 20 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
 		{
 			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 1;
 			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
