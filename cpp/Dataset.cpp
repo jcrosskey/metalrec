@@ -7,6 +7,7 @@
 
 #include "Dataset.h"
 #include <limits>
+#include <unistd.h>
 
 /**********************************************************************************************************************
  * Function to compare two reads by their start mapping coordinate. Used for sorting.
@@ -33,7 +34,6 @@ Dataset::Dataset(void)
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
 }
-
 
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
@@ -136,6 +136,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
+	PacBioReadName = "";
 	//PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
 	UINT64 goodReads = 0, badReads = 0;
@@ -181,6 +182,8 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 					if (line.length() !=0)
 					{
 						Read *r = new Read(line);
+						if ( PacBioReadName.length() == 0 )
+							PacBioReadName = r->getRefName();
 						FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
 						if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
 						{
@@ -217,7 +220,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 	}
 	else
 	{
-		Utils::exitWithError("Input sam stream is empty, quit..");
+		Utils::exitWithError("Input sam stream is empty, quit..\n");
 	}
 	CLOCKSTOP;
 }
