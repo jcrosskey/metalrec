@@ -13,6 +13,7 @@
 #include <math.h>
 #include <string.h>
 #include <assert.h>
+#include <iostream>
 //#include <values.h>
 
 /* for measuring time */
@@ -1855,12 +1856,11 @@ void cs2_cost_restart (double *obj_ad)
 #endif
 
 #ifdef PRINT_ANS
-void print_solution(node *ndp, arc *arp, long nmin, double *cost,char *filename)
+void print_solution(node *ndp, arc *arp, long nmin, double *cost, stringstream & oss)
 {
   node *i;
   arc *a;
   long ni;
-  FILE * fp=fopen(filename,"w");
   price_t cost2;
   //int *solution;
   //malloc(solution,sizeof(int)*10);
@@ -1873,11 +1873,10 @@ void print_solution(node *ndp, arc *arp, long nmin, double *cost,char *filename)
 	{
 	  if ( cap[ N_ARC (a) ]  > 0 ) {
 	   // printf ( "f %7ld %7ld %10ld\n", ni, N_NODE( a -> head ), cap[ N_ARC (a) ] - ( a -> r_cap ));
-	    fprintf(fp,"%ld %ld %ld\n",ni, N_NODE( a -> head ), cap[ N_ARC (a) ] - ( a -> r_cap ));
+	    oss << ni << " " << N_NODE( a -> head ) << " " << cap[ N_ARC (a) ] - ( a -> r_cap ) << endl;
             }
 	}
     }
- fclose(fp);
 #ifdef COMP_DUALS
   /* find minimum price */
   cost2 = MAX_32;
@@ -1894,7 +1893,7 @@ void print_solution(node *ndp, arc *arp, long nmin, double *cost,char *filename)
 }
 #endif
 
-double main_cs2(char *input_filename,char * output_filename)//int argc, char **argv)
+double main_cs2(stringstream *ss, stringstream & oss)//int argc, char **argv)
 {
   //int *solution;
   //malloc(solution,sizeof(int)*1000);
@@ -1916,8 +1915,8 @@ double main_cs2(char *input_filename,char * output_filename)//int argc, char **a
   //printf ("c CS 4.6\n");
   //printf ("c Commercial use requires a licence\n");
   //printf ("c contact igsys@eclipse.net\nc\n");
-  
-  parse( &n, &m, &ndp, &arp, &nmin, &c_max, &cap,input_filename );
+
+  parse( &n, &m, &ndp, &arp, &nmin, &c_max, &cap,ss );
   
   nodes = ndp;
   
@@ -1960,7 +1959,7 @@ double main_cs2(char *input_filename,char * output_filename)//int argc, char **a
 #endif
   
 #ifdef PRINT_ANS
-  print_solution(ndp, arp, nmin, &cost,output_filename);
+  print_solution(ndp, arp, nmin, &cost, oss);
 #endif
 
   free(cap);

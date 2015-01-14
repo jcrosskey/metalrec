@@ -263,7 +263,7 @@ int main(int argc, char **argv)
 
 		else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 		{
-			graph->calculateFlow(outputDir + "/" + allFileName+"_flow.input", outputDir + "/" + allFileName+"_flow.output");
+			graph->calculateFlow();
 			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
 			graph->removeAllSimpleEdgesWithoutFlow();
 			graph->simplifyGraph();
