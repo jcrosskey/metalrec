@@ -8,6 +8,7 @@
 ********************************************************************/
 
 #include "Utils.h"
+#include <unistd.h>
 
 namespace Utils
 {
@@ -48,7 +49,7 @@ namespace Utils
     void mkdirIfNonExist(const std::string & dirname)
     {
         if (!Utils::isDirectory(dirname)) {
-            string cmd = "mkdir -p "+ dirname;
+		std::string cmd = "mkdir -p "+ dirname;
             const int res = system(cmd.c_str());
             if (res != 0 )
                 exitWithError("*** Error: Failed command: " + cmd);
@@ -389,9 +390,9 @@ namespace Utils
         std::vector<std::string> strVec;
         std::size_t pos = 0;
         std::size_t delimiter_pos = str.find(delimit,pos);	// position of the delimiter
-        string field;	// extract field
+	std::string field;	// extract field
         while (delimiter_pos != std::string::npos) {
-            field = str.substr(pos, delimiter_pos-pos);
+		field = str.substr(pos, delimiter_pos-pos);
             strVec.push_back(field);
             pos = delimiter_pos + 1;
             delimiter_pos = str.find(delimit,pos);
@@ -519,5 +520,41 @@ namespace Utils
         return lastline;
     }
 
+
+    /* Get ref sequence names and save them in a vector of strings, from stream */
+    bool getRefNames(FILE * stream, std::vector<std::string> & refNames)
+    {
+	    std::string line = "";
+	    char buffer[1000];
+	    while(1)
+	    {
+		    if(fgets(buffer, 1000, stream)==NULL) /* Get buffer of size 1000 */
+		    {
+			    perror("Error in function fgets");
+			    break;
+		    }
+		    
+		    line += buffer;
+		   
+		    if (line.at(line.size() - 1) == '\n')        /* A whole line has been read, processing it */
+		    {
+			    line.erase(line.size()-1, 1);        /* Delete last character from line, which is EOL */
+			    if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
+			    {
+				    size_t SNPos = line.find("SN:");
+				    size_t nextTabPos = line.find("\t", SNPos+3);
+				    refNames.push_back(line.substr(SNPos+3,nextTabPos-SNPos-3)); /* length of the PacBio read */
+			    }
+			    line = "";              /* Set line to empty again */
+		    }
+	    }
+	    return true;
+    }
+
+    std::string get_cwd()
+    {
+	char path[FILENAME_MAX];
+	return ( GetCurrentDir(path, sizeof(path)) ? std::string(path) : std::string("") );
+    }
 
 }

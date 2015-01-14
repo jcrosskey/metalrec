@@ -10,7 +10,22 @@
  * Copyright (c) 2013 JJ Chai (ORNL). Allrights reserved.
 ********************************************************************/
 
-#include "Common.h"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <cstdlib>
+#include <algorithm>
+#include <sys/stat.h>
+#include <stdio.h>
+// for getting current working directory
+#ifdef WINDOWS
+	#include <direct.h>
+	#define GetCurrentDir _getcwd
+#else
+	#include <unistd.h>
+	#define GetCurrentDir getcwd
+#endif
 
 
 /**
@@ -104,6 +119,11 @@ namespace Utils
     /** find the last non-empty line of a file **/
     std::string last_line(const std::string & filename);
 
+    /* Get ref sequence names and save them in a vector of strings, from stream */
+    bool getRefNames(FILE * stream, std::vector<std::string> & refNames);
+
+    /* Get current working directory */
+    std::string get_cwd();
 }
 
 #endif //UTILS.HPP
