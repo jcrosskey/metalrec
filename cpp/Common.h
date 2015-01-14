@@ -20,7 +20,6 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
-#include <algorithm>
 #include <math.h>
 #include <streambuf>
 #include <sys/stat.h>
