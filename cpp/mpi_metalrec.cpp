@@ -3,7 +3,20 @@
 #include <iostream>
 #include <stdio.h>
 #include "Utils.h"
-#include "main_ec.h"
+/*** utility functions ***/
+#include "Common.h"
+/*** Read class ***/
+#include "Read.h"
+/*** Dataset class ***/
+#include "Dataset.h"
+/*** Edge class ***/
+#include "Edge.h"
+/*** HashTable class ***/
+#include "HashTable.h"
+/*** OverlapGraph class ***/
+#include "OverlapGraph.h"
+/* check file existence and permissions */
+#include <unistd.h>
 
 /********************************************************
  * mpi_metalrec.cpp
@@ -20,7 +33,7 @@
 
 #define WORKTAG    1
 #define DIETAG     2
-
+#define	MAX_FILE_NUM 20000			/*  */
 using namespace std;
 
 /* print usage */
@@ -73,6 +86,16 @@ int initializeArguments(int argc, char ** argv,
 			samtools_path = Arguments.at(++i);
 		}
 
+		else if (Arguments[i] == "-log"){
+			try{
+				FILELog::ReportingLevel() = FILELog::FromString(Arguments[++i]);
+			}
+			catch(const std::exception& e)
+			{
+				FILE_LOG(logERROR) << e.what();
+				FILELog::FromString("INFO");
+			}
+		}
 		// help, print Usage
 		else if (Arguments[i] == "-h" || Arguments[i] == "--help")
 		{
@@ -172,9 +195,12 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 		}
 
 		/* output file */
-		stringstream workID;
+		stringstream workID, folderID;
 		workID << currentWorkID;
-		string outFile = outDir + "/" + workID.str() + ".fasta"; // output corrected fasta file
+		int folderNum = currentWorkID / MAX_FILE_NUM;
+		folderID << folderNum;
+		string outFile = outDir + "/" + folderID.str() + "/" +  workID.str() + ".fasta"; // output corrected fasta file
+		Utils::mkdirIfNonExist(outDir + "/" + folderID.str());
 
 		string refName = PacBioNames[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
@@ -189,7 +215,36 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 			perror("Error encountered"); /* If fork or pipe fails, errno is set */
 		}
 
-		main_ec(sam_pipe, outFile);
+		/** Read sam file and store all the reads **/
+		Dataset * dataSet = new Dataset(sam_pipe, 40, 0.25, 0.05);// read from the stdin stream
+		//FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
+		if (dataSet->getNumberOfReads() <= 1)
+			FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
+
+		else /* If the dataset has some reads in it, build hash table and overlap graph next */
+		{
+			FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
+			HashTable *ht = new HashTable();
+			ht->insertDataset(dataSet, 10);
+			OverlapGraph *graph = new OverlapGraph(ht, 40, 0, 0, 10);
+			delete ht;                      /* delete hash table after overlap graph is built */
+			if (graph->getNumberOfEdges() == 0)
+				FILE_LOG(logERROR) << "Data set  has no edge in it, quitting...";
+
+			else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
+			{
+				graph->calculateFlow();
+				FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+				graph->removeAllSimpleEdgesWithoutFlow();
+				graph->simplifyGraph();
+				vector<Edge *> contigEdges;
+				graph->getEdges(contigEdges);
+				graph->printContigs(outFile, contigEdges,true);
+
+			}
+			delete graph;
+		}
+		delete dataSet;
 		pclose(sam_pipe);
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);

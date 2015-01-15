@@ -19,7 +19,6 @@
 #include "OverlapGraph.h"
 /* check file existence and permissions */
 #include <unistd.h>
-int loglevel; // logging level in integer format, for different levels of verbosity
 
 /************************
  * main function
@@ -30,7 +29,7 @@ int main_ec(FILE * samStream, const  string & outputFastaName) /* From sam file 
 
 	/** Read sam file and store all the reads **/
 	Dataset * dataSet = new Dataset(samStream, 40, 0.25, 0.05);// read from the stdin stream
-	FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
+	//FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
 	if (dataSet->getNumberOfReads() <= 1)
 		FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
 
