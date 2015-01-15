@@ -26,7 +26,7 @@
 	#include <unistd.h>
 	#define GetCurrentDir getcwd
 #endif
-
+#define	BUFFER_SIZE 100			/* buffer size for reading/writing a stream */
 
 /**
  * utils: utility functions for file (directory) path, filename,

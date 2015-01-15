@@ -525,12 +525,12 @@ namespace Utils
     bool getRefNames(FILE * stream, std::vector<std::string> & refNames)
     {
 	    std::string line = "";
-	    char buffer[1000];
+	    char buffer[BUFFER_SIZE];
 	    while(1)
 	    {
-		    if(fgets(buffer, 1000, stream)==NULL) /* Get buffer of size 1000 */
+		    if(fgets(buffer, BUFFER_SIZE, stream)==NULL) /* eof is reached before any characters could be read, or a read error occurs */
 		    {
-			    perror("Error in function fgets");
+			    perror("Encountered in function fgets");
 			    break;
 		    }
 		    
