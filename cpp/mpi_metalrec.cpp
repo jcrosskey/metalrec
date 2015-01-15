@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "Utils.h"
+#include "main_ec.h"
 
 /********************************************************
  * mpi_metalrec.cpp
@@ -118,7 +119,7 @@ void MasterProcess(const size_t & fileNum)
 
 	num_slave = num_proc - 1; /* number of slave processes */
 
-	num_proc_spawn = ((fileNum <= num_slave) ? fileNum : num_slave); /* number of processes to really spawn */
+	num_proc_spawn = (((int)fileNum <= num_slave) ? fileNum : num_slave); /* number of processes to really spawn */
 
 	for (i = 1; i <= num_proc_spawn; i++) {
 		// index of the file working on now
@@ -127,11 +128,11 @@ void MasterProcess(const size_t & fileNum)
 		MPI_Send(&currentWorkID,1,MPI_INT, i, WORKTAG, MPI_COMM_WORLD);
 	}
 
-	if ( fileNum > num_slave ) {
+	if ( (int)fileNum > num_slave ) {
 		// next file after each process gets a job
 		currentWorkID = num_slave ;
 
-		while (currentWorkID < fileNum) { /* currentWorkID starts at 0, fileNum is the total number */
+		while (currentWorkID < (int)fileNum) { /* currentWorkID starts at 0, fileNum is the total number */
 			// receive message from any process that finishes its job
 			MPI_Recv(&result, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 			//cout << "Master: received signal from " << status.MPI_SOURCE << endl;
@@ -179,18 +180,17 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 		cout << myid << ": working on " << refName << endl;
 
 		// if the corresponding sam file exists, try to correct sequence
-		string exec_cmd = samtools_path + " view " + bamFile + " " + refName + " | /chongle/shared/software/metalrec/cpp/metalrec -o " + outFile;
+		//string exec_cmd = samtools_path + " view " + bamFile + " " + refName + " | /chongle/shared/software/metalrec/cpp/metalrec -o " + outFile;
 		//cout << exec_cmd << endl;
-//		FILE * sam_pipe = popen(getSamCmd.c_str(), "r");
-//		if(!sam_pipe){
-//			cout << "   *** Failed command " << exec_cmd << endl;
-//		}
-		int res = system(exec_cmd.c_str());
-		if(res!=0)
-		{
-			cout << "   *** Failed command " << exec_cmd << endl;
+		string getSamCmd = samtools_path + " view " + bamFile + " " + refName;
+		FILE * sam_pipe = popen(getSamCmd.c_str(), "r"); /* stream to capture the output of "samtools view bamfile refname" */
+		if(!sam_pipe){
+			cerr << "   *** Failed command " << getSamCmd << endl;
+			perror("Error encountered"); /* If fork or pipe fails, errno is set */
 		}
 
+		main_ec(sam_pipe, outFile);
+		pclose(sam_pipe);
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 
@@ -210,24 +210,8 @@ int main(int argc, char ** argv){
 
 	MPI_Comm_rank(MPI_COMM_WORLD,&myid);
 
-	/* some simple test for MPI
-	 * int world_size;
-	 * MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
-	 * char processor_name[MPI_MAX_PROCESSOR_NAME];
-	 * int name_len;
-	 * MPI_Get_processor_name(processor_name, &name_len);
-	 * cout << "Hello world from processor " << processor_name << ", " << myid << " out of " << world_size << " processors\n";
-	 * cout << argc << " arguments on the command line in total:\n";
-	 * for (int i = 0; i < argc; i++){
-	 *         cout << argv[i] << "\t";
-	 * }
-	 * cout << endl;
-	 */
-
 	/* initialize command line arguments */
 	int init = initializeArguments(argc, argv, bamFile, outDir, samtools_path);
-
 
 	if(init != 0){
 		MPI_Finalize();
