@@ -530,7 +530,7 @@ namespace Utils
 	    {
 		    if(fgets(buffer, BUFFER_SIZE, stream)==NULL) /* eof is reached before any characters could be read, or a read error occurs */
 		    {
-			    perror("Encountered in function fgets");
+			    perror("In function GetRefNames, Encountered in function fgets");
 			    break;
 		    }
 		    

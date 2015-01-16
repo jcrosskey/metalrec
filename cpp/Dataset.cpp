@@ -151,8 +151,9 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRa
 	{
 		if(fgets(buffer, BUFFER_SIZE, inputSamStream)==NULL)
 		{
-			FILE_LOG(logERROR) << __FILE__;
-			perror("Encountered in function fgets");
+			//perror("In function Dataset, Encountered in function fgets");
+			if (ferror(inputSamStream))
+			{FILE_LOG(logERROR) << "error reading dataset";}
 			break;
 		}
 		line += buffer;

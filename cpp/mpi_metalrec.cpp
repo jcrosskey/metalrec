@@ -270,6 +270,12 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 		else{
 			/** Read sam file and store all the reads **/
 			Dataset * dataSet = new Dataset(sam_pipe, minimumOverlapLength, indelRate, subRate);// read from the stdin stream
+			int exit_status = pclose(sam_pipe); /* pclose() waits for the associated process to terminate and returns the exit status of the command as returned by wait4; 
+							       returns -1 if wait4 returns an error, or some other error is detected. */
+			if (exit_status == -1)
+			{
+				perror("Error encountered in pclose()");
+			}
 			//FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
 			if (dataSet->getNumberOfReads() <= 1)
 				FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
@@ -299,12 +305,6 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 			}
 			delete dataSet;
 		}
-		int exit_status = pclose(sam_pipe); /* pclose() waits for the associated process to terminate and returns the exit status of the command as returned by wait4; 
-						       returns -1 if wait4 returns an error, or some other error is detected. */
-		if (exit_status == -1)
-		{
-			perror("Error encountered in pclose()");
-		}
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 	}
@@ -321,7 +321,7 @@ int main(int argc, char ** argv){
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
 	float indelRate, subRate, maxErrorRate;
-	map<string, string> param_map; 
+	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 	param_map["allFileName"]= "metalrec";
 	param_map["minimumOverlapLength"] = "40"; 
 	param_map["hashStringLength"] = "10";
@@ -330,8 +330,6 @@ int main(int argc, char ** argv){
 	param_map["rubberPos"] ="10";
 	param_map["indelRate"] = "0.25"; 
 	param_map["subRate"] = "0.05";
-	param_map["outDir"] = outDir;
-	param_map["samtools_path"] = samtools_path;
 
 	vector<string> PacBioNames;
 	int myid;
@@ -346,21 +344,25 @@ int main(int argc, char ** argv){
 		return 0;
 	}
 	else{
+		param_map["outDir"] = outDir;
+		param_map["samtools_path"] = samtools_path;
 		if (configFile.length() != 0)
 		{
 			FILE_LOG(logINFO) << "config file is specified, parsing the file to get new parameter values";
 			parseConfig(configFile,param_map);
-			minimumOverlapLength = (UINT64) Utils::stringToUnsignedInt(param_map["minimumOverlapLength"]);
-			hashStringLength = (UINT64) Utils::stringToUnsignedInt(param_map["hashStringLength"]);
-			maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
-			rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
-			indelRate = Utils::stringToFloat(param_map["indelRate"]);
-			maxErrorRate = Utils::stringToFloat(param_map["maxErrorRate"]);
-			subRate = Utils::stringToFloat(param_map["subRate"]);
-			allFileName = param_map["allFileName"];
-			outDir = param_map["outDir"];
-			samtools_path = param_map["samtools_path"];
 		}
+
+		minimumOverlapLength = (UINT64) Utils::stringToUnsignedInt(param_map["minimumOverlapLength"]);
+		hashStringLength = (UINT64) Utils::stringToUnsignedInt(param_map["hashStringLength"]);
+		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
+		rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
+		indelRate = Utils::stringToFloat(param_map["indelRate"]);
+		maxErrorRate = Utils::stringToFloat(param_map["maxErrorRate"]);
+		subRate = Utils::stringToFloat(param_map["subRate"]);
+		allFileName = param_map["allFileName"];
+		outDir = param_map["outDir"];
+		samtools_path = param_map["samtools_path"];
+
 		double start_time, finish_time;
 		/* Use samtools to get the header lines, and then get the names of the PacBio names */
 		string getRefNameCmd = samtools_path + " view -H " + bamFile; 
@@ -380,6 +382,16 @@ int main(int argc, char ** argv){
 			start_time = MPI_Wtime();
 			// display work start and time record
 			cout << "Initialization succeeded " << endl;
+			FILE_LOG(logINFO) << "samtools path: " << samtools_path;
+			FILE_LOG(logINFO) << "bam file: " << bamFile;
+			FILE_LOG(logINFO) << "output directory: " << outDir;
+			FILE_LOG(logINFO) << "allFileName: " << allFileName;
+			FILE_LOG(logINFO) << "minimum overlap length: " << minimumOverlapLength;
+			FILE_LOG(logINFO) << "hash string length: " << hashStringLength;
+			FILE_LOG(logINFO) << "maxError: " << maxError;
+			FILE_LOG(logINFO) << "max error rate : " << maxErrorRate;
+			FILE_LOG(logINFO) << "indel rate: " << indelRate;
+			FILE_LOG(logINFO) << "substitution rate: " << subRate;
 			cout << endl
 				<< "============================================================================"
 				<< endl << Utils::currentDateTime() << endl
