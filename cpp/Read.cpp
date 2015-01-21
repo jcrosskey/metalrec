@@ -183,14 +183,19 @@ bool Read::isReadGood(const float & indelRate, const float & subRate)
 {
 	UINT64 numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
 	UINT64 readLength = readDnaString.length();
-	//UINT64 mappedLength = readDnaString.length() - leftClip - rightClip; /* length of the aligned segment, not counting the left and right clipping */
+	UINT64 mappedLength = readDnaString.length() - leftClip - rightClip; /* length of the aligned segment, not counting the left and right clipping */
 	FILE_LOG(logDEBUG4) << numOfSubstitions << " substitutions in " << readLength << " mapped bps";
 	FILE_LOG(logDEBUG4) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << readLength << " mapped bps";
-	if (numOfSubstitions >  readLength * subRate) /* too many substitution errors */
+	FILE_LOG(logDEBUG4) << leftClip + rightClip << " clipped bases in " << readLength << " mapped bps";
+	if (float(leftClip + rightClip) > readLength * 0.5)
 	{
 		return false;
 	}
-	else if ( (numOfDeletions + numOfInsertions) > readLength * indelRate) /* too many indel erros */
+	if (numOfSubstitions >  mappedLength * subRate) /* too many substitution errors */
+	{
+		return false;
+	}
+	else if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
 	{
 		return false;
 	}
