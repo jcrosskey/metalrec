@@ -255,7 +255,8 @@ int parse(long *n_ad, long *m_ad, node **nodes_ad,
 
 				if ( no_alines >= m )
 					/*too many arcs on input*/
-				{ err_no = EN16; goto error; }
+				{ err_no = EN16; 
+					goto error; }
 
 				if (
 						/* reading an arc description */
@@ -465,6 +466,7 @@ error:  /* error found reading input */
 
 	fprintf ( stderr, "\nline %ld of input - %s\n", 
 			no_lines, err_message[err_no] );
+	cerr << ss->str() << endl;
 
 	exit (1);
 

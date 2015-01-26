@@ -1194,7 +1194,7 @@ bool OverlapGraph::calculateFlow(void)
 	UINT64 currentIndex = 1;
 	for(UINT64 i = 1; i < graph->size(); i++)
 	{
-		if( (dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges) != 0 ) // edges to and from the super source and super sink
+		if( (dataSet->getReadFromID(i)->superReadID==0) && ((dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges) != 0) ) // edges to and from the super source and super sink
 		{
 			FILE_LOG(logDEBUG4) << "Found node " << i << " corresponding to index " << currentIndex;
 			listOfNodes->at(i) = currentIndex;					// Mapping between original node ID and cs2 node ID
@@ -1206,11 +1206,11 @@ bool OverlapGraph::calculateFlow(void)
 		}
 	}
 
-	// This loop converts the original bi-directed edges to directed edges (1 becomes 6).
+	// This loop converts each of the original edges to 3 edges
 	// This loop set the lower and upper bounds of the flow in each edge, and the cost
 	for(UINT64 i = 1; i < graph->size(); i++)
 	{
-		if(!graph->at(i)->empty()) // edges to and from the super source and super sink
+		if((!graph->at(i)->empty()) && (dataSet->getReadFromID(i)->superReadID==0)) // edges to and from the super source and super sink
 		{
 			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
 			{
@@ -1230,7 +1230,7 @@ bool OverlapGraph::calculateFlow(void)
 
 
 	stringstream oss;                       /* stringstream to catch the output */
-	FILE_LOG(logINFO) << "Calling CS2 for flow analysis";
+	FILE_LOG(logINFO) << "Calling CS2 for flow analysis on " << dataSet->getPacBioReadName();
 	main_cs2(&ss, oss);			// Call CS2
 	FILE_LOG(logINFO) << "Flow analysis finished";
 
