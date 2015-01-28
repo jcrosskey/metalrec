@@ -28,7 +28,7 @@ using namespace std;
 /* Function declaration */
 void usage();
 int initializeArguments(int argc, char ** argv, string & IlluminaFiles, string & PacBioFiles, string & outDir, string & configFile, string & blasrCmd, string & samtoolsPath);
-void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath);
+void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath, string & threads);
 /* print usage */
 void usage()
 {
@@ -52,7 +52,7 @@ void usage()
 /* Parse command line arguments */
 
 int initializeArguments(int argc, char ** argv, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & outDir, string & configFile,
-		string & blasrCmd, string & samtoolsPath)
+		string & blasrCmd, string & samtoolsPath, string & threads)
 {
 	vector<string> Arguments;
 	while(argc--)
@@ -98,12 +98,13 @@ int initializeArguments(int argc, char ** argv, vector<string> & IlluminaFiles, 
 		return 1;
 	}
 	else
-		parseConfig(configFile, IlluminaFiles, PacBioFiles, blasrCmd, samtoolsPath);
+		parseConfig(configFile, IlluminaFiles, PacBioFiles, blasrCmd, samtoolsPath, threads);
 	return 0;
 }
 
-void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath)
+void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath, string & threads)
 {
+	threads = "1";
 	string IlluminaDir, PacBioDir;
 	ifstream configFilePointer;
 	configFilePointer.open(configFile.c_str());
@@ -135,6 +136,8 @@ void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vect
 							IlluminaDir = value;
 						else if (key.compare("PacBioDir")==0)
 							PacBioDir = value;
+						else if (key.compare("Threads") ==0)
+							threads = value;
 					}
 				}
 			}
@@ -202,7 +205,7 @@ void MasterProcess(const size_t & IlluminaFileNum, const size_t & PacBioFileNum)
 
 // slave job
 void SlaveProcess( const vector<string> & IlluminaFiles,const vector<string> & PacBioFiles,
-		const string & blasrCmd, const string & samtoolsPath, const string & outDir)
+		const string & blasrCmd, const string & samtoolsPath, const string & outDir, const string & threads)
 {
 	MPI_Status status;
 	int currentWorkID, myid;
@@ -234,9 +237,9 @@ void SlaveProcess( const vector<string> & IlluminaFiles,const vector<string> & P
 
 		cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
 
-		string wholeCmd = blasrCmd + " " + " -o " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
-				  samtoolsPath + " view -@ 16 -bT " + PacBioFile + " " + samFile + " | " + \
-				  samtoolsPath + " sort -@ 16 -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
+		string wholeCmd = blasrCmd + " -nproc " + threads + " -o " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
+				  samtoolsPath + " view -@ " + threads + " -bT " + PacBioFile + " " + samFile + " | " + \
+				  samtoolsPath + " sort -@ " + threads + " -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
 				  samtoolsPath + " index " + bamFile;
 
 //		cout << myid << ": whole command is \"" << wholeCmd <<  "\" " << endl;
@@ -257,7 +260,7 @@ int main(int argc, char ** argv){
 
 	MPI_Init(&argc, &argv);
 
-	string blasrCmd, samtoolsPath, configFile, outDir;
+	string blasrCmd, samtoolsPath, configFile, outDir, threads;
 
 	vector<string> PacBioFiles, IlluminaFiles;
 	int myid;
@@ -265,7 +268,7 @@ int main(int argc, char ** argv){
 	MPI_Comm_rank(MPI_COMM_WORLD,&myid);
 
 	/* initialize command line arguments */
-	int init = initializeArguments(argc, argv, IlluminaFiles, PacBioFiles, outDir, configFile, blasrCmd, samtoolsPath);
+	int init = initializeArguments(argc, argv, IlluminaFiles, PacBioFiles, outDir, configFile, blasrCmd, samtoolsPath, threads);
 
 	if(init != 0){
 		MPI_Finalize();
@@ -292,7 +295,7 @@ int main(int argc, char ** argv){
 
 		else
 		{
-			SlaveProcess(IlluminaFiles,PacBioFiles, blasrCmd, samtoolsPath, outDir);
+			SlaveProcess(IlluminaFiles,PacBioFiles, blasrCmd, samtoolsPath, outDir, threads);
 		}
 
 		if( myid == 0 )
