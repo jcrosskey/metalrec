@@ -148,8 +148,12 @@ void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vect
 	DirectoryStructure illumina_dir(IlluminaDir);
 	illumina_dir.setPattern(".fasta");
 	illumina_dir.getFiles(IlluminaFiles);
+	illumina_dir.setPattern(".fastq");
+	illumina_dir.getFiles(IlluminaFiles);
 	DirectoryStructure pacbio_dir(PacBioDir);
 	pacbio_dir.setPattern(".fasta");
+	pacbio_dir.getFiles(PacBioFiles);
+	pacbio_dir.setPattern(".fastq");
 	pacbio_dir.getFiles(PacBioFiles);
 	//cout << "Illumina directory is " << IlluminaDir << endl;
 	//cout << "PacBio directory is " << PacBioDir << endl;
