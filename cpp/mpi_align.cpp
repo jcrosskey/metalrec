@@ -1,6 +1,7 @@
 #include <mpi.h> // for mpi
 #include <stdexcept> // for standard exceptions out_or_range
 #include <iostream>
+#include <string>
 #include <map>
 #include <stdio.h>
 /* check file existence and permissions */
@@ -21,13 +22,13 @@
 
 #define WORKTAG    1
 #define DIETAG     2
-#define	MAX_FILE_NUM 20000			/*  */
+#define	MAX_FILE_NUM 20000
 using namespace std;
 
 /* Function declaration */
 void usage();
 int initializeArguments(int argc, char ** argv, string & IlluminaFiles, string & PacBioFiles, string & outDir, string & configFile, string & blasrCmd, string & samtoolsPath);
-void parseConfig(const string & configFile, map<string, string> & param_map);
+void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath);
 /* print usage */
 void usage()
 {
@@ -103,41 +104,43 @@ int initializeArguments(int argc, char ** argv, vector<string> & IlluminaFiles, 
 
 void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath)
 {
-	map<string, string> param_map;
-
+	string IlluminaDir, PacBioDir;
 	ifstream configFilePointer;
 	configFilePointer.open(configFile.c_str());
 	if(!configFilePointer.is_open())
 		cerr << "Unable to open file: " << configFile << ", Use default parameter value instead.";
 	else
 	{
-		string line;
+		string line, key, value;
 		while(!configFilePointer.eof())
 		{
 			getline(configFilePointer, line);
-			if (line.at(0)!='#' && line.length() != 0)
+			//cout << "line: " <<  line << " length: " << line.length() << endl;
+			if (line.length() != 0 && line.at(0)!='#')
 			{
 				istringstream is_line(line);
-				string key;
 				if (getline(is_line, key, '='))
 				{
-					string value;
+					key = key.substr(key.find_first_not_of(" "), key.find_last_not_of(" ") - key.find_first_not_of(" ")+1);
+					//cout << key << "=";
 					if (getline(is_line, value))
 					{
-						try
-						{ param_map.at(key) = value;}
-						catch(const exception & e)
-						{FILE_LOG(logERROR) << e.what();}
+						value = value.substr(value.find_first_not_of(" "), value.find_last_not_of(" ") - value.find_first_not_of(" ") + 1);
+						//cout << value << endl;
+						if (key.compare("blasrCmd")==0)
+							blasrCmd = value;
+						else if (key.compare("samtoolsPath")==0)
+							samtoolsPath = value;
+						else if (key.compare("IlluminaDir")==0)
+							IlluminaDir = value;
+						else if (key.compare("PacBioDir")==0)
+							PacBioDir = value;
 					}
 				}
 			}
 		}
 	}
 	configFilePointer.close();
-	blasrCmd = param_map["blasrCmd"];
-	samtoolsPath = param_map["samtoolsPath"];
-	IlluminaDir = param_map["IlluminaDir"];
-	PacBioDir = param_map["PacBioDir"];
 
 	DirectoryStructure illumina_dir(IlluminaDir);
 	illumina_dir.setPattern(".fasta");
@@ -145,6 +148,8 @@ void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vect
 	DirectoryStructure pacbio_dir(PacBioDir);
 	pacbio_dir.setPattern(".fasta");
 	pacbio_dir.getFiles(PacBioFiles);
+	//cout << "Illumina directory is " << IlluminaDir << endl;
+	//cout << "PacBio directory is " << PacBioDir << endl;
 }
 // master job
 void MasterProcess(const size_t & IlluminaFileNum, const size_t & PacBioFileNum)
@@ -217,24 +222,28 @@ void SlaveProcess( const vector<string> & IlluminaFiles,const vector<string> & P
 
 		/* output file */
 		stringstream IlluminaID, PacBioID;
-		IlluminaID << (currentWorkID % PacBioFiles.size());
-		PacBioID << (currentWorkID / PacBioFiles.size());
+		IlluminaID << (currentWorkID % IlluminaFiles.size());
+		PacBioID << (currentWorkID / IlluminaFiles.size());
 
-		string PacBioFile = PacBioFiles.at(currentWorkID / PacBioFiles.size()); // PacBio File name for this job
-		string IlluminaFile = IlluminaFiles.at(currentWorkID % PacBioFiles.size()); // Illumina file name for this job
+		string PacBioFile = PacBioFiles.at(currentWorkID / IlluminaFiles.size()); // PacBio File name for this job
+		string IlluminaFile = IlluminaFiles.at(currentWorkID % IlluminaFiles.size()); // Illumina file name for this job
 
-		string outFile = outDir + "/" + IlluminaID.str() + "_" +  PacBioID.str() + ".bam"; // output corrected fasta file
+		string outFile = outDir + "/" + IlluminaID.str() + "_" +  PacBioID.str(); // output corrected fasta file
+		string samFile = outFile + ".sam";
+		string bamFile = outFile + ".bam";
 
 		cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
 
-		string wholeCmd = blasrCmd + " " + IlluminaFile + " " + PacBioFile  + " 2> /dev/null | " + \
-				  samtoolsPath + " view -@ 16 -bT " + PacBioFile + " | " + \
-				  samtoolsPath + " sort -@ 16 -o " + outFile;
+		string wholeCmd = blasrCmd + " " + " -o " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
+				  samtoolsPath + " view -@ 16 -bT " + PacBioFile + " " + samFile + " | " + \
+				  samtoolsPath + " sort -@ 16 -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
+				  samtoolsPath + " index " + bamFile;
 
-		res = system(wholeCmd.c_str());
+//		cout << myid << ": whole command is \"" << wholeCmd <<  "\" " << endl;
+		int res = system(wholeCmd.c_str());
 		if (res != 0)
 		{
-			cerr << "Fail command " << wholeCmd << endl;
+			cerr << "Fail command for " << IlluminaID.str() + "_" +  PacBioID.str() << endl;
 		}
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -263,14 +272,20 @@ int main(int argc, char ** argv){
 		return 0;
 	}
 	else{
+		double start_time, finish_time;
 		size_t IlluminaFileNum = IlluminaFiles.size();
 		size_t PacBioFileNum = PacBioFiles.size();
 
 		if (myid == 0) {
+			cout << "Number of illumina files: " << IlluminaFiles.size() << endl;
+			cout << "Number of PacBio files: " << PacBioFiles.size() << endl;
+			cout << "blasr command is " << blasrCmd << endl;
+			cout << "samtools path is " << samtoolsPath << endl;
 			cout << endl
 				<< "============================================================================"
 				<< endl << Utils::currentDateTime() << endl
 				<< " Beginning Error Correction" << endl;
+			start_time = MPI_Wtime();
 			cout << " [Step 1] Error correction: Running -> " << std::flush;
 			MasterProcess(IlluminaFileNum, PacBioFileNum);
 		}
