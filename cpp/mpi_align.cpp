@@ -5,6 +5,8 @@
 #include <stdio.h>
 /* check file existence and permissions */
 #include <unistd.h>
+#include "directoryStructure.hpp"
+#include "Utils.h"
 
 /********************************************************
  * mpi_align.cpp
@@ -101,9 +103,6 @@ int initializeArguments(int argc, char ** argv, vector<string> & IlluminaFiles, 
 
 void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vector<string> & PacBioFiles, string & blasrCmd, string & samtoolsPath)
 {
-//		DirectoryStructure sam_dir(samDir);
-//		sam_dir.setPattern(".sam");
-//		sam_dir.getFiles(samFilenames);
 	map<string, string> param_map;
 
 	ifstream configFilePointer;
@@ -143,18 +142,19 @@ void parseConfig(const string & configFile, vector<string> & IlluminaFiles, vect
 	DirectoryStructure illumina_dir(IlluminaDir);
 	illumina_dir.setPattern(".fasta");
 	illumina_dir.getFiles(IlluminaFiles);
-	DirectoryStructure pacbio_dir(IlluminaDir);
-	illumina_dir.setPattern(".fasta");
-	illumina_dir.getFiles(IlluminaFiles);
+	DirectoryStructure pacbio_dir(PacBioDir);
+	pacbio_dir.setPattern(".fasta");
+	pacbio_dir.getFiles(PacBioFiles);
 }
 // master job
-void MasterProcess(const size_t & fileNum)
+void MasterProcess(const size_t & IlluminaFileNum, const size_t & PacBioFileNum)
 {
 	int i, num_proc_spawn; // total number of processes to be spawned
 
 	int currentWorkID, num_proc, num_slave, result;
 
-	cout << "number of PacBio sequences is " << fileNum << endl;
+	int fileNum = IlluminaFileNum * PacBioFileNum; /* Total number of BLASR jobs to run */
+	cout << "number of mapping jobs is " << fileNum << endl;
 
 	// MPI calls and initiation
 	MPI_Status status;
@@ -196,11 +196,8 @@ void MasterProcess(const size_t & fileNum)
 }
 
 // slave job
-void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
-		const string & samtools_path, const string & outDir,
-		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
-		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & subRate, const float & maxErrorRate)
+void SlaveProcess( const vector<string> & IlluminaFiles,const vector<string> & PacBioFiles,
+		const string & blasrCmd, const string & samtoolsPath, const string & outDir)
 {
 	MPI_Status status;
 	int currentWorkID, myid;
@@ -211,71 +208,33 @@ void SlaveProcess(const string & bamFile, const vector<string> & PacBioNames,
 	// do jobs until master tells to stop
 	while (true) {
 		MPI_Recv(&currentWorkID, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		cout << myid << ": receive workID " << currentWorkID << endl;
+		//cout << myid << ": receive workID " << currentWorkID << endl;
 
 		if (status.MPI_TAG == DIETAG) {
+			cout << myid << ": receive workID " << currentWorkID << endl;
 			break;
 		}
 
 		/* output file */
-		stringstream workID, folderID;
-		workID << currentWorkID;
-		int folderNum = currentWorkID / MAX_FILE_NUM;
-		folderID << folderNum;
-		string outFile = outDir + "/" + folderID.str() + "/" +  workID.str() + ".fasta"; // output corrected fasta file
-		Utils::mkdirIfNonExist(outDir + "/" + folderID.str());
+		stringstream IlluminaID, PacBioID;
+		IlluminaID << (currentWorkID % PacBioFiles.size());
+		PacBioID << (currentWorkID / PacBioFiles.size());
 
-		string refName = PacBioNames[currentWorkID];
-		cout << myid << ": working on " << refName << endl;
+		string PacBioFile = PacBioFiles.at(currentWorkID / PacBioFiles.size()); // PacBio File name for this job
+		string IlluminaFile = IlluminaFiles.at(currentWorkID % PacBioFiles.size()); // Illumina file name for this job
 
-		// if the corresponding sam file exists, try to correct sequence
-		//string exec_cmd = samtools_path + " view " + bamFile + " " + refName + " | /chongle/shared/software/metalrec/cpp/metalrec -o " + outFile;
-		//cout << exec_cmd << endl;
-		string getSamCmd = samtools_path + " view " + bamFile + " " + refName;
-		/* popen returns NULL if fork or pipe calls fail, or if it cannot allocate memory */
-		FILE * sam_pipe = popen(getSamCmd.c_str(), "r"); /* stream to capture the output of "samtools view bamfile refname" */
-		if(!sam_pipe){
-			cerr << "   *** Failed command " << getSamCmd << endl;
-			perror("Error encountered in popen()"); /* If fork or pipe fails, errno is set */
-		}
+		string outFile = outDir + "/" + IlluminaID.str() + "_" +  PacBioID.str() + ".bam"; // output corrected fasta file
 
-		else{
-			/** Read sam file and store all the reads **/
-			Dataset * dataSet = new Dataset(sam_pipe, minimumOverlapLength, indelRate, subRate);// read from the stdin stream
-			int exit_status = pclose(sam_pipe); /* pclose() waits for the associated process to terminate and returns the exit status of the command as returned by wait4; 
-							       returns -1 if wait4 returns an error, or some other error is detected. */
-			if (exit_status == -1)
-			{
-				perror("Error encountered in pclose()");
-			}
-			//FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
-			if (dataSet->getNumberOfReads() <= 1)
-				FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
+		cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
 
-			else /* If the dataset has some reads in it, build hash table and overlap graph next */
-			{
-				FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
-				HashTable *ht = new HashTable();
-				ht->insertDataset(dataSet, hashStringLength);
-				OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-				delete ht;                      /* delete hash table after overlap graph is built */
-				if (graph->getNumberOfEdges() == 0)
-					FILE_LOG(logERROR) << "Data set  has no edge in it, quitting...";
+		string wholeCmd = blasrCmd + " " + IlluminaFile + " " + PacBioFile  + " 2> /dev/null | " + \
+				  samtoolsPath + " view -@ 16 -bT " + PacBioFile + " | " + \
+				  samtoolsPath + " sort -@ 16 -o " + outFile;
 
-				else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
-				{
-					graph->calculateFlow();
-					FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
-					graph->removeAllSimpleEdgesWithoutFlow();
-					graph->simplifyGraph();
-					vector<Edge *> contigEdges;
-					graph->getEdges(contigEdges);
-					graph->printContigs(outFile, contigEdges,true);
-
-				}
-				delete graph;
-			}
-			delete dataSet;
+		res = system(wholeCmd.c_str());
+		if (res != 0)
+		{
+			cerr << "Fail command " << wholeCmd << endl;
 		}
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -289,93 +248,36 @@ int main(int argc, char ** argv){
 
 	MPI_Init(&argc, &argv);
 
-	string bamFile, samtools_path, configFile, outDir, allFileName;
-	UINT64 minimumOverlapLength, hashStringLength;
-	UINT32 maxError, rubberPos;
-	float indelRate, subRate, maxErrorRate;
-	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
-	param_map["allFileName"]= "metalrec";
-	param_map["minimumOverlapLength"] = "40"; 
-	param_map["hashStringLength"] = "10";
-	param_map["maxError"]="0";
-	param_map["maxErrorRate"] = "0.0";
-	param_map["rubberPos"] ="10";
-	param_map["indelRate"] = "0.25"; 
-	param_map["subRate"] = "0.05";
+	string blasrCmd, samtoolsPath, configFile, outDir;
 
-	vector<string> PacBioNames;
+	vector<string> PacBioFiles, IlluminaFiles;
 	int myid;
 
 	MPI_Comm_rank(MPI_COMM_WORLD,&myid);
 
 	/* initialize command line arguments */
-	int init = initializeArguments(argc, argv, bamFile, outDir, configFile, samtools_path);
+	int init = initializeArguments(argc, argv, IlluminaFiles, PacBioFiles, outDir, configFile, blasrCmd, samtoolsPath);
 
 	if(init != 0){
 		MPI_Finalize();
 		return 0;
 	}
 	else{
-		param_map["outDir"] = outDir;
-		param_map["samtools_path"] = samtools_path;
-		if (configFile.length() != 0)
-		{
-			FILE_LOG(logINFO) << "config file is specified, parsing the file to get new parameter values";
-			parseConfig(configFile,param_map);
-		}
-
-		minimumOverlapLength = (UINT64) Utils::stringToUnsignedInt(param_map["minimumOverlapLength"]);
-		hashStringLength = (UINT64) Utils::stringToUnsignedInt(param_map["hashStringLength"]);
-		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
-		rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
-		indelRate = Utils::stringToFloat(param_map["indelRate"]);
-		maxErrorRate = Utils::stringToFloat(param_map["maxErrorRate"]);
-		subRate = Utils::stringToFloat(param_map["subRate"]);
-		allFileName = param_map["allFileName"];
-		outDir = param_map["outDir"];
-		samtools_path = param_map["samtools_path"];
-
-		double start_time, finish_time;
-		/* Use samtools to get the header lines, and then get the names of the PacBio names */
-		string getRefNameCmd = samtools_path + " view -H " + bamFile; 
-		FILE * pipe = popen(getRefNameCmd.c_str(), "r");
-		if (!pipe) 
-		{
-			Utils::exitWithError(" *** Failed command " + getRefNameCmd);
-		}
-		Utils::getRefNames(pipe, PacBioNames);
-		pclose(pipe);
-
-		size_t fileNum = PacBioNames.size();
+		size_t IlluminaFileNum = IlluminaFiles.size();
+		size_t PacBioFileNum = PacBioFiles.size();
 
 		if (myid == 0) {
-			cout << "output directory is: " << outDir << endl;
-			cout << "input bam file is: " << bamFile << endl;
-			start_time = MPI_Wtime();
-			// display work start and time record
-			cout << "Initialization succeeded " << endl;
-			FILE_LOG(logINFO) << "samtools path: " << samtools_path;
-			FILE_LOG(logINFO) << "bam file: " << bamFile;
-			FILE_LOG(logINFO) << "output directory: " << outDir;
-			FILE_LOG(logINFO) << "allFileName: " << allFileName;
-			FILE_LOG(logINFO) << "minimum overlap length: " << minimumOverlapLength;
-			FILE_LOG(logINFO) << "hash string length: " << hashStringLength;
-			FILE_LOG(logINFO) << "maxError: " << maxError;
-			FILE_LOG(logINFO) << "max error rate : " << maxErrorRate;
-			FILE_LOG(logINFO) << "indel rate: " << indelRate;
-			FILE_LOG(logINFO) << "substitution rate: " << subRate;
 			cout << endl
 				<< "============================================================================"
 				<< endl << Utils::currentDateTime() << endl
 				<< " Beginning Error Correction" << endl;
 			cout << " [Step 1] Error correction: Running -> " << std::flush;
-			MasterProcess(fileNum);
+			MasterProcess(IlluminaFileNum, PacBioFileNum);
 		}
 
 		else
 		{
-			SlaveProcess(bamFile, PacBioNames, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate);
+			SlaveProcess(IlluminaFiles,PacBioFiles, blasrCmd, samtoolsPath, outDir);
 		}
 
 		if( myid == 0 )
