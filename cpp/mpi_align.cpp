@@ -241,7 +241,7 @@ void SlaveProcess( const vector<string> & IlluminaFiles,const vector<string> & P
 
 		cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
 
-		string wholeCmd = blasrCmd + " -nproc " + threads + " -o " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
+		string wholeCmd = blasrCmd + " -nproc " + threads + " -out " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
 				  samtoolsPath + " view -@ " + threads + " -bT " + PacBioFile + " " + samFile + " | " + \
 				  samtoolsPath + " sort -@ " + threads + " -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
 				  samtoolsPath + " index " + bamFile;
