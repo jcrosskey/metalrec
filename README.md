@@ -8,9 +8,9 @@
 
 ## BUILD and RUN
 - System requirement: 
-  - The program was tested on Linux and MacOS with GNU compiler.
-  - samtools is required
-  - BLASR is required for the mpi-wrapper of BLASR
+    - The program was tested on Linux and MacOS with GNU compiler.
+    - samtools is required
+    - BLASR is required for the mpi-wrapper of BLASR
 - To compile mpi version of MetaLREC only:
 	type `make -f Make_mpi`
 - To compile MPI wrapper for BLASR:
