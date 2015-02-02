@@ -154,19 +154,18 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 		while(!configFilePointer.eof())
 		{
 			getline(configFilePointer, line);
-			if (line.at(0)!='#' && line.length() != 0)
+			if (line.length() != 0 && line.at(0)!='#')
 			{
 				istringstream is_line(line);
 				string key;
 				if (getline(is_line, key, '='))
 				{
+					key = key.substr(key.find_first_not_of(" "), key.find_last_not_of(" ") - key.find_first_not_of(" ")+1);
 					string value;
 					if (getline(is_line, value))
 					{
-						try
-						{ param_map.at(key) = value;}
-						catch(const exception & e)
-						{FILE_LOG(logERROR) << e.what();}
+						value = value.substr(value.find_first_not_of(" "), value.find_last_not_of(" ") - value.find_first_not_of(" ") + 1);
+						param_map.at(key) = value;
 					}
 				}
 			}
