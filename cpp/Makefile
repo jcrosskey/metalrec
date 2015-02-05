@@ -29,7 +29,7 @@ LFLAGS=
 LIBS=
 
 # source files and object files
-SRCS+=Utils.cpp Read.cpp Dataset.cpp Edge.cpp OverlapGraph.cpp HashTable.cpp main.cpp 
+SRCS+=Utils.cpp Read.cpp Dataset.cpp Edge.cpp OverlapGraph.cpp HashTable.cpp metalrec.cpp 
 # use macro to get object files
 OBJS = $(SRCS:.cpp=.o)
 
