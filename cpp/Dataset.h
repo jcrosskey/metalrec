@@ -23,6 +23,8 @@ class Dataset
 		UINT64 minimumOverlapLength;	// Length of the shortest read in the dataset.
 		string PacBioReadName;	// Name of the PacBio read
 		UINT64 PacBioReadLength; // Length of the PacBio read
+		float subRate;
+		float indelRate;
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
 		vector<Read *> *reads;	// List of reads in the dataset.
@@ -46,6 +48,10 @@ class Dataset
 
 		/* mutators */
 		bool setPacBioReadName(const string & name){PacBioReadName = name; return true;}	// Set the name for the PacBio filtered subread
+		bool finalize(void);
+		bool AddDataset(FILE * inputSamStream);
+		bool setIndelRate(const float & indel_rate){indelRate = indel_rate; return true;}
+		bool setSubRate(const float & sub_rate){subRate = sub_rate; return true;}
 
 		/* accessors */
 		string getPacBioReadName(void){return PacBioReadName;}	// Get the name for the PacBio filtered subread
