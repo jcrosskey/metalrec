@@ -273,6 +273,7 @@ int main(int argc, char ** argv){
 			parseConfig(configFile,param_map);
 		}
 
+		cout << "bamfiles: " << param_map["bamfiles"] << endl;
 		vector<string> bamFiles = Utils::StringToVector(param_map["bamfiles"],' ');
 		if ( bamFiles.size() == 0 )
 		{
