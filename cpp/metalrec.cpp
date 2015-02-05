@@ -134,6 +134,7 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 //		UINT32 & maxError, float & maxErrorRate, UINT32 & rubberPos, float & indelRate, float & subRate, 
 //		string & outDir, string & samtools_path)
 {
+	CLOCKSTART;
 	ifstream configFilePointer;
 	configFilePointer.open(configFile.c_str());
 	if(!configFilePointer.is_open())
@@ -155,7 +156,7 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 					if (getline(is_line, value))
 					{
 						value = value.substr(value.find_first_not_of(" "), value.find_last_not_of(" ") - value.find_first_not_of(" ") + 1);
-						param_map.at(key) = value;
+						param_map[key] = value;
 					}
 				}
 			}
@@ -163,6 +164,7 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 	}
 
 	configFilePointer.close();
+	CLOCKSTOP;
 }
 
 // slave job
@@ -172,6 +174,7 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 		const UINT32 & maxError, const UINT32 &rubberPos,
 		const float & indelRate, const float & subRate, const float & maxErrorRate)
 {
+	CLOCKSTART;
 	/* output file */
 	string outFile = outDir + "/" + "ec.fasta"; // output corrected fasta file
 	Utils::mkdirIfNonExist(outDir);
@@ -185,7 +188,8 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 
 	for (size_t i = 0; i < bamFiles.size(); i++)
 	{
-		string getSamCmd = samtools_path + " view " + bamFiles[0] + " " + PacBioName;
+		string getSamCmd = samtools_path + " view " + bamFiles[i] + " " + PacBioName;
+		FILE_LOG(logINFO) << "Reading bam file " << bamFiles[i];
 		/* popen returns NULL if fork or pipe calls fail, or if it cannot allocate memory */
 		FILE * sam_pipe = popen(getSamCmd.c_str(), "r"); /* stream to capture the output of "samtools view bamfile refname" */
 		if(!sam_pipe){
@@ -233,6 +237,7 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 		delete graph;
 	}
 	delete dataSet;
+	CLOCKSTOP;
 }
 
 
@@ -273,8 +278,10 @@ int main(int argc, char ** argv){
 			parseConfig(configFile,param_map);
 		}
 
-		cout << "bamfiles: " << param_map["bamfiles"] << endl;
+		FILE_LOG(logINFO) << "bamfiles: " << param_map["bamfiles"] << endl;
 		vector<string> bamFiles = Utils::StringToVector(param_map["bamfiles"],' ');
+		for (size_t i = 0 ; i < bamFiles.size(); i++)
+			FILE_LOG(logINFO) << bamFiles.at(i);
 		if ( bamFiles.size() == 0 )
 		{
 			Utils::exitWithError("No input bam files!\n");
@@ -317,9 +324,9 @@ int main(int argc, char ** argv){
 			<< "============================================================================"
 			<< endl << Utils::currentDateTime() << endl
 			<< " Beginning Error Correction" << endl;
-		cout << " [Step 1] Error correction: Running -> " << std::flush;
+		cout << " [Step 1] Error correction: Running -> " << PacBioNames[2] << endl;
 
-		SlaveProcess(bamFiles, PacBioNames[0], samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+		SlaveProcess(bamFiles, PacBioNames[2], samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 
 		cout << " Done!" << endl;
