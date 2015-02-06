@@ -181,12 +181,16 @@ bool Read::setEdits(const string & s)
  */
 bool Read::isReadGood(const float & indelRate, const float & subRate)
 {
-	UINT64 numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
+	UINT64 numOfSubstitions = 0;
+	if (editDistance >= numOfDeletions + numOfInsertions ) /* number of substitutions in the alignment */
+		numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
+	else
+		FILE_LOG(logWARNING) << "In read " << readName << " editDistance is smaller than the number of indels, NM is not reliable and number of substitutions is set to 0.";
 	UINT64 readLength = readDnaString.length();
 	UINT64 mappedLength = readDnaString.length() - leftClip - rightClip; /* length of the aligned segment, not counting the left and right clipping */
-	FILE_LOG(logDEBUG4) << numOfSubstitions << " substitutions in " << readLength << " mapped bps";
-	FILE_LOG(logDEBUG4) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << readLength << " mapped bps";
-	FILE_LOG(logDEBUG4) << leftClip + rightClip << " clipped bases in " << readLength << " mapped bps";
+	FILE_LOG(logDEBUG3) << numOfSubstitions << " substitutions in " << mappedLength << " mapped bps";
+	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
+	FILE_LOG(logDEBUG3) << leftClip + rightClip << " clipped bases in " << readLength << " bps";
 	if (float(leftClip + rightClip) > readLength * 0.5)
 	{
 		return false;

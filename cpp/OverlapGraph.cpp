@@ -633,6 +633,7 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 bool OverlapGraph::getEdges(vector<Edge *> & contigEdges)
 {
 	CLOCKSTART;
+	contigEdges.clear();
 	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
 	{
 		if(!graph->at(i)->empty()) // if this read has some edge(s) going out of it (since now the graph is directed)
@@ -717,7 +718,7 @@ bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> & contigE
 		if (longestOnly || contigEdges.size() == 1) /* Only the longest one is written or there is only 1 edge in the graph */
 		{
 			string s = getStringInEdge(contigEdges.at(0)); // get the string in the longest edge. This function need to be rewritten too.
-			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " String Length: " << s.length() << endl; /* If only the longest one is printed, then it's named the same as the PacBio read name */
+			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Edge ("  << contigEdges.at(0)->getSourceRead()->getID() << ":"<< contigEdges.at(0)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(0)->getDestinationRead()->getID() << ":" << contigEdges.at(0)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << endl; /* If only the longest one is printed, then it's named the same as the PacBio read name */
 			UINT32 start=0;
 			do
 			{

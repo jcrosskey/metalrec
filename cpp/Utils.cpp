@@ -551,10 +551,26 @@ namespace Utils
 	    return true;
     }
 
+    /* Get current working directory */
     std::string get_cwd()
     {
 	char path[FILENAME_MAX];
 	return ( GetCurrentDir(path, sizeof(path)) ? std::string(path) : std::string("") );
     }
 
+    /* Read each line in a file and store in a vector of strings */
+    bool saveLinesToVec(const std::string & fileName, std::vector<std::string> & stringVector)
+    {
+	    stringVector.clear();
+	    std::ifstream fin(fileName.c_str());
+	    if(fin)
+	    {
+		    std::string line;
+		    std::getline(fin, line);
+		    stringVector.push_back(line);
+		    fin.close();
+	    }
+
+	    return true;
+    }
 }

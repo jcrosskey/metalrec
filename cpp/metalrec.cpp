@@ -17,6 +17,7 @@
 #include "OverlapGraph.h"
 /* check file existence and permissions */
 #include <unistd.h>
+int loglevel;
 
 /********************************************************
  * metalrec.cpp
@@ -24,7 +25,6 @@
  * serial version of metalrec.
  * Input file is BAM file(s) with Illumina reads aligned to PacBio reads.
  * samtools is required
- * Naive parallelization, start the next job once there is a job done. 
  *
  * Created by JJ Chai  Thu Sep 18 09:35:28 EDT 2014. Last modified Sep 18, 2014. 
  * Copyright (c) 2014 JJ Chai (ORNL). Allrights reserved.
@@ -33,18 +33,18 @@
 
 #define WORKTAG    1
 #define DIETAG     2
-#define	MAX_FILE_NUM 20000			/*  */
+#define	MAX_FILE_NUM 20000	/* Limit of number of files in each folder (on some old file system) */
 using namespace std;
 
 /* Function declaration */
 void usage();
-int initializeArguments(int argc, char ** argv, string & outDir, string & configFile, string & samtools_path);
+int initializeArguments(int argc, char ** argv, string & outDir, string & configFile, string & PacBioReadName, string & PacBio_file);
 void parseConfig(const string & configFile, map<string, string> & param_map);
 /* print usage */
 void usage()
 {
 	cout << " [Usage]" << endl
-		<< "  metalrec [-od <outDir> ] -c <config.cfg>  -samtools <samtools_path>] " << endl
+		<< "  metalrec [-od <outDir> ] -c <config.cfg>] " << endl
 		<< endl
 
 		<< " [Inputs]" << endl
@@ -56,7 +56,8 @@ void usage()
 		<< endl
 
 		<< " [options]" << endl
-		<< "   -samtools <samtools_path> path to samtools executable (default: samtools)" << endl
+		<< "   -name <pacbio_name> PacBio read to error correct (default: Try to correct all)" << endl
+		<< "   -f <PacBio_file> File including names of PacBio reads to correct, one name on each line (default: none)" << endl
 		<< "   -h/--help Display this help message" << endl
 		<< endl;
 }
@@ -65,8 +66,8 @@ void usage()
 
 int initializeArguments(int argc, char ** argv,               /* BAM file */
 		string & outDir,       /* output directory */
-		string & configFile,
-		string & samtools_path)         /* path to samtools executable */
+		string & configFile,            /* Configuration file, required */
+		string & PacBioReadName, string & PacBio_file)        /* A particular PacBio read to correct, or a file including all the PacBio read names */ 
 {
 	vector<string> Arguments;
 	while(argc--)
@@ -74,7 +75,8 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 
 	outDir = "";
 	configFile = "";
-	samtools_path = "samtools";
+	PacBioReadName = "";
+	PacBio_file = "";
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
@@ -86,8 +88,12 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 			configFile = Arguments.at(++i);
 		}
 
-		else if (Arguments[i] == "-samtools"){
-			samtools_path = Arguments.at(++i);
+		else if (Arguments[i] == "-name"){
+			PacBioReadName = Arguments.at(++i);
+		}
+
+		else if (Arguments[i] == "-f"){
+			PacBio_file = Arguments.at(++i);
 		}
 
 		else if (Arguments[i] == "-log"){
@@ -108,15 +114,21 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 		}
 		else
 		{
-			cerr << "Unknown option " << Arguments[i] << endl << endl;
+			cerr << "Unknown option " << Arguments[i] << endl;
 			cerr << "Use -h/--help for usage. \n";
 			return 1;
 		}
 	}
 
+	if (PacBioReadName.length()>0 && PacBio_file.length() > 0)
+	{
+		FILE_LOG(logWARNING) << "Both long read name and file with long reads specified, correct only 1 by the name";
+		PacBio_file = "";
+
+	}
 	if (configFile.length() == 0)
 	{
-		Utils::exitWithError("Missing config file...\n");
+		Utils::exitWithError("Missing config file...\nUse option -h/--h to see help.");
 	}
 	if (outDir == "")
 		outDir = Utils::get_cwd(); /* output directory, default: current directory */
@@ -167,8 +179,8 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 	CLOCKSTOP;
 }
 
-// slave job
-void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
+// error correction job
+void metalrec(const vector<string> & bamFiles, const string & PacBioName, const string & allFileName,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
@@ -176,16 +188,15 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 {
 	CLOCKSTART;
 	/* output file */
-	string outFile = outDir + "/" + "ec.fasta"; // output corrected fasta file
+	string outFile = outDir + "/" + allFileName + ".fasta"; // output corrected fasta file
 	Utils::mkdirIfNonExist(outDir);
 
-	// if the corresponding sam file exists, try to correct sequence
-	//string exec_cmd = samtools_path + " view " + bamFile + " " + refName + " | /chongle/shared/software/metalrec/cpp/metalrec -o " + outFile;
-	//cout << exec_cmd << endl;
+	/* Initiate Dataset object, and set the indel and substitution rates allowed in the alignment */
 	Dataset * dataSet = new Dataset();
 	dataSet->setIndelRate(indelRate);
 	dataSet->setSubRate(subRate);
 
+	/* Read all bam file to collect Illumina reads aligned to this PacBio read */
 	for (size_t i = 0; i < bamFiles.size(); i++)
 	{
 		string getSamCmd = samtools_path + " view " + bamFiles[i] + " " + PacBioName;
@@ -209,16 +220,30 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 		}
 	}
 	dataSet->finalize();
-	//FILE_LOG(logINFO) << "Length of the PacBio read is " << dataSet->getPacBioReadLength(); /* print PacBio read length */
+
 	if (dataSet->getNumberOfReads() <= 1)
 		FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
 
 	else /* If the dataset has some reads in it, build hash table and overlap graph next */
+		/* Work flow: 
+		 * 1. build hash table 
+		 * 2. build overlap graph based on the hash table
+		 * 3. contract composite edges
+		 * 4. flow analysis
+		 * 5. remove edges without flow
+		 * 6. simplify graph (contract composite edges, and pop bubbles)
+		 * */
 	{
 		FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
 		HashTable *ht = new HashTable();
 		ht->insertDataset(dataSet, hashStringLength);
 		OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
+		if(loglevel > 4)
+		{
+			vector<Edge *> contigEdges;
+			graph->getEdges(contigEdges);
+			graph->printGraph(outDir + "/" + allFileName + ".init.gdl", contigEdges);
+		}
 		delete ht;                      /* delete hash table after overlap graph is built */
 		if (graph->getNumberOfEdges() == 0)
 			FILE_LOG(logERROR) << "Data set  has no edge in it, quitting...";
@@ -226,11 +251,21 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 		else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 		{
 			graph->calculateFlow();
-			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges() << endl;
+			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges();
 			graph->removeAllSimpleEdgesWithoutFlow();
+			if(loglevel > 4)
+			{
+				vector<Edge *> contigEdges;
+				graph->getEdges(contigEdges);
+				graph->printGraph(outDir + "/" + allFileName + ".afterFlow.gdl", contigEdges);
+			}
 			graph->simplifyGraph();
 			vector<Edge *> contigEdges;
 			graph->getEdges(contigEdges);
+			if(loglevel > 4)
+			{
+				graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
+			}
 			graph->printContigs(outFile, contigEdges,true);
 
 		}
@@ -244,13 +279,14 @@ void SlaveProcess(const vector<string> & bamFiles, const string & PacBioName,
 // main function
 // function hmm_file prop count_file fastafile
 int main(int argc, char ** argv){
-
-
-	string samtools_path, configFile, outDir, allFileName;
+	string samtools_path, configFile, outDir, allFileName, PacBioName, PacBio_file;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
+	vector<string> PacBioNames;
 	float indelRate, subRate, maxErrorRate;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
+
+	/* Set default values */
 	param_map["allFileName"]= "metalrec";
 	param_map["minimumOverlapLength"] = "40"; 
 	param_map["hashStringLength"] = "10";
@@ -259,33 +295,33 @@ int main(int argc, char ** argv){
 	param_map["rubberPos"] ="10";
 	param_map["indelRate"] = "0.25"; 
 	param_map["subRate"] = "0.05";
-
-	vector<string> PacBioNames;
-
+	param_map["samtools_path"] = "samtools";
 
 	/* initialize command line arguments */
-	int init = initializeArguments(argc, argv, outDir, configFile, samtools_path);
+	int init = initializeArguments(argc, argv, outDir, configFile, PacBioName, PacBio_file);
+	loglevel = FILELog::ReportingLevel(); // logging level in integer
 
 	if(init != 0){
 		return 0;
 	}
 	else{
-		param_map["outDir"] = outDir;
-		param_map["samtools_path"] = samtools_path;
-		if (configFile.length() != 0)
-		{
-			FILE_LOG(logINFO) << "config file is specified, parsing the file to get new parameter values";
-			parseConfig(configFile,param_map);
-		}
+		FILE_LOG(logINFO) << "Parsing the config file to get parameter values";
+		parseConfig(configFile,param_map);
 
-		FILE_LOG(logINFO) << "bamfiles: " << param_map["bamfiles"] << endl;
 		vector<string> bamFiles = Utils::StringToVector(param_map["bamfiles"],' ');
-		for (size_t i = 0 ; i < bamFiles.size(); i++)
-			FILE_LOG(logINFO) << bamFiles.at(i);
+
+		if (param_map["bamDir"].length()!=0) /* Attach the bam directory to the bam files to get full path */
+		{
+			FILE_LOG(logINFO) << "bam directory is: " << param_map["bamDir"];
+			for (size_t i = 0 ; i < bamFiles.size(); i++)
+				bamFiles.at(i) = param_map["bamDir"] + "/" + bamFiles.at(i);
+		}
 		if ( bamFiles.size() == 0 )
 		{
 			Utils::exitWithError("No input bam files!\n");
 		}
+
+		param_map["outDir"] = outDir;
 		minimumOverlapLength = (UINT64) Utils::stringToUnsignedInt(param_map["minimumOverlapLength"]);
 		hashStringLength = (UINT64) Utils::stringToUnsignedInt(param_map["hashStringLength"]);
 		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
@@ -297,22 +333,32 @@ int main(int argc, char ** argv){
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
 
-		/* Use samtools to get the header lines, and then get the names of the PacBio names */
-		string getRefNameCmd = samtools_path + " view -H " + bamFiles[0]; 
-		FILE * pipe = popen(getRefNameCmd.c_str(), "r");
-		if (!pipe) 
+		/* If no specific PacBio read(s) is requested from command line, 
+		 * Use samtools to get the header lines, and then get the names of all PacBio names */
+		if ( PacBioName.length() == 0 && PacBio_file.length() == 0)
 		{
-			Utils::exitWithError(" *** Failed command " + getRefNameCmd);
+			string getRefNameCmd = samtools_path + " view -H " + bamFiles[0]; 
+			FILE * pipe = popen(getRefNameCmd.c_str(), "r");
+			if (!pipe) 
+			{
+				Utils::exitWithError(" *** Failed command " + getRefNameCmd);
+			}
+			Utils::getRefNames(pipe, PacBioNames);
+			pclose(pipe);
 		}
-		Utils::getRefNames(pipe, PacBioNames);
-		pclose(pipe);
+		else if (PacBio_file.length() > 0)
+		{
+			Utils::saveLinesToVec(PacBio_file, PacBioNames);
+		}
+		else                            /* Only 1 read to correct */
+			PacBioNames.push_back(PacBioName);
 
-		cout << "output directory is: " << outDir << endl;
-		// display work start and time record
-		cout << "Initialization succeeded " << endl;
+		FILE_LOG(logINFO) << "Number of PacBio reads in first bam file is: " << PacBioNames.size();
 		FILE_LOG(logINFO) << "samtools path: " << samtools_path;
 		FILE_LOG(logINFO) << "number of bam files: " << bamFiles.size();
+		FILE_LOG(logINFO) << "bamfiles: " << param_map["bamfiles"];
 		FILE_LOG(logINFO) << "output directory: " << outDir;
+		FILE_LOG(logINFO) << "number of pacbio reads to work on: " << PacBioNames.size();
 		FILE_LOG(logINFO) << "allFileName: " << allFileName;
 		FILE_LOG(logINFO) << "minimum overlap length: " << minimumOverlapLength;
 		FILE_LOG(logINFO) << "hash string length: " << hashStringLength;
@@ -320,22 +366,18 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "max error rate : " << maxErrorRate;
 		FILE_LOG(logINFO) << "indel rate: " << indelRate;
 		FILE_LOG(logINFO) << "substitution rate: " << subRate;
-		cout << endl
-			<< "============================================================================"
-			<< endl << Utils::currentDateTime() << endl
-			<< " Beginning Error Correction" << endl;
-		cout << " [Step 1] Error correction: Running -> " << PacBioNames[2] << endl;
+		FILE_LOG(logINFO) << "============================================================================";
+		FILE_LOG(logINFO) << "Beginning Error Correction";
 
-		SlaveProcess(bamFiles, PacBioNames[2], samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+		for ( size_t j = 0; j < PacBioNames.size(); j++)
+		{
+			FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
+			metalrec(bamFiles, PacBioNames.at(j), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
+		}
 
-		cout << " Done!" << endl;
-
-		// display work end and time record
-		cout << Utils::currentDateTime() << " Ending Corrections "<< endl
-			<< "============================================================================"
-			<< std::endl << std::endl;
-
+		FILE_LOG(logINFO) << " Done!";
+		FILE_LOG(logINFO) << "============================================================================";
 		return 0;
 	}
 }
