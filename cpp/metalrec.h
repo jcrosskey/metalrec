@@ -56,6 +56,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 			if(!sam_pipe){
 				cerr << "   *** Failed command " << getSamCmd << endl;
 				perror("Error encountered in popen()"); /* If fork or pipe fails, errno is set */
+				return;
 			}
 
 			else{
@@ -66,6 +67,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 				if (exit_status == -1)
 				{
 					perror("Error encountered in pclose()");
+					return;
 				}
 			}
 		}
