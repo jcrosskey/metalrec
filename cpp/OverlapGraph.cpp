@@ -731,7 +731,7 @@ bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> & contigE
 			for (size_t i = 0; i< contigEdges.size(); i++)
 			{
 				string s = getStringInEdge(contigEdges.at(i)); // get the string in the longest edge. This function need to be rewritten too.
-				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ") String Length: " << s.length() << ". Length in Read: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
+				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ":"<< contigEdges.at(i)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ":" << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << ". Length in Read: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
 
 				UINT32 start=0;
 				do
@@ -746,7 +746,7 @@ bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> & contigE
 	}
 	else
 	{
-		FILE_LOG(logERROR) << "No contigs (edges) left in the graph, nothing to write";
+		FILE_LOG(logWARNING) << "No contigs (edges) left in the graph, nothing to write";
 	}
 	return true;
 }

@@ -1,23 +1,5 @@
-#include <stdexcept> // for standard exceptions out_or_range
-#include <iostream>
-#include <map>
-#include <stdio.h>
-#include "Utils.h"
-/*** utility functions ***/
-#include "Common.h"
-/*** Read class ***/
-#include "Read.h"
-/*** Dataset class ***/
-#include "Dataset.h"
-/*** Edge class ***/
-#include "Edge.h"
-/*** HashTable class ***/
-#include "HashTable.h"
-/*** OverlapGraph class ***/
-#include "OverlapGraph.h"
-/* check file existence and permissions */
-#include <unistd.h>
-int loglevel;
+#include "metalrec.h"
+int loglevel;                                   /* level of log information(verbosity) */
 
 /********************************************************
  * metalrec.cpp
@@ -128,7 +110,7 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 	}
 	if (configFile.length() == 0)
 	{
-		Utils::exitWithError("Missing config file...\nUse option -h/--h to see help.");
+		Utils::exitWithError("Missing config file...\nUse option -h/--h to see help.\n");
 	}
 	if (outDir == "")
 		outDir = Utils::get_cwd(); /* output directory, default: current directory */
@@ -141,10 +123,6 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 }
 
 void parseConfig(const string & configFile, map<string, string> & param_map)
-//	string & allFileName, 
-//		UINT64 & minimumOverlapLength, UINT64 hashStringLength, 
-//		UINT32 & maxError, float & maxErrorRate, UINT32 & rubberPos, float & indelRate, float & subRate, 
-//		string & outDir, string & samtools_path)
 {
 	CLOCKSTART;
 	ifstream configFilePointer;
@@ -178,103 +156,6 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 	configFilePointer.close();
 	CLOCKSTOP;
 }
-
-// error correction job
-void metalrec(const vector<string> & bamFiles, const string & PacBioName, const string & allFileName,
-		const string & samtools_path, const string & outDir,
-		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
-		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & subRate, const float & maxErrorRate)
-{
-	CLOCKSTART;
-	/* output file */
-	string outFile = outDir + "/" + allFileName + ".fasta"; // output corrected fasta file
-	Utils::mkdirIfNonExist(outDir);
-
-	/* Initiate Dataset object, and set the indel and substitution rates allowed in the alignment */
-	Dataset * dataSet = new Dataset();
-	dataSet->setIndelRate(indelRate);
-	dataSet->setSubRate(subRate);
-
-	/* Read all bam file to collect Illumina reads aligned to this PacBio read */
-	for (size_t i = 0; i < bamFiles.size(); i++)
-	{
-		string getSamCmd = samtools_path + " view " + bamFiles[i] + " " + PacBioName;
-		FILE_LOG(logINFO) << "Reading bam file " << bamFiles[i];
-		/* popen returns NULL if fork or pipe calls fail, or if it cannot allocate memory */
-		FILE * sam_pipe = popen(getSamCmd.c_str(), "r"); /* stream to capture the output of "samtools view bamfile refname" */
-		if(!sam_pipe){
-			cerr << "   *** Failed command " << getSamCmd << endl;
-			perror("Error encountered in popen()"); /* If fork or pipe fails, errno is set */
-		}
-
-		else{
-			/** Read sam file and store all the reads **/
-			dataSet->AddDataset(sam_pipe);
-			int exit_status = pclose(sam_pipe); /* pclose() waits for the associated process to terminate and returns the exit status of the command as returned by wait4; 
-							       returns -1 if wait4 returns an error, or some other error is detected. */
-			if (exit_status == -1)
-			{
-				perror("Error encountered in pclose()");
-			}
-		}
-	}
-	dataSet->finalize();
-
-	if (dataSet->getNumberOfReads() <= 1)
-		FILE_LOG(logERROR) << "Data set has no more than 1 read in it, quitting...";
-
-	else /* If the dataset has some reads in it, build hash table and overlap graph next */
-		/* Work flow: 
-		 * 1. build hash table 
-		 * 2. build overlap graph based on the hash table
-		 * 3. contract composite edges
-		 * 4. flow analysis
-		 * 5. remove edges without flow
-		 * 6. simplify graph (contract composite edges, and pop bubbles)
-		 * */
-	{
-		FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
-		HashTable *ht = new HashTable();
-		ht->insertDataset(dataSet, hashStringLength);
-		OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-		if(loglevel > 4)
-		{
-			vector<Edge *> contigEdges;
-			graph->getEdges(contigEdges);
-			graph->printGraph(outDir + "/" + allFileName + ".init.gdl", contigEdges);
-		}
-		delete ht;                      /* delete hash table after overlap graph is built */
-		if (graph->getNumberOfEdges() == 0)
-			FILE_LOG(logERROR) << "Data set  has no edge in it, quitting...";
-
-		else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
-		{
-			graph->calculateFlow();
-			FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges();
-			graph->removeAllSimpleEdgesWithoutFlow();
-			if(loglevel > 4)
-			{
-				vector<Edge *> contigEdges;
-				graph->getEdges(contigEdges);
-				graph->printGraph(outDir + "/" + allFileName + ".afterFlow.gdl", contigEdges);
-			}
-			graph->simplifyGraph();
-			vector<Edge *> contigEdges;
-			graph->getEdges(contigEdges);
-			if(loglevel > 4)
-			{
-				graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
-			}
-			graph->printContigs(outFile, contigEdges,true);
-
-		}
-		delete graph;
-	}
-	delete dataSet;
-	CLOCKSTOP;
-}
-
 
 // main function
 // function hmm_file prop count_file fastafile

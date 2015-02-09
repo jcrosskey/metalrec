@@ -563,11 +563,14 @@ namespace Utils
     {
 	    stringVector.clear();
 	    std::ifstream fin(fileName.c_str());
-	    if(fin)
+	    if(fin.is_open())
 	    {
 		    std::string line;
-		    std::getline(fin, line);
-		    stringVector.push_back(line);
+		    while(std::getline(fin, line))
+		    {
+			    if (line.length() > 0)
+				    stringVector.push_back(line);
+		    }
 		    fin.close();
 	    }
 
