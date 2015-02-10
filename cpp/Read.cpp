@@ -39,6 +39,143 @@ Read::Read(void)
 	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 }
 
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  Read
+ *  Description:  Copy constructor, make deep copy of known member, instead of default
+ *  	          shallow copy
+ * =====================================================================================
+ */
+Read::Read(const Read & R)
+{
+	ID = R.ID;
+	readName = R.readName;
+	readDnaString = R.readDnaString;
+	cigarString = R.cigarString;
+	frequency = R.frequency;
+	rStart = R.rStart;
+	leftClip = R.leftClip;
+	rightClip = R.rightClip;
+	mapQV = R.mapQV;
+	numOfInsertions = R.numOfInsertions;
+	numOfDeletions = R.numOfDeletions;
+	numOfMatchMismatches = R.numOfMatchMismatches;
+	editDistance = R.editDistance;
+	isReverseComplement = R.isReverseComplement;
+	alignScore = R.alignScore;
+	startCoord = R.startCoord;
+	refName = R.refName;
+	size_t k = 0;
+
+	listOfEdgesForward = new vector<Edge *>;
+	listOfEdgesForward->resize((R.listOfEdgesForward)->size());
+	for(k = 0; k < listOfEdgesForward->size(); k++){
+		Edge * EdgeForward = new Edge();
+		*EdgeForward = *((R.listOfEdgesForward)->at(k));
+		listOfEdgesForward->at(k) = EdgeForward;
+	}
+
+	locationOnEdgesForward = new vector<UINT64>;
+	locationOnEdgesForward->resize(R.locationOnEdgesForward->size());
+	for(k = 0; k < locationOnEdgesForward->size(); k++){
+		locationOnEdgesForward->at(k) = R.locationOnEdgesForward->at(k);
+	}
+
+	containedReadIDs = new vector<UINT64>;
+	containedReadIDs->resize((R.containedReadIDs)->size());
+	for(k = 0; k < containedReadIDs->size(); k++){
+		containedReadIDs->at(k) = (R.containedReadIDs)->at(k);
+	}
+
+	overlapReadIDs = new vector<UINT64>;
+	overlapReadIDs->resize((R.overlapReadIDs)->size());
+	for(k = 0; k < overlapReadIDs->size(); k++){
+		overlapReadIDs->at(k) = (R.overlapReadIDs)->at(k);
+	}
+
+	overlapReadOffsets = new vector<UINT64>;
+	overlapReadOffsets->resize((R.overlapReadOffsets)->size());
+	for(k = 0; k < overlapReadIDs->size(); k++){
+		overlapReadOffsets->at(k) = (R.overlapReadOffsets)->at(k);
+	}
+
+}
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  operator=
+ *  Description:  Copy assignment, make deep copy of known member, instead of default
+ *  	          shallow copy
+ * =====================================================================================
+ */
+Read & Read::operator= (const Read & R)
+{
+	ID = R.ID;
+	readName = R.readName;
+	readDnaString = R.readDnaString;
+	cigarString = R.cigarString;
+	frequency = R.frequency;
+	rStart = R.rStart;
+	leftClip = R.leftClip;
+	rightClip = R.rightClip;
+	mapQV = R.mapQV;
+	numOfInsertions = R.numOfInsertions;
+	numOfDeletions = R.numOfDeletions;
+	numOfMatchMismatches = R.numOfMatchMismatches;
+	editDistance = R.editDistance;
+	isReverseComplement = R.isReverseComplement;
+	alignScore = R.alignScore;
+	startCoord = R.startCoord;
+	refName = R.refName;
+	size_t k = 0;
+
+	for(k = 0; k < listOfEdgesForward->size(); k++){
+		delete listOfEdgesForward->at(k);
+	}
+	delete listOfEdgesForward;
+	listOfEdgesForward = new vector<Edge *>;
+	size_t numEdgesForward = (R.listOfEdgesForward)->size();
+	listOfEdgesForward->resize(numEdgesForward);
+	for(k = 0; k < numEdgesForward; k++){
+		Edge * EdgeForward = new Edge();
+		*EdgeForward = *((R.listOfEdgesForward)->at(k));
+		listOfEdgesForward->at(k) = EdgeForward;
+	}
+
+	delete locationOnEdgesForward;
+	locationOnEdgesForward = new vector<UINT64>;
+	locationOnEdgesForward->resize(numEdgesForward);
+	for(k = 0; k < numEdgesForward; k++){
+		locationOnEdgesForward->at(k) = R.locationOnEdgesForward->at(k);
+	}
+
+	delete containedReadIDs;
+	containedReadIDs = new vector<UINT64>;
+	containedReadIDs->resize((R.containedReadIDs)->size());
+	for(k = 0; k < containedReadIDs->size(); k++){
+		containedReadIDs->at(k) = (R.containedReadIDs)->at(k);
+	}
+
+	delete overlapReadIDs;
+	overlapReadIDs = new vector<UINT64>;
+	overlapReadIDs->resize((R.overlapReadIDs)->size());
+	for(k = 0; k < overlapReadIDs->size(); k++){
+		overlapReadIDs->at(k) = (R.overlapReadIDs)->at(k);
+	}
+
+	delete overlapReadOffsets;
+	overlapReadOffsets = new vector<UINT64>;
+	overlapReadOffsets->resize((R.overlapReadOffsets)->size());
+	for(k = 0; k < overlapReadIDs->size(); k++){
+		overlapReadOffsets->at(k) = (R.overlapReadOffsets)->at(k);
+	}
+
+	return *this;
+}
+
+
 /**********************************************************************************************************************
 	Another constructor, from sam align record in string format
 **********************************************************************************************************************/
@@ -57,6 +194,7 @@ Read::Read(const string & s)
 
 	listOfEdgesForward = new vector<Edge *>;
 	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.
+
 	locationOnEdgesForward = new vector<UINT64>;
 	locationOnEdgesForward->resize(locationOnEdgesForward->size());	// Resize to 0 to reduce space.
 
@@ -78,7 +216,16 @@ Read::Read(const string & s)
 **********************************************************************************************************************/
 Read::~Read(void)
 {
-	// delete all the pointers.
+// delete all the pointers.
+//	if (listOfEdgesForward != NULL)
+//	{
+//		for(size_t k = 0; k < listOfEdgesForward->size(); k++){
+//			if (listOfEdgesForward->at(k) != NULL)
+//				delete listOfEdgesForward->at(k);
+//		}
+//		delete listOfEdgesForward;
+//	}
+
 	delete listOfEdgesForward;
 	delete locationOnEdgesForward;
 	delete containedReadIDs;

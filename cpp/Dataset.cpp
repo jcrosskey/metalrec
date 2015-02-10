@@ -33,8 +33,55 @@ Dataset::Dataset(void)
 	minimumOverlapLength = 0;
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
-	string PacBioReadName = "unknown";
+	PacBioReadName = "unknown";
 	reads = new vector<Read *>;
+}
+
+/**********************************************************************************************************************
+  Copy constructor
+ **********************************************************************************************************************/
+Dataset::Dataset(const Dataset & D)
+{
+	// Initialize the variable values.
+	numberOfReads = D.numberOfReads;
+	numberOfUniqueReads = D.numberOfUniqueReads;
+	numberOfNonContainedReads = D.numberOfNonContainedReads;
+	minimumOverlapLength = D.minimumOverlapLength;
+	shortestReadLength = D.shortestReadLength;
+	longestReadLength = D.longestReadLength;
+	PacBioReadName = D.PacBioReadName;
+	reads = new vector<Read *>;
+	reads->resize((D.reads)->size());
+	for(size_t k = 0; k < reads->size(); k++){
+		Read * read1 = new Read;
+		*read1 = (*((D.reads)->at(k)));
+		reads->at(k) = read1;
+	}
+}
+
+/**********************************************************************************************************************
+  Copy assignment
+ **********************************************************************************************************************/
+Dataset & Dataset::operator= (const Dataset & D)
+{
+	// Initialize the variable values.
+	numberOfReads = D.numberOfReads;
+	numberOfUniqueReads = D.numberOfUniqueReads;
+	numberOfNonContainedReads = D.numberOfNonContainedReads;
+	minimumOverlapLength = D.minimumOverlapLength;
+	shortestReadLength = D.shortestReadLength;
+	longestReadLength = D.longestReadLength;
+	PacBioReadName = D.PacBioReadName;
+
+	delete this->reads;
+	reads = new vector<Read *>;
+	reads->resize((D.reads)->size());
+	for(size_t k = 0; k < reads->size(); k++){
+		Read * read1 = new Read;
+		*read1 = (*((D.reads)->at(k)));
+		reads->at(k) = read1;
+	}
+	return *this;
 }
 
 /**********************************************************************************************************************
@@ -270,7 +317,8 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 							longestReadLength = len;
 						if (len < shortestReadLength)
 							shortestReadLength = len;
-						reads->push_back(r);
+						Read *goodRead = new Read(*r);
+						reads->push_back(goodRead);
 						numberOfReads++;
 						goodReads++;
 					}
@@ -282,6 +330,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
 					}
+					delete r;
 				}
 			}
 			line = "";              /* Set line to empty again */

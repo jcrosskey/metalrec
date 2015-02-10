@@ -10,6 +10,7 @@
 #define READ_H_
 
 #include "Common.h"
+#include "Edge.h"
 
 class Edge;
 
@@ -54,6 +55,8 @@ class Read
 		Read(void);	// Default constructor.
 		Read(const string & s);	// Another constructor, from alignment record in string format.
 		~Read(void);	// Destructor.
+		Read(const Read & R); // copy constructor
+		Read & operator= (const Read & R); // Copy assignment
 
 		UINT64 superReadID;	// ID of the (longest) read containing this read. 
 					// 0 = not a contained read, otherwise superReadID contains the ID of the uniqe super read.

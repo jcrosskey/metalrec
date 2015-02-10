@@ -49,6 +49,45 @@ OverlapGraph::OverlapGraph(void)
 
 
 /**********************************************************************************************************************
+  Copy Constructor
+ **********************************************************************************************************************/
+OverlapGraph::OverlapGraph(const OverlapGraph & O)
+{
+	minimumOverlapLength = O.minimumOverlapLength;
+	maxError = O.maxError;
+	maxErrorRate = O.maxErrorRate;
+	rubberPos = O.rubberPos;
+	numberOfNodes = O.numberOfNodes;
+	numberOfEdges = O.numberOfEdges;
+	dataSet = new Dataset;
+	*dataSet = *(O.dataSet);
+	hashTable = new HashTable;
+	*hashTable = *(O.hashTable);
+}
+
+
+/**********************************************************************************************************************
+  Copy assignment
+ **********************************************************************************************************************/
+OverlapGraph & OverlapGraph::operator= (const OverlapGraph & O)
+{
+	minimumOverlapLength = O.minimumOverlapLength;
+	maxError = O.maxError;
+	maxErrorRate = O.maxErrorRate;
+	rubberPos = O.rubberPos;
+	numberOfNodes = O.numberOfNodes;
+	numberOfEdges = O.numberOfEdges;
+	delete dataSet;
+	dataSet = new Dataset;
+	*dataSet = *(O.dataSet);
+	delete hashTable;
+	hashTable = new HashTable;
+	*hashTable = *(O.hashTable);
+	return *this;
+}
+
+
+/**********************************************************************************************************************
   Another Constructor. Build the overlap grpah from the data_Set, and specified parameter values
  **********************************************************************************************************************/
 OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos)
@@ -69,6 +108,8 @@ OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT3
 OverlapGraph::~OverlapGraph()
 {
 	// Free the memory used by the overlap graph.
+//	delete dataSet;
+//	delete hashTable;
 	for(UINT64 i = 0; i < graph->size(); i++)
 	{
 		for(UINT64 j = 0; j< graph->at(i)->size(); j++)
@@ -319,6 +360,7 @@ bool OverlapGraph::checkOverlapForContainedRead(Read *read1, Read *read2, UINT64
 	string string2 = read2->getDnaStringForward(); // Get the string in read2 based on the orientation.
 	UINT16 numSub;
 	vector<UINT64> * listSubs = new vector<UINT64>;
+	bool contained = false;
 	if(orient == 0)
 		// orient 0 read1 has read2's prefix
 		//   >--------MMMMMMMMMMMMMMM*******------> read1      M means match found by hash table
@@ -328,7 +370,7 @@ bool OverlapGraph::checkOverlapForContainedRead(Read *read1, Read *read2, UINT64
 		lengthRemaining2 = string2.length() - hashStringLength; 	// This is the remaining of read2
 		if(lengthRemaining1 >= lengthRemaining2)
 		{
-			return checkOverlapWithSub(string1.substr(start + hashStringLength, lengthRemaining2), string2.substr(hashStringLength, lengthRemaining2), numSub, listSubs, orient); // If the remaining of the string match, then read2 is contained in read1
+			contained = checkOverlapWithSub(string1.substr(start + hashStringLength, lengthRemaining2), string2.substr(hashStringLength, lengthRemaining2), numSub, listSubs, orient); // If the remaining of the string match, then read2 is contained in read1
 		}
 	}
 	else                                 // orient 1, read1 has read2's suffix
@@ -339,11 +381,11 @@ bool OverlapGraph::checkOverlapForContainedRead(Read *read1, Read *read2, UINT64
 		lengthRemaining2 = string2.length() - hashStringLength;
 		if(lengthRemaining1 >= lengthRemaining2)
 		{
-			return checkOverlapWithSub(string1.substr(start - lengthRemaining2, lengthRemaining2),  string2.substr(0, lengthRemaining2), numSub, listSubs, orient); // If the remaining of the string match, then read2 is contained in read1
+			contained = checkOverlapWithSub(string1.substr(start - lengthRemaining2, lengthRemaining2),  string2.substr(0, lengthRemaining2), numSub, listSubs, orient); // If the remaining of the string match, then read2 is contained in read1
 		}
 	}
 	delete listSubs;
-	return false;
+	return contained;
 }
 
 
@@ -859,6 +901,7 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 						
 					}
 				}
+				delete listSubs;
 			}
 		}
 	}
@@ -942,6 +985,9 @@ Edge * OverlapGraph::mergeEdges(Edge *edge1, Edge *edge2)
 	// A: There could be other cases where edges are merged, other than composite edge contraction, so the reads should not be removed in this function)
 	//removeEdge(edge1);
 	//removeEdge(edge2);
+	delete listReadsForward;
+	delete listOverlapOffsetsForward;
+	delete listOfSubstitutionPoses;
 
 	return newEdge;
 	//return true;
@@ -1407,7 +1453,7 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
 		}
 	}
 	UINT64 result = costs[n];
-	delete [] costs;
+	delete costs;
 	//cout << s1 << endl << s2 << endl << result<< endl;
 	return result;
 }

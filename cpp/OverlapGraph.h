@@ -54,6 +54,8 @@ class OverlapGraph
 		OverlapGraph(void);	// Default constructor.
 		OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos);	// Another constructor, from dataSet including all the reads, with specified values for other parameters. Default values are also included
 		~OverlapGraph();	// Destructor.
+		OverlapGraph(const OverlapGraph & O);
+		OverlapGraph & operator= (const OverlapGraph & O);
 
 		bool buildOverlapGraphFromHashTable(HashTable *ht);	// Build the overlap graph using dataSet.
 		void markContainedReads(void);								// Find superReads for each read and mark them as contained read.

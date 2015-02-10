@@ -10,6 +10,8 @@
 #include "Common.h"
 #include "Read.h"
 
+class Read;
+
 /**********************************************************************************************************************
   Class to store an edge.
  **********************************************************************************************************************/
@@ -37,6 +39,8 @@ class Edge{
 		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs); 	// Another constructor.
 		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
 		~Edge();	// Destructor.
+		Edge(const Edge & E);
+		Edge & operator= (const Edge & E);
 
 		bool makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs);
 		bool makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);

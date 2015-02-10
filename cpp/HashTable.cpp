@@ -45,7 +45,7 @@ bool HashTable::insertDataset(Dataset* d, UINT64 hashLength)
 	dataSet=d;
 	hashStringLength = hashLength;
 	numberOfHashCollision = 0;
-	UINT64 size = getPrimeLargerThanNumber(d->getNumberOfUniqueReads() * 4 + 1);  // Size should be at least twice the number of entries in the hash table to reduce hash collision.
+	UINT64 size = getPrimeLargerThanNumber(d->getNumberOfUniqueReads() * 2 + 1);  // Size should be at least twice the number of entries in the hash table to reduce hash collision.
 	setHashTableSize(size);
 	for(UINT64 i = 1; i <= d->getNumberOfUniqueReads(); i++)	// For each read in the dataset
 	{

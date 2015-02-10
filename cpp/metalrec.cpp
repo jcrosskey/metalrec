@@ -253,7 +253,8 @@ int main(int argc, char ** argv){
 		for ( size_t j = 0; j < PacBioNames.size(); j++)
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
-			metalrec(bamFiles, PacBioNames.at(j), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+			string prefixName = Utils::intToString(j);
+			metalrec(bamFiles, PacBioNames.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 		}
 
