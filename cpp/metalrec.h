@@ -72,6 +72,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 			}
 		}
 		dataSet->finalize();
+		dataSet->setPacBioReadName(PacBioName);
 
 		if (dataSet->getNumberOfReads() <= 1)
 			FILE_LOG(logWARNING) << "Data set has no more than 1 read in it, quitting...";

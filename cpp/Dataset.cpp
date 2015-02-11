@@ -33,7 +33,7 @@ Dataset::Dataset(void)
 	minimumOverlapLength = 0;
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
-	PacBioReadName = "unknown";
+	PacBioReadName = "";
 	reads = new vector<Read *>;
 }
 

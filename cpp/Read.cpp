@@ -67,6 +67,9 @@ Read::Read(const Read & R)
 	alignScore = R.alignScore;
 	startCoord = R.startCoord;
 	refName = R.refName;
+	superReadID = R.superReadID;
+	numInEdges = R.numInEdges;
+	numOutEdges = R.numOutEdges;
 	size_t k = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
@@ -129,6 +132,9 @@ Read & Read::operator= (const Read & R)
 	alignScore = R.alignScore;
 	startCoord = R.startCoord;
 	refName = R.refName;
+	superReadID = R.superReadID;
+	numInEdges = R.numInEdges;
+	numOutEdges = R.numOutEdges;
 	size_t k = 0;
 
 	for(k = 0; k < listOfEdgesForward->size(); k++){
