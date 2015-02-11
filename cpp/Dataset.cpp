@@ -336,11 +336,13 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 			line = "";              /* Set line to empty again */
 		}
 	}
+	FILE_LOG(logINFO) << "In this data set: ";
 	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
 	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
 	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
 	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
 	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
+	FILE_LOG(logINFO) << "Total number of reads in the dataset so far: " << setw(5) << reads->size();
 	CLOCKSTOP;
 	return true;
 }

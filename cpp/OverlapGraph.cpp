@@ -834,8 +834,8 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 				/* See if the edge between the two reads has already been found, if so, do not try to find the same edge again.
 				 * For the overlap between two reads, if there is mismatch, there are two chances to find them. 
 				 * Cannot simply depend on if one node has been explored or not. */
-				if(isEdgePresent(readNumber, readNumber2) || isEdgePresent(readNumber2, readNumber))
-					continue;
+//				if(isEdgePresent(readNumber, readNumber2) || isEdgePresent(readNumber2, readNumber))
+//					continue;
 
 				/* If no errors are allowed, then every pair of reads only need to be checked once */
 				if ( maxError == 0 && maxErrorRate == 0 && exploredReads->at(readNumber2)!= UNEXPLORED )
@@ -844,7 +844,7 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 				UINT16 numSub;
 				vector<UINT64> *listSubs = new vector<UINT64>;
 
-				bool overlap_possible; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
+				bool overlap_possible = false; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
 				if ( readNumber < readNumber2 ) {
 					overlap_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
 				}
