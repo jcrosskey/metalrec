@@ -275,45 +275,54 @@ void OverlapGraph::markContainedReads(void)
 	for(UINT64 i = 1; i < graph->size(); i++) // For each read, except the last one
 	{
 		Read *read1 = dataSet->getReadFromID(i); // Get the read
-		string readString = read1->getDnaStringForward(); // Get the forward of the read
-		string subString; /* sub string of read1 with length hashStringLength */
-		UINT64 readNumber = read1->getID();
-		for(UINT64 j = 0; j < read1->getReadLength() - hashTable->getHashStringLength(); j++) // for each substring of read1 of length getHashStringLength
+		if (read1->superReadID == 0)
 		{
-			subString = readString.substr(j,hashTable->getHashStringLength()); // Get the substring from read1
-			vector<UINT64> * listOfReads=hashTable->getListOfReads(subString); // Search the substring in the hash table
-			if(!listOfReads->empty()) // If other reads contain the substring as prefix or suffix
+			FILE_LOG(logDEBUG3) << "Check contained reads with read " << i;
+			string readString = read1->getDnaStringForward(); // Get the forward of the read
+			string subString; /* sub string of read1 with length hashStringLength */
+			UINT64 readNumber = read1->getID();
+			for(UINT64 j = 0; j < read1->getReadLength() - hashTable->getHashStringLength(); j++) // for each substring of read1 of length getHashStringLength
 			{
-				for(UINT64 k = 0; k < listOfReads->size(); k++) // For each read in the list.
+				subString = readString.substr(j,hashTable->getHashStringLength()); // Get the substring from read1
+				vector<UINT64> * listOfReads=hashTable->getListOfReads(subString); // Search the substring in the hash table
+				//FILE_LOG(logDEBUG3) << "\tNumber of reads with this string hashed: " << listOfReads->size() << " at position " << j;
+				if(!listOfReads->empty()) // If other reads contain the substring as prefix or suffix
 				{
-					UINT64 data = listOfReads->at(k); // We used bit operation in the hash table to store read ID and orientation
-					Read *read2 = dataSet->getReadFromID(data & 0X3FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
-					UINT64 readNumber2 = read2->getID();
-					// Most significant 1 bits store the orientation.
-					// Orientation 0 means prefix of forward string of the read
-					// Orientation 1 means suffix of forward string of the read
+					for(UINT64 k = 0; k < listOfReads->size(); k++) // For each read in the list.
+					{
+						UINT64 data = listOfReads->at(k); // We used bit operation in the hash table to store read ID and orientation
+						Read *read2 = dataSet->getReadFromID(data & 0X3FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
+						if (read2->superReadID == 0) /* Only check the reads that are not marked as contained already */
+						{
+							UINT64 readNumber2 = read2->getID();
+							// Most significant 1 bits store the orientation.
+							// Orientation 0 means prefix of forward string of the read
+							// Orientation 1 means suffix of forward string of the read
 
-					bool contain_possible; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
-					if ( readNumber < readNumber2 ) {
-						contain_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
-					}
-					else
-					{
-						contain_possible = ((read2->getEndCoord() - read1->getStartCoord() + rubberPos) > 0);
-					}
-					if( readString.length() > read2->getDnaStringForward().length() /* read1 has to be longer than read2, also eliminate the possibility of comparing a read to itself */
-							&& contain_possible /* they have to have the possibility to contain first */
-							&& checkOverlapForContainedRead(read1,read2,(data >> 62),j)) // Check if the remaining of the strings also match
-					{
-						if(read2->superReadID == 0) // This is the first super read found. we store the ID of the super read.
-						{
-							read2->superReadID = i;
-							counter ++;
-						}
-						else // Already found some previous super read. Now we have another super read.
-						{
-							if(readString.length() > dataSet->getReadFromID(read2->superReadID)->getReadLength()) // This super read is longer than the previous super read. Update the super read ID.
-								read2->superReadID = i;
+							bool contain_possible = false; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
+							if ( readNumber < readNumber2 ) {
+								contain_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
+							}
+							else if (readNumber > readNumber2)
+							{
+								contain_possible = ((read2->getEndCoord() - read1->getStartCoord() + rubberPos) > 0);
+							}
+							if( readString.length() > read2->getDnaStringForward().length() /* read1 has to be longer than read2, also eliminate the possibility of comparing a read to itself */
+									&& contain_possible /* they have to have the possibility to contain first */
+									&& checkOverlapForContainedRead(read1,read2,(data >> 62),j)) // Check if the remaining of the strings also match
+							{       /* What if read1 is contained in some other read? */
+								if(read2->superReadID == 0) // This is the first super read found. we store the ID of the super read.
+								{
+									FILE_LOG(logDEBUG3) << "\tFound read " << readNumber2 << " contained in read " << readNumber;
+									read2->superReadID = i;
+									counter ++;
+								}
+								else // Already found some previous super read. Now we have another super read.
+								{
+									if(readString.length() > dataSet->getReadFromID(read2->superReadID)->getReadLength()) // This super read is longer than the previous super read. Update the super read ID.
+										read2->superReadID = i;
+								}
+							}
 						}
 					}
 				}

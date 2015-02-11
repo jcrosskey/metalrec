@@ -18,7 +18,7 @@ bool compareReads (Read *read1, Read *read2)
 	if (read1 -> getStartCoord() != read2 -> getStartCoord())
 		return read1->getStartCoord() < read2->getStartCoord();
 	else
-		return read1->getReadLength() < read2->getReadLength();	// compare the lengths of the two reads
+		return read1->getReadLength() > read2->getReadLength();	// When the staring coordinates are the same, the longer one comes first
 }
 
 /**********************************************************************************************************************
