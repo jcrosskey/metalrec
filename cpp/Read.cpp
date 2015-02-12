@@ -259,10 +259,10 @@ bool Read::setRead(const string & s)
 			for (size_t i = 0 ; i < fields.size(); i++)
 				FILE_LOG(logDEBUG4) << "fileds[" << i << "]: " << fields[i]; 
 			readName = fields.at(0);	// 1. Query/Read name
-			flag = Utils::stringToInt(fields.at(1));	// 2. bitwise Flag
+			flag = stoi(fields.at(1));	// 2. bitwise Flag
 			// 3. Reference Name
-			rStart = Utils::stringToInt(fields.at(3)) - 1;	// 4. 1-based leftmost mapping position, changes to 0-based 
-			mapQV = Utils::stringToInt(fields.at(4));	// 5. Mapping quality value
+			rStart = stoi(fields.at(3)) - 1;	// 4. 1-based leftmost mapping position, changes to 0-based 
+			mapQV = stoi(fields.at(4));	// 5. Mapping quality value
 			isReverseComplement = ( (flag & 0x10) == 0x10);	// Is SEQ reverse complemented
 			cigarString = fields.at(5);	// 6. Cigar string
 			setClip(cigarString); // Set the clipping lengths at both ends
@@ -304,15 +304,15 @@ bool Read::setEdits(const string & s)
 			switch(s.at(pos))
 			{
 				case 'D' :
-					num = Utils::stringToInt(s.substr(pos1, length));
+					num = stoi(s.substr(pos1, length));
 					numOfDeletions += num;
 					break;
 				case 'I':
-					num = Utils::stringToInt(s.substr(pos1, length));
+					num = stoi(s.substr(pos1, length));
 					numOfInsertions += num;
 					break;
 				case 'M':
-					num = Utils::stringToInt(s.substr(pos1, length));
+					num = stoi(s.substr(pos1, length));
 					numOfMatchMismatches += num;
 					break;
 				default:
@@ -435,7 +435,7 @@ INT32 Read::getTag(const string & tagName, const string & alignRecord)
 		size_t val_end_position = alignRecord.find('\t', val_start_position);	// Find the end of the field, which is one char to the right of the value
 		string val;	// Get the value
 		val.assign(alignRecord.begin() + val_start_position , alignRecord.begin() + val_end_position);	// Save the value for the tag
-		return Utils::stringToInt(val);
+		return stoi(val);
 	}
 	else
 	{

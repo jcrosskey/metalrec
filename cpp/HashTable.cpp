@@ -193,7 +193,7 @@ vector<UINT64> * HashTable::getListOfReads(string subString)
 		if(subStr == subString)	// subString present in the current index
 			break;
 		numberOfHashCollision++;
-		index = (index == getHashTableSize() - 1) ? 0: index + 1; // Increment the index.
+		index = (index == getHashTableSize() - 1) ? 0: (index + 1); // Increment the index.
 	}
 	return hashTable->at(index);	// return the index.
 }

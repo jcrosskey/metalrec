@@ -9,7 +9,7 @@
 CC = g++
 
 # compile time flags
-CFLAGS = -O0 -g3 -W -Wno-long-long -pedantic -Wno-variadic-macros -fmessage-length=0 -MMD -MP
+CFLAGS = -O0 -g3 -W -Wno-long-long -pedantic -Wno-variadic-macros -fmessage-length=0 -MMD -MP -std=c++11
 CFLAGS+=-Wall
 
 # include dirs containing header files
