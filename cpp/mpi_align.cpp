@@ -238,20 +238,28 @@ void SlaveProcess(const string & IlluminaDir, const string & PacBioDir, const ve
 		string outFile = outDir + "/" + IlluminaID.str() + "_" +  PacBioID.str(); // output corrected fasta file
 		string samFile = outFile + ".sam";
 		string bamFile = outFile + ".bam";
-
-		cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
-
-		string wholeCmd = blasrCmd + " -nproc " + threads + " -out " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
-				  samtoolsPath + " view -F 4 -@ " + threads + " -bT " + PacBioFile + " " + samFile + " | " + \
-				  samtoolsPath + " sort -@ " + threads + " -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
-				  samtoolsPath + " index " + bamFile;
-
-		//cout << myid << ": whole command is \"" << wholeCmd <<  "\" " << endl;
-		cout << myid << ": " << IlluminaFiles.at(currentWorkID % IlluminaFiles.size()) << "\t" << PacBioFiles.at(currentWorkID / IlluminaFiles.size()) <<  "\t" << IlluminaID.str() + "_" +  PacBioID.str() + ".bam" <<  endl;
-		int res = system(wholeCmd.c_str());
-		if (res != 0)
+		string baiFile = bamFile + ".bai";
+		
+		if (Utils::isFileExist(baiFile))
 		{
-			cerr << "Fail command for " << IlluminaID.str() + "_" +  PacBioID.str() << endl;
+			cout << myid << ": " << IlluminaID.str() + "_" + PacBioID.str() << " already done" << endl;
+		}
+		else
+		{
+			cout << myid << ": working on " << IlluminaID.str() + "_" + PacBioID.str() << endl;
+
+			string wholeCmd = blasrCmd + " -nproc " + threads + " -out " + samFile +  " " + IlluminaFile + " " + PacBioFile + " 2> /dev/null && " + \
+					  samtoolsPath + " view -F 4 -@ " + threads + " -bT " + PacBioFile + " " + samFile + " | " + \
+					  samtoolsPath + " sort -@ " + threads + " -o " + bamFile + " -T " + outFile + "_tmp" + " && " + \
+					  samtoolsPath + " index " + bamFile;
+
+			//cout << myid << ": whole command is \"" << wholeCmd <<  "\" " << endl;
+			cout << myid << ": " << IlluminaFiles.at(currentWorkID % IlluminaFiles.size()) << "\t" << PacBioFiles.at(currentWorkID / IlluminaFiles.size()) <<  "\t" << IlluminaID.str() + "_" +  PacBioID.str() + ".bam" <<  endl;
+			int res = system(wholeCmd.c_str());
+			if (res != 0)
+			{
+				cerr << "Fail command for " << IlluminaID.str() + "_" +  PacBioID.str() << endl;
+			}
 		}
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
