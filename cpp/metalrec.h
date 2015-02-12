@@ -118,7 +118,6 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 				if(loglevel > 4)
 				{
 					graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
-					cout << "pring all contigs" << endl;
 					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
 				}
 				graph->printContigs(outFile, contigEdges,true);

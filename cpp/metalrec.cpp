@@ -250,7 +250,13 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "============================================================================";
 		FILE_LOG(logINFO) << "Beginning Error Correction";
 
-		for ( size_t j = 0; j < PacBioNames.size(); j++)
+		if (PacBioNames.size() == 1)    /* When there is only 1 PacBio read to correct, use the specified prefix name */
+		{
+			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
+			metalrec(bamFiles, PacBioNames.at(j), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+					indelRate, subRate, maxErrorRate);
+		}
+		for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 			string prefixName = Utils::intToString(j);
