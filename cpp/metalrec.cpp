@@ -253,7 +253,7 @@ int main(int argc, char ** argv){
 		if (PacBioNames.size() == 1)    /* When there is only 1 PacBio read to correct, use the specified prefix name */
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
-			metalrec(bamFiles, PacBioNames.at(j), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+			metalrec(bamFiles, PacBioNames.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 		}
 		for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
