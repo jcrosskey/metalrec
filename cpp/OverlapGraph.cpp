@@ -232,26 +232,45 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	delete queue;
 	delete markedNodes;
 
+	buildReverseGraph();
 	counter = 0;
 	/* contracting composite edges, do not remove dead end nodes for now */
 	if (numberOfEdges > 0)
 	{
-//		int iteration = 0;
 		do
 		{
-//			if (loglevel > 4 )
-//			{
-//				FILE_LOG(logDEBUG1) << iteration << " iteration, after contracting " << counter <<  " composite edges";
-//				stringstream ss;
-//				ss << iteration;
-//				this->printGraph("debug_" + ss.str() + ".gdl","debug_" + ss.str() + ".fasta");	// printGraph function needs to be rewritten 
-//				iteration += 1;
-//			}
 			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
+			counter += removeDeadEndNodes();
 		} while (counter > 0);
 	}
 	CLOCKSTOP;
 	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  buildReverseGraph
+ *  Description:  Store the connection (only) between nodes with edges in the reverse direction
+ * =====================================================================================
+ */
+void OverlapGraph::buildReverseGraph(void) /* build the reverse graph */
+{
+	CLOCKSTART;
+	for(UINT64 k = 0; k < dataSet->getNumberOfUniqueReads(); k++){
+		vector<UINT64> edgeVector;
+		reverseGraph.at(k) = edgeVector;
+	}
+	for(UINT64 k = 1; k < graph->size(); k++){
+		if (graph->at(k)->size() > 0){
+			UINT64 readNumber1 = k; /* source read ID */
+			for (UINT64 i = 0; i < graph->at(k)->size(); i++){
+				UINT64 readNumber2 = graph->at(k)->at(i)->getDestinationRead()->getID(); /* destination read ID */
+				(reverseGraph.at(readNumber2)).push_back(readNumber1);
+			}
+		}
+	}
+	CLOCKSTOP;
 }
 
 
@@ -539,6 +558,7 @@ bool OverlapGraph::insertEdge(Edge * edge)
 	graph->at(SourceID)->push_back(edge);	// Insert the edge in the list of edges of ID
 	numberOfEdges++;	// Increase the number of edges.
 	updateReadLocations(edge);	// If the current edge contains some reads, then we need to update their location information.
+	reverseGraph.at(DestinationID).push_back(SourceID);
 	return true;
 }
 
@@ -620,6 +640,14 @@ bool OverlapGraph::removeEdge(Edge *edge)
 			break;
 		}
 	}
+	for(UINT64 i = 0; i < reverseGraph.at(ID2).size(); i++){
+		if(reverseGraph.at(ID2).at(i) == ID1){
+			reverseGraph.at(ID2).at(i) = reverseGraph.at(ID2).at(reverseGraph.at(ID2).size()-1);
+			reverseGraph.pop_back();
+			break;
+		}
+			
+	}
 	return true;
 }
 
@@ -661,7 +689,7 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
  * ===  FUNCTION  ======================================================================
  *         Name:  removeDeadEndNodes
  *  Description:  Remove nodes that do not contribute to the graph, and the edges adjacent to them.
- *  Definition of the dead-end nodes:
+ *  Definition of the dead-end nodes: (yet to modify)
  *  1. The node itself and all its neighbors only have in-edges or out-edges.
  *  2. The edge between the node and its neighbor should satisfy:
  *  	- Overlap offset in the edge is less than 200 bps (at most adding 200 bps on top of one read, not much. Currently implemented) 
@@ -670,9 +698,113 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
  *  	  In this case the resulted contig is not going to be big any way. Therefore this is not used. 
  * =====================================================================================
  */
-//UINT64 OverlapGraph::removeDeadEndNodes(void)
-//{
-//}
+
+deadType OverlapGraph::checkDead(UINT64 readID)
+{
+	if (dataSet->getReadFromID(readID)->numInEdges == 0 && dataSet->getReadFromID(readID)->numOutEdges != 0)
+		return INDEAD;
+	else if (dataSet->getReadFromID(readID)->numInEdges != 0 && dataSet->getReadFromID(readID)->numOutEdges == 0)
+		return OUTDEAD;
+	else if (dataSet->getReadFromID(readID)->numInEdges != 0 && dataSet->getReadFromID(readID)->numOutEdges != 0)
+		return ALIVE;
+	else if (dataSet->getReadFromID(readID)->numInEdges == 0 && dataSet->getReadFromID(readID)->numOutEdges == 0)
+		return ISOLATE;
+}
+
+
+UINT64 OverlapGraph::removeDeadEndNodes(void)
+{
+	CLOCKSTART;
+	vector<Edge *> edgesToRemove;
+	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i++)
+	{
+		bool removeFlag = false;
+		/* First remove the deadend nodes without outgoing edges */
+		if (checkDead(i) == OUTDEAD)
+		{
+			for(size_t k = 0; k < reverseGraph.at(i).size(); k++){
+				removeFlag = false;
+				UINT64 origin = reverseGraph.at(i).at(k); /* check the origin of the edge ended at i (backtrace with reverseGraph */
+				Edge * currentEdge = findEdge(origin, i); /* the edge with current node as dest node */
+				if (currentEdge->getListOfReads()->size() > deadEndLength || getStringInEdge(currentEdge).length() > deadEndBp) /* edge is composite or long enough */
+					continue;
+
+				if( graph->at(origin)->size() > 1) /* if this origin node has other outgoing edges */
+				{
+					for(size_t j = 0; j < graph->at(origin)->size(); j++){ /* check all other dest nodes, if at least one of them is alive, remove the current one */
+						UINT64 readID = graph->at(origin)->at(j)->getDestinationRead()->getID();
+						if(checkDead(readID)==ALIVE){
+							/* remove the edge, or mark the edge to be removed */
+							removeFlag = true;
+							break;
+						}
+						/* If another edge is very good */
+						else if(readID != i){
+							if(graph->at(origin)->at(j)->getListOfReads()->size() > deadEndLength || getStringInEdge(graph->at(origin)->at(j)).length() > deadEndBp){
+								removeFlag = true;
+								break;
+							}
+						}
+					}
+				}
+				else{
+					removeFlag = true;
+				}
+				if (removeFlag){
+					edgesToRemove.push_back(currentEdge);
+					FILE_LOG(logDEBUG1) << "Found dead-end node and edge to remove: " << origin << " --> " << i;
+				}
+			}
+		}
+		/* Then remove the deadend nodes without incoming edges */
+		else if (checkDead(i) == INDEAD)
+		{
+			for(size_t k = 0; k < graph->at(i)->size(); k++){ /* check all the neighboring nodes from this node */
+				removeFlag = false;
+				Edge * currentEdge = graph->at(i)->at(k); /* the edge with current node as dest node */
+				if (currentEdge->getListOfReads()->size() > deadEndLength || getStringInEdge(currentEdge).length() > deadEndBp) /* edge is composite or long enough */
+					continue;
+				UINT64 dest = currentEdge->getDestinationRead()->getID(); /* check the destination of the edge started at i (backtrace with reverseGraph */
+				if( reverseGraph.at(dest).size() > 1) /* if this dest node has other incoming edges */
+				{
+					for(size_t j = 0; j < reverseGraph.at(dest).size(); j++){ /* check all other origin nodes, if at least one of them is alive, remove the current one */
+						UINT64 readID = reverseGraph.at(dest).at(j);
+						if(checkDead(readID)==ALIVE){
+							/* remove the edge, or mark the edge to be removed */
+							removeFlag = true;
+							break;
+						}
+						/* If another edge is very good */
+						else if(readID != i){
+							Edge * anotherEdge = findEdge(readID, i); /* find the edge between readID and i */
+							if (anotherEdge->getListOfReads()->size() > deadEndLength || getStringInEdge(anotherEdge).length() > deadEndBp) /* edge is composite or long enough */
+							{
+								removeFlag = true;
+								break;
+							}
+						}
+					}
+				}
+				else{
+					removeFlag = true;
+				}
+				if (removeFlag){
+					edgesToRemove.push_back(currentEdge);
+					FILE_LOG(logDEBUG1) << "Found dead-end node and edge to remove: " << i << " --> " << dest;
+				}
+			}
+		}
+	}
+	UINT64 edgesRemoved = 0;
+	for(UINT64 i = 0; i < edgesToRemove.size(); i++){
+		removeEdge(edgesToRemove.at(i));
+		edgesRemoved++;
+	}
+
+	FILE_LOG(logINFO) << "Removed " << edgesRemoved << " dead end nodes from graph";
+	CLOCKSTOP;
+	return edgesRemoved;
+}
 
 
 /* 
@@ -1396,6 +1528,7 @@ bool OverlapGraph::simplifyGraph(void)
 	do
 	{
 		counter = contractCompositePaths();	// Contract composite paths
+		counter += removeDeadEndNodes();	// Pop bubbles
 		counter += popBubbles();	// Pop bubbles
 	} while (counter > 0);
 	return true;

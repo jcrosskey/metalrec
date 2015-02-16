@@ -19,6 +19,13 @@
  * Mismatches of substitution type is allowed for now
  **********************************************************************************************************************/
 
+enum deadType{
+	ALIVE = 0, /* the node has both incoming and outgoing edges */
+	INDEAD = 1, /* this node has no in-edges, only outgoing edges */
+	OUTDEAD= 2, /* this node has no out-edges, only incoming edges */
+	ISOLATE = 3 /* this node has no adjacent edge at all */
+};
+
 enum nodeType {
 	UNEXPLORED = 0,	// Current node u is not explored yet. Meaning that there is no edge (u,v) in the graph.
 	EXPLORED = 1,	//  Current node u is explored. Meaning that all edges (u,v) are inserted in the dataset.
@@ -46,6 +53,7 @@ class OverlapGraph
 		Dataset * dataSet; 	// Pointer to the dataset containing all the reads.
 		HashTable *hashTable;           /* pointer to the hash table */
 		vector< vector<Edge *> * > *graph;	// Adjacency list of the graph.
+		vector< vector<UINT64> > reverseGraph; /* graph with edges in reverse direction, used for easy track of edges from nodes. For now, only used in dead-end removal, so it is initiated after composite edge contraction */
 
 		bool mergeList(Edge *edge1, Edge *edge2, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listOfSubstitutionPoses);
 
@@ -57,7 +65,9 @@ class OverlapGraph
 		OverlapGraph(const OverlapGraph & O);
 		OverlapGraph & operator= (const OverlapGraph & O);
 
+		deadType checkDead(UINT64 readID);
 		bool buildOverlapGraphFromHashTable(HashTable *ht);	// Build the overlap graph using dataSet.
+		void buildReverseGraph(void); /* build the reverse graph */
 		void markContainedReads(void);								// Find superReads for each read and mark them as contained read.
 		bool checkOverlapForContainedRead(Read *read1, Read *read2, UINT64 orient, UINT64 start);
 		bool checkOverlap(Read *read1, Read *read2, UINT64 orient, UINT64 start, UINT16 & numSub, vector<UINT64> * listSubs);

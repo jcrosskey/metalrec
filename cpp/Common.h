@@ -48,7 +48,7 @@ extern int loglevel;
 #define aStatisticsThreshold 3
 #define minDelta 1000
 #define deadEndLength 10
-#define deadEndBp 500
+#define deadEndBp 1000
 #define minimumSupport 1
 #define loopLimit 15
 #define maxCharInLine 10000
