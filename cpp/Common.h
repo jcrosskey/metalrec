@@ -47,7 +47,7 @@ typedef long long INT64;
 extern int loglevel;
 #define aStatisticsThreshold 3
 #define minDelta 1000
-#define deadEndLength 10
+#define deadEndLength 1
 #define deadEndBp 1000
 #define minimumSupport 1
 #define loopLimit 15

@@ -53,7 +53,7 @@ class OverlapGraph
 		Dataset * dataSet; 	// Pointer to the dataset containing all the reads.
 		HashTable *hashTable;           /* pointer to the hash table */
 		vector< vector<Edge *> * > *graph;	// Adjacency list of the graph.
-		vector< vector<UINT64> > reverseGraph; /* graph with edges in reverse direction, used for easy track of edges from nodes. For now, only used in dead-end removal, so it is initiated after composite edge contraction */
+		vector<vector<UINT64> > reverseGraph; /* graph with edges in reverse direction, used for easy track of edges from nodes. For now, only used in dead-end removal, so it is initiated after composite edge contraction */
 
 		bool mergeList(Edge *edge1, Edge *edge2, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listOfSubstitutionPoses);
 
