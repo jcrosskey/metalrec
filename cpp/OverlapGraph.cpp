@@ -780,7 +780,7 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 					}
 					if (l==edgesToRemove.size()){
 						edgesToRemove.push_back(currentEdge);
-						FILE_LOG(logDEBUG1) << "Found out dead-end node and edge to remove: " << origin << " --> " << i;
+						FILE_LOG(logDEBUG2) << "Found out dead-end node and edge to remove: " << origin << " --> " << i;
 					}
 				}
 			}
@@ -828,7 +828,7 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 					}
 					if (l==edgesToRemove.size()){
 						edgesToRemove.push_back(currentEdge);
-						FILE_LOG(logDEBUG1) << "Found in dead-end node and edge to remove: " << i << " --> " << dest;
+						FILE_LOG(logDEBUG2) << "Found in dead-end node and edge to remove: " << i << " --> " << dest;
 					}
 				}
 			}

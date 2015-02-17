@@ -256,12 +256,14 @@ int main(int argc, char ** argv){
 			metalrec(bamFiles, PacBioNames.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 		}
-		for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
-		{
-			FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
-			string prefixName = Utils::intToString(j);
-			metalrec(bamFiles, PacBioNames.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate);
+		else{
+			for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
+			{
+				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
+				string prefixName = Utils::intToString(j);
+				metalrec(bamFiles, PacBioNames.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+						indelRate, subRate, maxErrorRate);
+			}
 		}
 
 		FILE_LOG(logINFO) << " Done!";
