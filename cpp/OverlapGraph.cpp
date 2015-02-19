@@ -234,28 +234,26 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	delete markedNodes;
 
 
-//	vector<Edge *> contigEdges;
-//	getEdges(contigEdges);
-//	printGraph("test0.gdl",contigEdges);
-//	
-//	FILE_LOG(logINFO)<< "size of reverse graph is: " << reverseGraph.size();
-//	FILE_LOG(logINFO)<< "number of unique reads: " << dataSet->getNumberOfUniqueReads();
-//	FILE_LOG(logINFO)<< "size of the graph is: " << graph->size();
-//	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++){
-//		cout << i << "\t";
-//		for(UINT64 k = 0; k <reverseGraph.at(i).size(); k++)
-//			cout << reverseGraph.at(i).at(k) << " ";
-//		cout << endl;
-//	}
+	vector<Edge *> contigEdges;
 
 	counter = 0;
 	/* contracting composite edges, do not remove dead end nodes for now */
 	if (numberOfEdges > 0)
 	{
+		unsigned int iteration = 0;
 		do
 		{
+
+			string prefix = "test" + Utils::intToString(iteration);
 			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
+			getEdges(contigEdges);
+			printGraph(prefix+".comp.gdl",contigEdges);
+
 			counter += removeDeadEndNodes();
+			getEdges(contigEdges);
+			printGraph(prefix+".dead.gdl",contigEdges);
+
+			iteration++;
 		} while (counter > 0);
 	}
 	CLOCKSTOP;
@@ -686,7 +684,7 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 			{
 				Edge * edge = graph->at(i)->at(j);
 				// The edge is simple edge with no flow, and has string shorter than deadEndBp. JJ
-				if(edge->getSourceRead()->getID() < edge->getDestinationRead()->getID() && edge->getListOfReads()->empty() && edge->flow == 0 ) 
+				if(edge->getListOfReads()->empty() && edge->flow == 0 ) 
 				{
 					listOfEdges.push_back(edge); // Put in the list of edges to be removed.
 					FILE_LOG(logDEBUG4)  << "removing simple edge ("<< edge->getSourceRead()->getID()<<","  << edge->getDestinationRead()->getID()<<") OverlapOffset : " << edge->getOverlapOffset(); 
@@ -724,7 +722,7 @@ deadType OverlapGraph::checkDead(UINT64 readID)
 		return OUTDEAD;
 	else if (dataSet->getReadFromID(readID)->numInEdges != 0 && dataSet->getReadFromID(readID)->numOutEdges != 0)
 		return ALIVE;
-	else if (dataSet->getReadFromID(readID)->numInEdges == 0 && dataSet->getReadFromID(readID)->numOutEdges == 0)
+	else 
 		return ISOLATE;
 }
 
@@ -732,6 +730,7 @@ deadType OverlapGraph::checkDead(UINT64 readID)
 UINT64 OverlapGraph::removeDeadEndNodes(void)
 {
 	CLOCKSTART;
+	UINT64 edgesRemoved = 0;
 	vector<Edge *> edgesToRemove;
 	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++)
 	{
@@ -739,14 +738,10 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 		/* First remove the deadend nodes without outgoing edges */
 		if (checkDead(i) == OUTDEAD)
 		{
-//			FILE_LOG(logDEBUG2) << "out dead node ID: " << i;
-//			FILE_LOG(logDEBUG2) << "reverse graph size: " << reverseGraph.at(i).size();
-//			FILE_LOG(logDEBUG2) << "num in edges: " << dataSet->getReadFromID(i)->numInEdges;
-
+			/* Loop through all the nodes that have edges pointing to this node */
 			for(size_t k = 0; k < reverseGraph.at(i).size(); k++){
 				removeFlag = false;
 				UINT64 origin = reverseGraph.at(i).at(k); /* check the origin of the edge ended at i (backtrace with reverseGraph */
-//				FILE_LOG(logDEBUG2) << "origin ID: " << origin;
 				Edge * currentEdge = findEdge(origin, i); /* the edge with current node as dest node */
 				if (currentEdge->getListOfReads()->size() >= deadEndLength || getStringInEdge(currentEdge).length() > deadEndBp) /* edge is composite or long enough */
 					continue;
@@ -770,18 +765,22 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 					}
 				}
 				else{
-					removeFlag = true;
+					if(checkDead(origin) == INDEAD)
+						removeFlag = true;
 				}
 				if (removeFlag){
-					UINT64 l  = 0;
-					for (l = 0; l < edgesToRemove.size(); l++){
-						if (edgesToRemove.at(l)->getSourceRead()->getID() == origin && edgesToRemove.at(l)->getDestinationRead()->getID() == i)
-							break;
-					}
-					if (l==edgesToRemove.size()){
-						edgesToRemove.push_back(currentEdge);
-						FILE_LOG(logDEBUG2) << "Found out dead-end node and edge to remove: " << origin << " --> " << i;
-					}
+					removeEdge(currentEdge);
+					edgesRemoved++;
+					FILE_LOG(logDEBUG2) << "Found out dead-end node and edge to remove: " << origin << " --> " << i;
+//					UINT64 l  = 0;
+//					for (l = 0; l < edgesToRemove.size(); l++){
+//						if (edgesToRemove.at(l)->getSourceRead()->getID() == origin && edgesToRemove.at(l)->getDestinationRead()->getID() == i)
+//							break;
+//					}
+//					if (l==edgesToRemove.size()){
+//						edgesToRemove.push_back(currentEdge);
+//						FILE_LOG(logDEBUG2) << "Found out dead-end node and edge to remove: " << origin << " --> " << i;
+//					}
 				}
 			}
 		}
@@ -795,7 +794,6 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 				if (currentEdge->getListOfReads()->size() >= deadEndLength || getStringInEdge(currentEdge).length() > deadEndBp) /* edge is composite or long enough */
 					continue;
 				UINT64 dest = currentEdge->getDestinationRead()->getID(); /* check the destination of the edge started at i (backtrace with reverseGraph */
-//				FILE_LOG(logDEBUG2) << "destination ID: " << dest;
 
 				if( reverseGraph.at(dest).size() > 1) /* if this dest node has other incoming edges */
 				{
@@ -818,29 +816,32 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 					}
 				}
 				else{
-					removeFlag = true;
+					if (checkDead(dest) == OUTDEAD)
+						removeFlag = true;
 				}
 				if (removeFlag){
-					UINT64 l = 0;
-					for (l = 0; l < edgesToRemove.size(); l++){
-						if (edgesToRemove.at(l)->getSourceRead()->getID() == i && edgesToRemove.at(l)->getDestinationRead()->getID() == dest)
-							break;
-					}
-					if (l==edgesToRemove.size()){
-						edgesToRemove.push_back(currentEdge);
-						FILE_LOG(logDEBUG2) << "Found in dead-end node and edge to remove: " << i << " --> " << dest;
-					}
+					removeEdge(currentEdge);
+					edgesRemoved++;
+					FILE_LOG(logDEBUG2) << "Found in dead-end node and edge to remove: " << i << " --> " << dest;
+//					UINT64 l = 0;
+//					for (l = 0; l < edgesToRemove.size(); l++){
+//						if (edgesToRemove.at(l)->getSourceRead()->getID() == i && edgesToRemove.at(l)->getDestinationRead()->getID() == dest)
+//							break;
+//					}
+//					if (l==edgesToRemove.size()){
+//						edgesToRemove.push_back(currentEdge);
+//						FILE_LOG(logDEBUG2) << "Found in dead-end node and edge to remove: " << i << " --> " << dest;
+//					}
 				}
 			}
 		}
 	}
 
 //	FILE_LOG(logINFO) << "Number of edges to remove is: " << edgesToRemove.size();
-	UINT64 edgesRemoved = 0;
-	for(UINT64 i = 0; i < edgesToRemove.size(); i++){
-		removeEdge(edgesToRemove.at(i));
-		edgesRemoved++;
-	}
+//	for(UINT64 i = 0; i < edgesToRemove.size(); i++){
+//		removeEdge(edgesToRemove.at(i));
+//		edgesRemoved++;
+//	}
 
 	FILE_LOG(logINFO) << "Removed " << edgesRemoved << " dead end nodes from graph";
 	CLOCKSTOP;
@@ -911,7 +912,8 @@ bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & conti
 		UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
 		thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
 		edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
-		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
+		//graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
+		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->flow <<  ")\" }" << endl;
 	}
 	graphFilePointer << "}";
 	graphFilePointer.close();
@@ -1367,12 +1369,13 @@ bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWU
 {
 	for(UINT64 i = 0; i < 3; i++)		// For the simple edges we put very high cost
 	{
-		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
+		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 50000;
+//		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
 	}
 
 	if(!edge->getListOfReads()->empty()) // Composite Edge
 	{
-		if(edge->getListOfReads()->size() > 20 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
+		if(edge->getListOfReads()->size() > 0 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
 		{
 			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 1;
 			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
@@ -1445,6 +1448,7 @@ bool OverlapGraph::calculateFlow(void)
 
 	// This loop converts each of the original edges to 3 edges
 	// This loop set the lower and upper bounds of the flow in each edge, and the cost
+	UINT64 maxNumOfReads = 0;
 	for(UINT64 i = 1; i < graph->size(); i++)
 	{
 		if((!graph->at(i)->empty()) && (dataSet->getReadFromID(i)->superReadID==0)) // edges to and from the super source and super sink
@@ -1452,6 +1456,8 @@ bool OverlapGraph::calculateFlow(void)
 			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
 			{
 				Edge *edge = graph->at(i)->at(j);
+				if (edge->getListOfReads()->size() > maxNumOfReads)
+					maxNumOfReads = edge->getListOfReads()->size();
 				UINT64 u = listOfNodes->at(edge->getSourceRead()->getID());	// Node number of source read in the new graph
 				UINT64 v = listOfNodes->at(edge->getDestinationRead()->getID());	// Node number of destination read in the new graph
 
@@ -1465,6 +1471,7 @@ bool OverlapGraph::calculateFlow(void)
 		}
 	}
 
+	FILE_LOG(logINFO) << "maximum number of reads contained in the composite edges is: " << maxNumOfReads;
 
 	stringstream oss;                       /* stringstream to catch the output */
 	FILE_LOG(logINFO) << "Calling CS2 for flow analysis on " << dataSet->getPacBioReadName();
@@ -1487,6 +1494,10 @@ bool OverlapGraph::calculateFlow(void)
 			Edge *edge = findEdge(mySource, myDestination);	// Find the edge in the original graph.
 			edge->flow += flow;												// Add the flow in the original graph.
 			FILE_LOG(logDEBUG2) << "Edge from " << mySource << " to " << myDestination << " has flow " << edge->flow;
+		}
+		else if (source == SUPERSINK && destination == SUPERSOURCE)
+		{
+			FILE_LOG(logINFO) << "Flow from super sink to super source is " << flow;
 		}
 	}
 	delete listOfNodes;
