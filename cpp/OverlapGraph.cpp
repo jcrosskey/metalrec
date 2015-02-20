@@ -244,14 +244,14 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 		do
 		{
 
-			string prefix = "test" + Utils::intToString(iteration);
+//			string prefix = "test" + Utils::intToString(iteration);
 			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
-			getEdges(contigEdges);
-			printGraph(prefix+".comp.gdl",contigEdges);
+//			getEdges(contigEdges);
+//			printGraph(prefix+".comp.gdl",contigEdges);
 
 			counter += removeDeadEndNodes();
-			getEdges(contigEdges);
-			printGraph(prefix+".dead.gdl",contigEdges);
+//			getEdges(contigEdges);
+//			printGraph(prefix+".dead.gdl",contigEdges);
 
 			iteration++;
 		} while (counter > 0);
@@ -695,7 +695,39 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 	for(UINT64 i = 0 ; i < listOfEdges.size(); i++)
 		removeEdge(listOfEdges.at(i));		// remove the edges from the list.
 	FILE_LOG(logINFO) << "Simple edges without flow removed: " << listOfEdges.size();
+	/* After simple edges without flow are removed, contract composite edges again 
+	 * Some simple edges might be able to be absorbed into composite edges*/
+	UINT64 counter = contractCompositePaths(); 
+	/* If the edges are still simple edges, remove them even though there is flow in them. */
+	counter = removeAllSimpleEdges();
 	CLOCKSTOP;
+	return listOfEdges.size();
+}
+
+
+/**********************************************************************************************************************
+  Remove an all simple edge in the overlap graph.
+  Definition of simple edge: just a simple overlap, no tiling or intermediate reads in the edge.
+ **********************************************************************************************************************/
+UINT64 OverlapGraph::removeAllSimpleEdges()
+{
+	vector <Edge *> listOfEdges;
+	for(UINT64 i = 1; i < graph->size(); i++) // For each read.
+	{
+		if(!graph->at(i)->empty())	// If the read has some edges.
+		{
+			for(UINT64 j=0; j < graph->at(i)->size(); j++) // For each edge
+			{
+				Edge * edge = graph->at(i)->at(j);
+				if (edge->getListOfReads()->empty())
+					listOfEdges.push_back(edge); // Put in the list of edges to be removed.
+//				FILE_LOG(logDEBUG4)  << "removing simple edge ("<< edge->getSourceRead()->getID()<<","  << edge->getDestinationRead()->getID()<<") OverlapOffset : " << edge->getOverlapOffset(); 
+			}
+		}
+	}
+	for(UINT64 i = 0 ; i < listOfEdges.size(); i++)
+		removeEdge(listOfEdges.at(i));		// remove the edges from the list.
+	FILE_LOG(logINFO) << "Simple edges removed: " << listOfEdges.size();
 	return listOfEdges.size();
 }
 
@@ -1367,9 +1399,11 @@ UINT64 OverlapGraph::popBubbles(void)
  **********************************************************************************************************************/
 bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST)
 {
-	for(UINT64 i = 0; i < 3; i++)		// For the simple edges we put very high cost
+	FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = -50;
+	for(UINT64 i = 1; i < 3; i++)		// For the simple edges we put very high cost
 	{
-		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 50000;
+		FLOWLB[i] = 0; FLOWUB[i] = 0; COST[i] = 50;
+//		FLOWLB[i] = 0; FLOWUB[i] = 1; COST[i] = 50000;
 //		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
 	}
 
@@ -1377,7 +1411,7 @@ bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWU
 	{
 		if(edge->getListOfReads()->size() > 0 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
 		{
-			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 1;
+			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 0-(edge->getListOfReads()->size())*10;
 			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
 			FLOWLB[2] = 0; FLOWUB[2] = 8; COST[2] = 100000;
 		}

@@ -121,6 +121,9 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
 				}
 				graph->printContigs(outFile, contigEdges,true);
+				vector< Edge *>  allPaths;
+				graph->findPaths(allPaths);
+				graph->printContigs(outDir+"/"+ allFileName +".paths.fasta", allPaths, false);
 
 			}
 			delete graph;

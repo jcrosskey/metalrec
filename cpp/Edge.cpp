@@ -211,17 +211,17 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<
  */
 UINT64 Edge::getStringLengthInRange() 
 {
-	INT32 totalLength = getOverlapOffset() + getDestinationRead()->getReadLength();
-	if (getSourceRead()->getStartCoord() < 0 )
+	INT32 totalLength = overlapOffset + destination->getReadLength();
+	if (source->getStartCoord() < 0 )
 	{
 		totalLength = totalLength + getSourceRead()->getStartCoord();
 	}
-	if ((UINT32) (getDestinationRead()->getEndCoord()) > endCoordinateLimit )
+	if ((UINT32) (destination->getEndCoord()) > endCoordinateLimit )
 	{
-		totalLength = totalLength - (getDestinationRead()->getEndCoord() - endCoordinateLimit);
+		totalLength = totalLength - (destination->getEndCoord() - endCoordinateLimit);
 	}
 	if (totalLength > 0)
-		return (INT64) totalLength;
+		return (UINT64) totalLength;
 	else
 		return 0;
 }

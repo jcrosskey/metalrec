@@ -310,9 +310,9 @@ int main(int argc, char ** argv){
 		hashStringLength = (UINT64) Utils::stringToUnsignedInt(param_map["hashStringLength"]);
 		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
 		rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
-		indelRate = Utils::stringToFloat(param_map["indelRate"]);
-		maxErrorRate = Utils::stringToFloat(param_map["maxErrorRate"]);
-		subRate = Utils::stringToFloat(param_map["subRate"]);
+		indelRate = stof(param_map["indelRate"]);
+		maxErrorRate = stof(param_map["maxErrorRate"]);
+		subRate = stof(param_map["subRate"]);
 		allFileName = param_map["allFileName"];
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
