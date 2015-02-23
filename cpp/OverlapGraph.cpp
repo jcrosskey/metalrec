@@ -1823,6 +1823,7 @@ bool OverlapGraph::findPaths(vector< Edge *> & paths)
  */
 bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads)
 {
+	CLOCKSTART;
 	Read * r = dataSet->getReadFromID(readID);
 	if( r->numOutEdges == 0) /* If the node is a desstination node, then there is no path from the node */
 	{
@@ -1866,5 +1867,6 @@ bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector
 	}
 	pathsStartingAtReads->at(readID)->resize(pathsStartingAtReads->at(readID)->size());
 	pathFound->at(readID) = true;
+	CLOCKSTOP;
 	return true;
 }
