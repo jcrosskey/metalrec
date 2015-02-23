@@ -235,7 +235,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 			}
 		}
 	}
-
+	removeLoop();
 	// report total number
 	FILE_LOG(logINFO)<< "counter: " << counter << " Nodes: " << numberOfNodes << " Edges: " << numberOfEdges;
 
@@ -1116,6 +1116,7 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 				vector<UINT64> *listSubs = new vector<UINT64>;
 
 				bool overlap_possible = false; /* check if overlap between the 2 reads is possible or not, based on the coordinates */
+				/* Do not consider the overlap between a read and itself */
 				if ( readNumber < readNumber2 ) {
 					overlap_possible = ((read1->getEndCoord() - read2->getStartCoord() + rubberPos) > 0);
 				}
@@ -1134,22 +1135,28 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read1 	---------MMMMMMMMMMMM
 					// read2		 MMMMMMMMMMMM-----------
 					if ( orientation == 0 && readNumber < readNumber2 ) {
-						overlapOffset =  j;
-						insertEdge(read1, read2, overlapOffset, numSub, listSubs);
-						FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << " ";
+						if (abs(read2->getStartCoord() - read1->getStartCoord() - (INT32)j) < 2*rubberPos )
+						{
+							overlapOffset =  j;
+							insertEdge(read1, read2, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << " ";
+						}
 					}
 					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
 					// read1		 MMMMMMMMMMMM-----------
 					// read2 	---------MMMMMMMMMMMM
 					else if ( orientation == 1 && readNumber > readNumber2)
 					{
-						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
-						insertEdge(read2, read1, overlapOffset, numSub, listSubs);
-						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << " ";
+						if (abs(read1->getStartCoord() - read2->getStartCoord() - (INT32)j) < 2*rubberPos )
+						{
+							overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+							insertEdge(read2, read1, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << " ";
+						}
 					}
 					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
 					// read1		 MMMMMMMMMMMM-----------
@@ -1224,6 +1231,36 @@ bool OverlapGraph::removeTransitiveEdges(UINT64 readNumber)
 	graph->at(readNumber)->resize(j);
 	if ( (dataSet->getReadFromID(readNumber)->numInEdges + dataSet->getReadFromID(readNumber)->numOutEdges)==0)
 		numberOfNodes--;
+	return true;
+}
+
+
+/**********************************************************************************************************************
+  Remove all transitive edges of a given read.
+  For Details: E.W. Myers. The fragment assembly string graph. Bioinformatics, 21(suppl 2):ii79-ii85, 2005.
+ **********************************************************************************************************************/
+bool OverlapGraph::removeLoop()
+{
+	for(UINT64 i = 0; i < graph->size(); i++ )
+	{
+		for(UINT64 j = 0; j < graph->at(i)->size(); j++)
+		{
+			UINT64 readNumber1 = graph->at(i)->at(j)->getSourceRead()->getID();
+			UINT64 readNumber2 = graph->at(i)->at(j)->getDestinationRead()->getID();
+			if (isEdgePresent(readNumber2, readNumber1))
+			{
+				FILE_LOG(logINFO) << "Found edges in opposite directions between " << readNumber1 << " and " << readNumber2;
+				Edge *edge1 = graph->at(i)->at(j);
+				Edge *edge2 = findEdge(readNumber2, readNumber1);
+				INT32 diff1 = abs((INT32)(edge1->getOverlapOffset()) - (dataSet->getReadFromID(readNumber2)->getStartCoord() - dataSet->getReadFromID(readNumber1)->getStartCoord()));
+				INT32 diff2 = abs((INT32)(edge2->getOverlapOffset()) - (dataSet->getReadFromID(readNumber1)->getStartCoord() - dataSet->getReadFromID(readNumber2)->getStartCoord()));
+				if(diff1 < diff2)
+					removeEdge(edge2);
+				else
+					removeEdge(edge1);
+			}
+		}
+	}
 	return true;
 }
 
@@ -1626,11 +1663,15 @@ Edge * OverlapGraph::findEdge(UINT64 source, UINT64 destination)
  **********************************************************************************************************************/
 bool OverlapGraph::isEdgePresent(UINT64 source, UINT64 destination)
 {
-	for(UINT64 i = 0; i < graph->at(source)->size(); i++)	// The list of edges of the source node
-	{
-		if(graph->at(source)->at(i)->getDestinationRead()->getID() == destination)	// check if there is an edge to destination
-			return true;	// return true if there is an edge (source,destination)
+	for(UINT64 i = 0; i < reverseGraph.at(destination).size(); i++){
+		if(reverseGraph.at(destination).at(i) == source)
+			return true;
 	}
+//	for(UINT64 i = 0; i < graph->at(source)->size(); i++)	// The list of edges of the source node
+//	{
+//		if(graph->at(source)->at(i)->getDestinationRead()->getID() == destination)	// check if there is an edge to destination
+//			return true;	// return true if there is an edge (source,destination)
+//	}
 	return false;	// edge not found between source and destination
 }
 
@@ -1823,7 +1864,6 @@ bool OverlapGraph::findPaths(vector< Edge *> & paths)
  */
 bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads)
 {
-	CLOCKSTART;
 	Read * r = dataSet->getReadFromID(readID);
 	if( r->numOutEdges == 0) /* If the node is a desstination node, then there is no path from the node */
 	{
@@ -1867,6 +1907,5 @@ bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector
 	}
 	pathsStartingAtReads->at(readID)->resize(pathsStartingAtReads->at(readID)->size());
 	pathFound->at(readID) = true;
-	CLOCKSTOP;
 	return true;
 }

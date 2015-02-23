@@ -83,6 +83,7 @@ class OverlapGraph
 		bool printContigs(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly);
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.
+		bool removeLoop();              /* if there are 2 edges between 2 reads with opposite direction, pick one (this happens if some read has repeat part) */
 		bool removeEdgesOfRead(Read * read);	// Remove all edges adjacent to a read
 		Edge * mergeEdges(Edge *edge1, Edge *edge2);	// Merge two edges in the  overlap graph.
 		UINT64 removeAllSimpleEdgesWithoutFlow();	// Remove simple edges without flow
