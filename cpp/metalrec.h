@@ -120,10 +120,14 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 					graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
 					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
 				}
-				graph->printContigs(outFile, contigEdges,true);
+//				graph->printContigs(outFile, contigEdges,true);
 				vector< Edge *>  allPaths;
 				graph->findPaths(allPaths);
-				graph->printContigs(outDir+"/"+ allFileName +".paths.fasta", allPaths, false);
+				if(loglevel > 4)
+				{
+					graph->printPaths(outDir + "/" + allFileName + ".paths.fasta",allPaths,false);
+				}
+				graph->printPaths(outFile, allPaths, true); /* Use the path with longest span as final output */
 
 			}
 			delete graph;

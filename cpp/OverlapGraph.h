@@ -79,6 +79,7 @@ class OverlapGraph
 		bool removeEdge(Edge *edge); 	// Remove an edge from the overlap graph.
 		bool getEdges(vector<Edge *> & contigEdges); /* save all the edges in the graph in a vector of pointers to these edges */
 		bool printGraph(string graphFileName, const vector<Edge *> & contigEdges);	// Store the overlap graph for visual display and also store the contigs/scaffods in a file.
+		bool printPaths(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly);
 		bool printContigs(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly);
 		bool insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * exploredReads);	// Insert into the overlap graph all edges of a read.
 		bool removeTransitiveEdges(UINT64 readNumber);	// Remove all transitive edges from the overlap graph incident to a given read.

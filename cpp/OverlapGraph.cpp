@@ -13,11 +13,21 @@
  * Function to compare two edges. Used for sorting.
  * Edges are sorted by the destination read number.
  **************************************************/
-bool compareEdgeByStringLengthInPacBio (Edge *edge1, Edge* edge2)
+//bool compareEdgeByStringLengthInPacBio (Edge *edge1, Edge* edge2)
+//{
+//	UINT64 length1 = edge1->getStringLengthInRange();
+//	UINT64 length2 = edge2->getStringLengthInRange();
+//	return (length1 > length2);
+//}
+
+/**************************************************
+ * Function to compare two edges. Used for sorting.
+ * Edges are sorted by range of reads. 
+ * For example, if an edge is (1, 18) then the range is 17
+ **************************************************/
+bool comparePaths (Edge *edge1, Edge *edge2)
 {
-	UINT64 length1 = edge1->getStringLengthInRange();
-	UINT64 length2 = edge2->getStringLengthInRange();
-	return (length1 > length2);
+	return ((edge1->getDestinationRead()->getID() - edge1->getSourceRead()->getID()) > (edge2->getDestinationRead()->getID() - edge2->getSourceRead()->getID()));
 }
 
 bool compareEdgeByStringLength (Edge *edge1, Edge *edge2)
@@ -958,6 +968,60 @@ bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & conti
 
 /* 
  * ===  FUNCTION  ======================================================================
+ *         Name:  printPaths
+ *  Description:  Print paths (from starting node to ending node) to file
+ * =====================================================================================
+ */
+bool OverlapGraph::printPaths(string outputFastaName, vector<Edge *> & contigEdges, bool longestOnly)
+{
+	/************************* Store the contigs in a file. ************************/
+	if (contigEdges.size() > 0) // Sort the contigs by their length if there are edges in the graph.
+	{
+		sort(contigEdges.begin(),contigEdges.end(),comparePaths);	// Sort the contigs by their total string length, in decreasing order
+		/* Output the longest one for result */
+		ofstream outputContigFilePointer;
+		outputContigFilePointer.open(outputFastaName.c_str());
+		if(!outputContigFilePointer.is_open())
+			MYEXIT("Unable to open file: " + outputFastaName);
+		if (longestOnly || contigEdges.size() == 1) /* Only the longest one is written or there is only 1 edge in the graph */
+		{
+			string s = getStringInEdge(contigEdges.at(0)); // get the string in the longest edge. This function need to be rewritten too.
+			outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Edge ("  << contigEdges.at(0)->getSourceRead()->getID() << ":"<< contigEdges.at(0)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(0)->getDestinationRead()->getID() << ":" << contigEdges.at(0)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << endl; /* If only the longest one is printed, then it's named the same as the PacBio read name */
+			UINT32 start=0;
+			do
+			{
+				outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+				start+=100;
+			} while (start < s.length());
+		}
+		else 
+		{
+			for (size_t i = 0; i< contigEdges.size(); i++)
+			{
+				string s = getStringInEdge(contigEdges.at(i)); // get the string in the longest edge. This function need to be rewritten too.
+				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ":"<< contigEdges.at(i)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ":" << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
+
+				UINT32 start=0;
+				do
+				{
+					outputContigFilePointer << s.substr(start, 100) << endl;  // save 100 BP in each line.
+					start+=100;
+				} while (start < s.length());
+			}
+			
+		}
+		outputContigFilePointer.close();
+	}
+	else
+	{
+		FILE_LOG(logWARNING) << "No contigs (edges) left in the graph, nothing to write";
+	}
+	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
  *         Name:  printContigs
  *  Description:  Print contigs(strings spelled by edges) to file
  * =====================================================================================
@@ -989,7 +1053,7 @@ bool OverlapGraph::printContigs(string outputFastaName, vector<Edge *> & contigE
 			for (size_t i = 0; i< contigEdges.size(); i++)
 			{
 				string s = getStringInEdge(contigEdges.at(i)); // get the string in the longest edge. This function need to be rewritten too.
-				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ":"<< contigEdges.at(i)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ":" << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << ". Length in Read: " << contigEdges.at(i)->getStringLengthInRange() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
+				outputContigFilePointer << ">contig_" << i+1  << " Edge ("  << contigEdges.at(i)->getSourceRead()->getID() << ":"<< contigEdges.at(i)->getSourceRead()->getStartCoord() << ", " << contigEdges.at(i)->getDestinationRead()->getID() << ":" << contigEdges.at(i)->getDestinationRead()->getEndCoord() << ") String Length: " << s.length() << ". Contains " << contigEdges.at(i)->getListOfOverlapOffsets()->size() << " reads" << endl;
 
 				UINT32 start=0;
 				do
