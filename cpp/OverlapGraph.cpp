@@ -235,7 +235,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 			}
 		}
 	}
-	removeLoop();
+//	removeLoop();
 	// report total number
 	FILE_LOG(logINFO)<< "counter: " << counter << " Nodes: " << numberOfNodes << " Edges: " << numberOfEdges;
 
@@ -707,9 +707,9 @@ UINT64 OverlapGraph::removeAllSimpleEdgesWithoutFlow()
 	FILE_LOG(logINFO) << "Simple edges without flow removed: " << listOfEdges.size();
 	/* After simple edges without flow are removed, contract composite edges again 
 	 * Some simple edges might be able to be absorbed into composite edges*/
-	UINT64 counter = contractCompositePaths(); 
+//	UINT64 counter = contractCompositePaths(); 
 	/* If the edges are still simple edges, remove them even though there is flow in them. */
-	counter = removeAllSimpleEdges();
+//	counter = removeAllSimpleEdges();
 	CLOCKSTOP;
 	return listOfEdges.size();
 }
@@ -1499,17 +1499,16 @@ UINT64 OverlapGraph::popBubbles(void)
  **********************************************************************************************************************/
 bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST)
 {
-	FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = -50;
+//	FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = -50;
 	for(UINT64 i = 1; i < 3; i++)		// For the simple edges we put very high cost
 	{
-		FLOWLB[i] = 0; FLOWUB[i] = 0; COST[i] = 50;
-//		FLOWLB[i] = 0; FLOWUB[i] = 1; COST[i] = 50000;
+		FLOWLB[i] = 0; FLOWUB[i] = 1; COST[i] = 50000;
 //		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
 	}
 
 	if(!edge->getListOfReads()->empty()) // Composite Edge
 	{
-		if(edge->getListOfReads()->size() > 0 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
+		if(edge->getListOfReads()->size() > 10 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
 		{
 			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 0-(edge->getListOfReads()->size())*10;
 			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
