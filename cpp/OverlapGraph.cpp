@@ -1235,8 +1235,8 @@ bool OverlapGraph::removeTransitiveEdges(UINT64 readNumber)
 
 
 /**********************************************************************************************************************
-  Remove all transitive edges of a given read.
-  For Details: E.W. Myers. The fragment assembly string graph. Bioinformatics, 21(suppl 2):ii79-ii85, 2005.
+  * If there are two edges in opposite direction between two reads (r1 <--> r2), remove the one that is more inconsistent with 
+  * the coordinates.
  **********************************************************************************************************************/
 bool OverlapGraph::removeLoop()
 {
