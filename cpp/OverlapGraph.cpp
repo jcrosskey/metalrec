@@ -1131,6 +1131,7 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 				{
 					orientation = data >> 62;
 					
+					/* overlap found must be within +- 2*rubberPos distance from the coordinate offset */
 					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
 					// read1 	---------MMMMMMMMMMMM
 					// read2		 MMMMMMMMMMMM-----------
@@ -1163,28 +1164,26 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read2 	          ---------MMMMMMMMMMMM
 					else if (orientation == 1 && readNumber < readNumber2)
 					{
-						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
-						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << " ";
-						if (overlapOffset < rubberPos) /* Overlap is opposite to the PacBio guided coordinates, see if it's too far off */
-							insertEdge(read2, read1, overlapOffset, numSub, listSubs);
-						else
-							FILE_LOG(logDEBUG4) << "!!!!!!Overlap is to the opposite direction too much!!!!!!";
+						if (abs(-read1->getStartCoord() + read2->getStartCoord() + (INT32)j) < 2*rubberPos )
+						{
+							overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << " ";
+						}
 					}
 					// PacBio ++++++++++++++++++++++++++++++++++++++++++++++
 					// read1 	          ---------MMMMMMMMMMMM
 					// read2		 MMMMMMMMMMMM-----------
 					// readNumber > readNumber2 and orientation == 0
 					else {
-						overlapOffset = j;
-						FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
-						FILE_LOG(logDEBUG4) << " ";
-						if (overlapOffset < rubberPos) /* Overlap is opposite to the PacBio guided coordinates, see if it's too far off */
-							insertEdge(read1, read2, overlapOffset, numSub, listSubs);
-						else
-							FILE_LOG(logDEBUG4) << "!!!!!!Overlap is to the opposite direction too much!!!!!!";
+						if (abs(read1->getStartCoord() - read2->getStartCoord() + (INT32)j) < 2*rubberPos )
+						{
+							overlapOffset = j;
+							FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
+							FILE_LOG(logDEBUG4) << " ";
+						}
 						
 					}
 				}
@@ -1860,6 +1859,7 @@ bool OverlapGraph::findPaths(vector< Edge *> & paths)
  *         Name:  findPathAtNode
  *  Description:  Find the path starting from a node, using recursion, and a vector to record 
  *  		  if the paths from a node were already found.
+ *  		  IMPORTANT TO BE AWARE OF THE LOOPS, WHICH RESULT IN SEG FAULT
  * =====================================================================================
  */
 bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads)
@@ -1897,9 +1897,12 @@ bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector
 					FILE_LOG(logDEBUG4) << "from " << readID << " to " << readID1;
 					FILE_LOG(logDEBUG4) << "e0: " << getStringInEdge(e0);
 					FILE_LOG(logDEBUG4) << "e1: " << getStringInEdge(e1);
-					Edge * e = mergeEdges(e0, e1); /* path from readID connected to the path from its neighbor */
-					pathsStartingAtReads->at(readID)->push_back(e);
-					FILE_LOG(logDEBUG4) << getStringInEdge(e);
+					if(readID != e1->getDestinationRead()->getID()) /* If merging of the two edges results in a loop, do not merge */
+					{
+						Edge * e = mergeEdges(e0, e1); /* path from readID connected to the path from its neighbor */
+						pathsStartingAtReads->at(readID)->push_back(e);
+						FILE_LOG(logDEBUG4) << getStringInEdge(e);
+					}
 
 				}
 			}
