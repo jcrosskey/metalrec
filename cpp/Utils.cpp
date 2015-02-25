@@ -388,13 +388,13 @@ namespace Utils
     std::vector<std::string> StringToVector(const std::string & str, const char & delimit)
     {
         std::vector<std::string> strVec;
-        std::size_t pos = 0;
+        std::size_t pos = str.find_first_not_of(delimit); /* First non-delimit character position */
         std::size_t delimiter_pos = str.find(delimit,pos);	// position of the delimiter
 	std::string field;	// extract field
         while (delimiter_pos != std::string::npos) {
 		field = str.substr(pos, delimiter_pos-pos);
             strVec.push_back(field);
-            pos = delimiter_pos + 1;
+            pos = str.find_first_not_of(delimit, delimiter_pos + 1);
             delimiter_pos = str.find(delimit,pos);
         }
         field.assign(str.begin()+pos,str.end());
