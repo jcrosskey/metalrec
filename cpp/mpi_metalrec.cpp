@@ -364,7 +364,7 @@ int main(int argc, char ** argv){
 						indelRate, subRate, maxErrorRate);
 
 			}
-			if(num_proc > 1)        /* If there is more than 1 mpi processes */
+			else if(num_proc > 1)        /* If there is more than 1 mpi processes */
 			{
 				MasterProcess(fileNum);
 			}
