@@ -32,6 +32,12 @@ enum nodeType {
 	EXPLORED_AND_TRANSITIVE_EDGES_MARKED = 2	// Meaning that all transitive edges (u,v) of current node u is marked and its neighbors transitive edges are also marked. Now it is safe to remove any transitive edge (u,v) from node u.
 };
 
+enum nodeColor{
+	WHITE = 0, /* unexplored at all */
+	GRAY = 1, /* First time the node is discovered */
+	BLACK = 2 /* Node is finished, i.e. all the children have been explored */
+};
+
 /* mark types for the nodes */
 enum markType{
 	VACANT = 0,
@@ -110,6 +116,9 @@ class OverlapGraph
 //		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector<vector <string> * > *pathsStartingAtReads);
 		bool findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector< vector<Edge *> * > *pathsStartingAtReads);
 		UINT64 getLengthInPacBio(Edge *edge);
+		bool DFS(vector< UINT64 > * topoSortedNodes); /* Depth first search of the graph, can also be used to determine when the graph is cyclic */
+		bool DFS_visit(UINT64 i, vector<int> *searchStatus, vector<UINT64> *predecessors, UINT64 & sTime, vector<int> * discoverTime, vector<int> * finishTime, vector<Edge *> * backEdges, vector<UINT64> * topoSortedNodes); /* visit all the neighbors of a node, and update the DFS vectors */
+		bool FindLongestPath(vector<UINT64> * topoSortedNodes);         /* Find longest path in the graph */
 };
 
 #endif /* OVERLAPGRAPH_H_ */

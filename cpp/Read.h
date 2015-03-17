@@ -71,13 +71,16 @@ class Read
 		bool setStartCoord(INT32 start_coord){startCoord = start_coord; return true;}	// Set the starting coordinate
 
 		/* accessors */
+		UINT64 getNumOfSubstitutions();
 		bool isContainedRead(void){return (superReadID == 0 ? false : true);};	// Whether the read is contained in another read
 		string getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
 		string getReadName(void){return readName;}	// Get the name of the current read.
 		INT32 getStartCoord(void){return startCoord;}	// Get the starting coordinate of the read, with clipped part added back
 		INT32 getEndCoord(void);	// Get the ending coordinate of the read
+		INT32 getEndCoordInLR(void);
 		UINT32 getrStart(void) {return rStart;}	// Get the leftmost alignment position on the reference sequence.
 		size_t getReadLength(void){return readDnaString.length();}	// Get the length of the string in the current read.
+		size_t getAlignedLength(void){return (readDnaString.length()-leftClip-rightClip);}	// Get the length of the string in the current read.
 		UINT64 getID(void) {return ID;}	// Get the read number of the current read.
 		UINT32 getFrequency(void) {return frequency;}	// Get the frequency of the current read.
 		INT32 getAlignScore(void) {return alignScore;}	// Get the alignment score

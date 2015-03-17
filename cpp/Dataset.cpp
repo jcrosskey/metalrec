@@ -587,3 +587,36 @@ UINT64 Dataset::findMostLikelyReadID()
 
 	return mostLikelyID;
 }
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getWeight
+ *  Description:  get weight of an edge
+ * =====================================================================================
+ */
+double Dataset::getWeight(Edge * e)
+{
+//	cout << "number of overlapoffsets: " << e->getListOfOverlapOffsets()->size() << endl;
+//	cout << "number of reads: " << e->getListOfReads()->size() << endl;
+	UINT64 numOfOverlapOffsets; /* coverage depth */
+	/* approximate number of substitutions in an edge */
+	double substitutionsInEdge = 0.0;
+	if(e->getListOfReads()->size() == 0){
+		numOfOverlapOffsets = 1;
+		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutions() * e->getOverlapOffset())/(double)(e->getSourceRead()->getAlignedLength());
+	}
+	else{
+		UINT64 lastOverlap = e->getOverlapOffset();
+		numOfOverlapOffsets = e->getListOfOverlapOffsets()->size();
+		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutions() * e->getListOfOverlapOffsets()->at(0))/(double)(e->getSourceRead()->getAlignedLength());
+		lastOverlap -= e->getListOfOverlapOffsets()->at(0);
+		for(UINT64 i = 0; i < (e->getListOfReads()->size()-1); i++){
+			Read *r = getReadFromID(e->getListOfReads()->at(i));
+			substitutionsInEdge += (double)(r->getNumOfSubstitutions() * e->getListOfOverlapOffsets()->at(i+1))/(double)r->getAlignedLength();
+			lastOverlap -= e->getListOfOverlapOffsets()->at(i+1);
+		}
+		Read *r = getReadFromID(e->getListOfReads()->at(e->getListOfReads()->size()-1));
+		substitutionsInEdge += (double)(r->getNumOfSubstitutions() * lastOverlap)/(double)r->getAlignedLength();
+	}
+	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*0.1 - substitutionsInEdge*0.01);
+}

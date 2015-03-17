@@ -103,31 +103,34 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 
 			else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 			{
-				graph->calculateFlow();
-				FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges();
-				graph->removeAllSimpleEdgesWithoutFlow();
-				if(loglevel > 4)
-				{
-					vector<Edge *> contigEdges;
-					graph->getEdges(contigEdges);
-					graph->printGraph(outDir + "/" + allFileName + ".afterFlow.gdl", contigEdges);
-				}
-				graph->simplifyGraph();
-				vector<Edge *> contigEdges;
-				graph->getEdges(contigEdges);
-				if(loglevel > 4)
-				{
-					graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
-					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
-				}
-//				graph->printContigs(outFile, contigEdges,true);
-				vector< Edge *>  allPaths;
-				graph->findPaths(allPaths);
-				if(loglevel > 4)
-				{
-					graph->printPaths(outDir + "/" + allFileName + ".paths.fasta",allPaths,false);
-				}
-				graph->printPaths(outFile, allPaths, true); /* Use the path with longest span as final output */
+				vector<UINT64> * topoSortedNodes = new vector<UINT64>;
+				graph->DFS(topoSortedNodes);
+				graph->FindLongestPath(topoSortedNodes);
+				delete topoSortedNodes;
+//				FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges();
+//				graph->removeAllSimpleEdgesWithoutFlow();
+//				if(loglevel > 4)
+//				{
+//					vector<Edge *> contigEdges;
+//					graph->getEdges(contigEdges);
+//					graph->printGraph(outDir + "/" + allFileName + ".afterFlow.gdl", contigEdges);
+//				}
+//				graph->simplifyGraph();
+//				vector<Edge *> contigEdges;
+//				graph->getEdges(contigEdges);
+//				if(loglevel > 4)
+//				{
+//					graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
+//					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
+//				}
+////				graph->printContigs(outFile, contigEdges,true);
+//				vector< Edge *>  allPaths;
+//				graph->findPaths(allPaths);
+//				if(loglevel > 4)
+//				{
+//					graph->printPaths(outDir + "/" + allFileName + ".paths.fasta",allPaths,false);
+//				}
+//				graph->printPaths(outFile, allPaths, true); /* Use the path with longest span as final output */
 
 			}
 			delete graph;

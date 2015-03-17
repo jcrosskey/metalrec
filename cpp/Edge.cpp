@@ -237,3 +237,6 @@ bool Edge::operator<(Edge & anotherEdge)
 {
 	return (getStringLengthInRange() < anotherEdge.getStringLengthInRange());
 }
+
+
+

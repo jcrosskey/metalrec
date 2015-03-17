@@ -66,6 +66,7 @@ class Dataset
 		void saveReads(string fileName);	// Save all the sorted unique reads in a text file. Used for debugging.
 		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
 		UINT64 findMostLikelyReadID();  /* Find the read/contig that is most likely to have generated the PacBio read */
+		double getWeight(Edge * e);
 };
 
 

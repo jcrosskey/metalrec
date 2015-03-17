@@ -1803,6 +1803,7 @@ UINT64 OverlapGraph::calculateEditDistance(const std::string &s1, const std::str
  * ===  FUNCTION  ======================================================================
  *         Name:  findPaths
  *  Description:  Find all the paths from the source-nodes to the dest-nodes
+ * TODO: this function has some memory leak problem, since there are a lot of pointers being used/referenced
  * =====================================================================================
  */
 bool OverlapGraph::findPaths(vector< Edge *> & paths)
@@ -1910,5 +1911,203 @@ bool OverlapGraph::findPathAtNode(UINT64 readID, vector<bool> *pathFound, vector
 	}
 	pathsStartingAtReads->at(readID)->resize(pathsStartingAtReads->at(readID)->size());
 	pathFound->at(readID) = true;
+	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  DFS
+ *  Description:  Depth first search of the graph, do topological sort of the nodes that have incident edges. 
+ *  Also find back edges that make the graph cyclic, and delete them.
+ *  Note: Discover time and finish time is not really needed, can be removed if desired.
+ * =====================================================================================
+ */
+bool OverlapGraph::DFS(vector< UINT64 > * topoSortedNodes) /* Depth first search of the graph, can also be used to determine when the graph is cyclic */
+{
+	CLOCKSTART;
+//	for(UINT64 i = 0; i < graph->size(); i++){
+//		cout << "graph index " << i << ": read number: ";
+//		if(graph->at(i)->size() > 0)
+//		{
+//			cout << graph->at(i)->at(0)->getSourceRead()->getID() << ": ";
+//			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
+//				cout << graph->at(i)->at(j)->getDestinationRead()->getID() << "\t";
+//			cout << endl;
+//		}
+//		else
+//			cout << endl;
+//	}
+	vector<Edge *> * backEdges = new vector<Edge*>;
+	/* Topological sort of the nodes */
+	topoSortedNodes->clear();
+	topoSortedNodes->reserve(dataSet->getNumberOfUniqueReads()+1);
+	/* Color the node differently to represent the status of the DFS at the nodes */
+	vector<int> * searchStatus = new vector<int>;
+	searchStatus->reserve(dataSet->getNumberOfUniqueReads()+1);
+	/* Predecessors for each node */
+	vector<UINT64> *predecessors = new vector<UINT64>;
+	predecessors->reserve(dataSet->getNumberOfUniqueReads()+1);
+	/* Discover and finish time for each node in DFS */
+	vector<int> * discoverTime = new vector<int>;
+	vector<int> * finishTime = new vector<int>;
+	discoverTime->reserve(dataSet->getNumberOfUniqueReads()+1);
+	finishTime->reserve(dataSet->getNumberOfUniqueReads()+1);
+
+	UINT64 sTime = 0;
+	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i++){
+		searchStatus->push_back(0);
+		predecessors->push_back(0);
+		discoverTime->push_back(0);
+		finishTime->push_back(0);
+	}
+	for(UINT64 i = 1; i <= dataSet->getNumberOfUniqueReads(); i++){
+		if (searchStatus->at(i) == 0)
+		{
+			DFS_visit(i, searchStatus, predecessors, sTime, discoverTime, finishTime, backEdges, topoSortedNodes);
+		}
+	}
+	/* reverse the topologically sorted list (vector) */
+	reverse(topoSortedNodes->begin(), topoSortedNodes->end()); 
+
+	/* Debug, print the topological sorted nodes, and check the result */
+	FILE_LOG(logDEBUG2) << "Nodes in topological sorted order:";
+	for(UINT64 k = 0; k < topoSortedNodes->size(); k++)
+	{
+		cout << topoSortedNodes->at(k) << " ";
+	}
+	cout << endl;
+	/* End Debug */
+
+	/* Remove back edges and therefore cycles in the graph */
+	if (backEdges->size() > 0){
+		FILE_LOG(logINFO) << "Number of back edges found in DFS: " << backEdges->size();
+		for(UINT64 k = 0; k < backEdges->size(); k++){
+			removeEdge(backEdges->at(k));
+		}
+	}
+	delete backEdges;
+	delete searchStatus;
+	delete predecessors;
+	delete discoverTime;
+	delete finishTime;
+	CLOCKSTOP;
+	return true;
+}
+
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  DFS_visit
+ *  Description:  visit all the neighbors of a node, and update the DFS vectors
+ * =====================================================================================
+ */
+bool OverlapGraph::DFS_visit(UINT64 u, vector<int> * searchStatus, vector<UINT64> * predecessors, UINT64 & sTime, vector<int> * discoverTime, vector<int> * finishTime, vector<Edge *> * backEdges, vector<UINT64> * topoSortedNodes)
+{
+	sTime = sTime + 1;                      /* node i has just been discovered */
+	discoverTime->at(u) = sTime;            /* set the discover time */
+	searchStatus->at(u) = 1;             /* First time a node is discovered, color it 1 */
+	if (graph->at(u)->size() >0)
+	{
+		for(UINT64 j = 0; j < graph->at(u)->size(); j++){ /* explore all the edges incident to this node */
+			UINT64 v = graph->at(u)->at(j)->getDestinationRead()->getID(); /* read ID for the destination read */
+			if (searchStatus->at(v) == 0)
+			{
+				predecessors->at(v) = u; /* v's predecessor is u */
+				DFS_visit(v, searchStatus, predecessors, sTime, discoverTime, finishTime, backEdges, topoSortedNodes); /* visit v's neighbors */
+			}
+			else if (searchStatus->at(v) == 1 ) /* back edge */
+			{
+				backEdges->push_back(graph->at(u)->at(j));
+			}
+		}
+	}
+	searchStatus->at(u) = 2;
+	finishTime->at(u) = ++sTime;
+//	if(graph->at(u)->size()>0 || reverseGraph.at(u).size() > 0)
+	topoSortedNodes->push_back(u);          /* insert finished node into the topologically sorted list */
+	return true;
+}
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  FindLongestPath
+ *  Description:  Find longest path in the graph
+ * =====================================================================================
+ */
+bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes)         /* Find longest path in the graph */
+{
+	CLOCKSTART;
+	UINT64 numOfNodes = topoSortedNodes->size(); /*  number of nodes that have edges in the graph */
+	vector<double> *lengthUntilNodes = new vector<double>; /* maximum length until a node */
+	lengthUntilNodes->reserve(numOfNodes);
+	/* bool vector to indicate if the longest path till a node is already calculated */
+	vector<bool> *calculated = new vector<bool>;
+	calculated->reserve(numOfNodes);
+	/* maximum length of path found so far */
+	double maxLength = 0;
+	/* longest path until each node */
+	vector<vector<UINT64> *> *longestPathsUntilNodes = new vector<vector<UINT64>*>;
+	longestPathsUntilNodes->reserve(numOfNodes);
+	UINT64 nodeWithLongestPath;
+	/* Initialization of the vectors */
+	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i ++){
+		lengthUntilNodes->push_back(-1000000);
+		vector<UINT64> *longestPathAtnode = new vector<UINT64>;
+		longestPathsUntilNodes->push_back(longestPathAtnode);
+		calculated->push_back(false);
+	}
+
+	for(UINT64 i = 0; i < numOfNodes; i++)  /* Initialize the max length until each node */
+	{
+		UINT64 readID = topoSortedNodes->at(i);
+		longestPathsUntilNodes->at(readID)->push_back(readID);
+		if(dataSet->getReadFromID(readID)->numInEdges == 0) /* source nodes have initial length 0 */
+		{
+			lengthUntilNodes->at(readID) = 0;
+			calculated->at(readID) = true;
+		}
+	}
+	for(UINT64 i = 0; i < numOfNodes; i++){ /* update max length until each node in topological sorted order */
+		UINT64 readID = topoSortedNodes->at(i);
+		if(!calculated->at(readID))
+		{
+			UINT64 maxSource = readID;
+			for(UINT64 j = 0; j < reverseGraph.at(readID).size(); j++)
+			{
+				UINT64 source = reverseGraph.at(readID).at(j); /* source of the edge going into readID */
+				double lengthFromSource = dataSet->getWeight(findEdge(source, readID)) + lengthUntilNodes->at(source);
+				if (lengthFromSource > lengthUntilNodes->at(readID)){
+					lengthUntilNodes->at(readID) = lengthFromSource;
+					maxSource = source;
+				}
+			}
+			/* Update the path */
+			for(UINT64 k = 0; k < longestPathsUntilNodes->at(maxSource)->size(); k++)
+				longestPathsUntilNodes->at(readID)->push_back(longestPathsUntilNodes->at(maxSource)->at(k));
+			if (lengthUntilNodes->at(readID) > maxLength)
+			{
+				maxLength = lengthUntilNodes->at(readID);
+				nodeWithLongestPath = readID;
+			}
+		}
+		
+	}
+	cout << "node where the longest path ends is " << nodeWithLongestPath << endl;
+	for(UINT64 k = longestPathsUntilNodes->at(nodeWithLongestPath)->size() - 1; k > 0; k--)
+		cout << longestPathsUntilNodes->at(nodeWithLongestPath)->at(k) << " ";
+	cout << nodeWithLongestPath << endl;
+	cout << "And the longest path has length " << maxLength << endl;
+
+	delete lengthUntilNodes;
+	delete calculated;
+	for(UINT64 i = 0; i < longestPathsUntilNodes->size(); i++){
+		delete longestPathsUntilNodes->at(i);
+	}
+	delete longestPathsUntilNodes;
+
+	CLOCKSTOP;
 	return true;
 }

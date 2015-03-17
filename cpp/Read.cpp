@@ -348,6 +348,10 @@ bool Read::isReadGood(const float & indelRate, const float & subRate)
 	{
 		return false;
 	}
+	if (getStartCoord() < 0 )               /* TODO: should also include the length of the PacBio read, so the other end could be taken care of */
+	{
+		return false;
+	}
 	if (numOfSubstitions >  mappedLength * subRate) /* too many substitution errors */
 	{
 		return false;
@@ -414,6 +418,12 @@ bool Read::setFrequency(UINT32 freq)
 	return true;
 }
 
+
+UINT64 Read::getNumOfSubstitutions()
+{
+	return (editDistance - numOfDeletions - numOfInsertions);
+}
+
 /**********************************************************************************************************************
 	Return the ending coordinates of the read, disregarding the alignment to PacBio read, 
 	assume that all the mismatches are substitutions in Illumina reads.
@@ -423,6 +433,10 @@ INT32 Read::getEndCoord(void)
 	return ( startCoord + readDnaString.length()) ; // 0-based, position after the last bp of the read
 }
 
+INT32 Read::getEndCoordInLR(void)
+{
+	return ( startCoord + readDnaString.length() - rightClip) ; // 0-based, position after the last bp of the read, in the long read
+}
 /**********************************************************************************************************************
 	Return the value for a certain required tag from the align record
 **********************************************************************************************************************/

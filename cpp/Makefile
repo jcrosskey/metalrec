@@ -13,10 +13,10 @@ CFLAGS = -O0 -g3 -W -Wno-long-long -pedantic -Wno-variadic-macros -fmessage-leng
 CFLAGS+=-Wall
 
 # include dirs containing header files
-PATH_TO_CORE=/Users/cjg/Software/seqan/core
-PATH_TO_EXTRAS=/Users/cjg/Software/seqan/extras
-INCLUDES+=-I${PATH_TO_CORE}/include
-INCLUDES+=-I${PATH_TO_EXTRAS}/include
+#PATH_TO_CORE=/Users/cjg/Software/seqan/core
+#PATH_TO_EXTRAS=/Users/cjg/Software/seqan/extras
+#INCLUDES+=-I${PATH_TO_CORE}/include
+#INCLUDES+=-I${PATH_TO_EXTRAS}/include
 #INCLUDES+=-I/usr/local/include
 #INCLUDES+=-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1
 #INCLUDES+=-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/6.0/include
