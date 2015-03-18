@@ -39,6 +39,7 @@ void usage()
 
 		<< " [options]" << endl
 		<< "   -name <pacbio_name> PacBio read to error correct (default: Try to correct all)" << endl
+		<< "   -l <pacbio_length> Length of the PacBio read (default: 65000)" << endl
 		<< "   -f <PacBio_file> File including names of PacBio reads to correct, one name on each line (default: none)" << endl
 		<< "   -h/--help Display this help message" << endl
 		<< endl;
@@ -49,6 +50,7 @@ void usage()
 int initializeArguments(int argc, char ** argv,               /* BAM file */
 		string & outDir,       /* output directory */
 		string & configFile,            /* Configuration file, required */
+		UINT16 & PacBioLength,
 		string & PacBioReadName, string & PacBio_file)        /* A particular PacBio read to correct, or a file including all the PacBio read names */ 
 {
 	vector<string> Arguments;
@@ -59,6 +61,7 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 	configFile = "";
 	PacBioReadName = "";
 	PacBio_file = "";
+	PacBioLength = 65000;
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
@@ -72,6 +75,10 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 
 		else if (Arguments[i] == "-name"){
 			PacBioReadName = Arguments.at(++i);
+		}
+
+		else if (Arguments[i] == "-l"){
+			PacBioLength = stoi(Arguments.at(++i));
 		}
 
 		else if (Arguments[i] == "-f"){
@@ -163,7 +170,9 @@ int main(int argc, char ** argv){
 	string samtools_path, configFile, outDir, allFileName, PacBioName, PacBio_file;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
+	UINT16 PacBioLength;
 	vector<string> PacBioNames;
+	vector<UINT16> PacBioLengths;
 	float indelRate, subRate, maxErrorRate;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 
@@ -179,7 +188,7 @@ int main(int argc, char ** argv){
 	param_map["samtools_path"] = "samtools";
 
 	/* initialize command line arguments */
-	int init = initializeArguments(argc, argv, outDir, configFile, PacBioName, PacBio_file);
+	int init = initializeArguments(argc, argv, outDir, configFile, PacBioLength, PacBioName, PacBio_file);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 
 	if(init != 0){
@@ -224,7 +233,7 @@ int main(int argc, char ** argv){
 			{
 				Utils::exitWithError(" *** Failed command " + getRefNameCmd);
 			}
-			Utils::getRefNames(pipe, PacBioNames);
+			Utils::getRefNames(pipe, PacBioNames, PacBioLengths);
 			pclose(pipe);
 		}
 		else if (PacBio_file.length() > 0)
@@ -232,7 +241,11 @@ int main(int argc, char ** argv){
 			Utils::saveLinesToVec(PacBio_file, PacBioNames);
 		}
 		else                            /* Only 1 read to correct */
+		{
 			PacBioNames.push_back(PacBioName);
+			PacBioLengths.push_back(PacBioLength);
+			FILE_LOG(logINFO) << "PacBio Read Length is: " << PacBioLength;
+		}
 
 		FILE_LOG(logINFO) << "Number of PacBio reads in first bam file is: " << PacBioNames.size();
 		FILE_LOG(logINFO) << "samtools path: " << samtools_path;
@@ -253,7 +266,7 @@ int main(int argc, char ** argv){
 		if (PacBioNames.size() == 1)    /* When there is only 1 PacBio read to correct, use the specified prefix name */
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
-			metalrec(bamFiles, PacBioNames.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+			metalrec(bamFiles, PacBioNames.at(0), PacBioLengths.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 		}
 		else{
@@ -261,7 +274,7 @@ int main(int argc, char ** argv){
 			{
 				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 				string prefixName = Utils::intToString(j);
-				metalrec(bamFiles, PacBioNames.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+				metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 						indelRate, subRate, maxErrorRate);
 			}
 		}

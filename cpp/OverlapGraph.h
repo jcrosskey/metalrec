@@ -107,7 +107,7 @@ class OverlapGraph
 		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.
 		bool calculateFlow1(string inputFileName, string outputFileName);
 		bool calculateFlow(void);	// Calculate the minimum cost flow of the overlap graph.
-		string getStringInEdge(Edge *edge);	// Get the string in an edge by overlapping the ordered reads in the edge.
+		string getStringInEdge(Edge *edge, bool includeLast=true);	// Get the string in an edge by overlapping the ordered reads in the edge.
 		bool simplifyGraph(void);	// Some simple simplification.
 //		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.
@@ -118,7 +118,7 @@ class OverlapGraph
 		UINT64 getLengthInPacBio(Edge *edge);
 		bool DFS(vector< UINT64 > * topoSortedNodes); /* Depth first search of the graph, can also be used to determine when the graph is cyclic */
 		bool DFS_visit(UINT64 i, vector<int> *searchStatus, vector<UINT64> *predecessors, UINT64 & sTime, vector<int> * discoverTime, vector<int> * finishTime, vector<Edge *> * backEdges, vector<UINT64> * topoSortedNodes); /* visit all the neighbors of a node, and update the DFS vectors */
-		bool FindLongestPath(vector<UINT64> * topoSortedNodes);         /* Find longest path in the graph */
+		bool FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString);         /* Find longest path in the graph */
 };
 
 #endif /* OVERLAPGRAPH_H_ */

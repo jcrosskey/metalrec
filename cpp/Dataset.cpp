@@ -27,6 +27,7 @@ bool compareReads (Read *read1, Read *read2)
 Dataset::Dataset(void)
 {
 	// Initialize the variable values.
+	totalBps = 0;
 	numberOfReads = 0;
 	numberOfUniqueReads = 0;
 	numberOfNonContainedReads = 0;
@@ -43,6 +44,7 @@ Dataset::Dataset(void)
 Dataset::Dataset(const Dataset & D)
 {
 	// Initialize the variable values.
+	totalBps = D.totalBps;
 	numberOfReads = D.numberOfReads;
 	numberOfUniqueReads = D.numberOfUniqueReads;
 	numberOfNonContainedReads = D.numberOfNonContainedReads;
@@ -65,6 +67,7 @@ Dataset::Dataset(const Dataset & D)
 Dataset & Dataset::operator= (const Dataset & D)
 {
 	// Initialize the variable values.
+	totalBps = D.totalBps;
 	numberOfReads = D.numberOfReads;
 	numberOfUniqueReads = D.numberOfUniqueReads;
 	numberOfNonContainedReads = D.numberOfNonContainedReads;
@@ -134,7 +137,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 				{
 					Read *r = new Read(line);
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -144,11 +147,12 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 						reads->push_back(r);
 						numberOfReads++;
 						goodReads++;
+						totalBps += r->getAlignedLength();
 					}
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate)))
+						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -164,6 +168,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
 	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
 	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
+	FILE_LOG(logINFO) << "Total number of aligned bps in the dataset so far: " << setw(5) << totalBps;
 	CLOCKSTOP;
 }
 
@@ -230,7 +235,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 					if ( PacBioReadName.length() == 0 )
 						PacBioReadName = r->getRefName();
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -240,11 +245,12 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 						reads->push_back(r);
 						numberOfReads++;
 						goodReads++;
+						totalBps += r->getAlignedLength();
 					}
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate)))
+						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -259,6 +265,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
 	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
 	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
+	FILE_LOG(logINFO) << "Total number of aligned bps in the dataset so far: " << setw(5) << totalBps;
 	CLOCKSTOP;
 }
 
@@ -310,7 +317,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					if ( PacBioReadName.length() == 0 )
 						PacBioReadName = r->getRefName();
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -321,11 +328,12 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 						reads->push_back(goodRead);
 						numberOfReads++;
 						goodReads++;
+						totalBps += r->getAlignedLength();
 					}
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate)))
+						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -343,6 +351,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
 	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
 	FILE_LOG(logINFO) << "Total number of reads in the dataset so far: " << setw(5) << reads->size();
+	FILE_LOG(logINFO) << "Total number of aligned bps in the dataset so far: " << setw(5) << totalBps;
 	CLOCKSTOP;
 	return true;
 }
@@ -596,27 +605,33 @@ UINT64 Dataset::findMostLikelyReadID()
  */
 double Dataset::getWeight(Edge * e)
 {
-//	cout << "number of overlapoffsets: " << e->getListOfOverlapOffsets()->size() << endl;
-//	cout << "number of reads: " << e->getListOfReads()->size() << endl;
-	UINT64 numOfOverlapOffsets; /* coverage depth */
+	/* coverage depth */
+	UINT64 numOfOverlapOffsets = e->getListOfOverlapOffsets()->size()+1; 
 	/* approximate number of substitutions in an edge */
+	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*PacBioReadLength/(double)numberOfUniqueReads - getSubsOnEdge(e)*10);
+}
+
+double Dataset::getSubsOnEdge(Edge *e)
+{
 	double substitutionsInEdge = 0.0;
-	if(e->getListOfReads()->size() == 0){
-		numOfOverlapOffsets = 1;
-		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutions() * e->getOverlapOffset())/(double)(e->getSourceRead()->getAlignedLength());
+	if(e->getListOfReads()->size() == 0){   /* If this edge is a simple edge, then just 1 overlap offset */
+		/* #(substitution) * overlapoffset / alignedLength = expected # of subs in the overlapoffset part */
+		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutionsInRead() * e->getOverlapOffset())/(double)(e->getSourceRead()->getAlignedLength());
 	}
-	else{
-		UINT64 lastOverlap = e->getOverlapOffset();
-		numOfOverlapOffsets = e->getListOfOverlapOffsets()->size();
-		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutions() * e->getListOfOverlapOffsets()->at(0))/(double)(e->getSourceRead()->getAlignedLength());
+	else{                                   /* composite edge, add up substitutions for each overlap offset */
+		UINT64 lastOverlap = e->getOverlapOffset(); /* last overlap offset, not stored in the list */
+		/* first overlap offset, on the source read */
+		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutionsInRead() * e->getListOfOverlapOffsets()->at(0))/(double)(e->getSourceRead()->getAlignedLength());
 		lastOverlap -= e->getListOfOverlapOffsets()->at(0);
+		/* The following overlaps except the last one, since the offset length is not stored in the list */
 		for(UINT64 i = 0; i < (e->getListOfReads()->size()-1); i++){
 			Read *r = getReadFromID(e->getListOfReads()->at(i));
-			substitutionsInEdge += (double)(r->getNumOfSubstitutions() * e->getListOfOverlapOffsets()->at(i+1))/(double)r->getAlignedLength();
+			substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * e->getListOfOverlapOffsets()->at(i+1))/(double)r->getAlignedLength();
 			lastOverlap -= e->getListOfOverlapOffsets()->at(i+1);
 		}
 		Read *r = getReadFromID(e->getListOfReads()->at(e->getListOfReads()->size()-1));
-		substitutionsInEdge += (double)(r->getNumOfSubstitutions() * lastOverlap)/(double)r->getAlignedLength();
+		substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * lastOverlap)/(double)r->getAlignedLength();
 	}
-	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*0.1 - substitutionsInEdge*0.01);
+//	substitutionsInEdge += (double)(e->getDestinationRead()->getNumOfSubstitutionsInRead());
+	return substitutionsInEdge;
 }

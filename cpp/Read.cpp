@@ -332,13 +332,9 @@ bool Read::setEdits(const string & s)
  *  Description:  Test and see if read is good (whether it should be mapped to this PacBio read)
  * =====================================================================================
  */
-bool Read::isReadGood(const float & indelRate, const float & subRate)
+bool Read::isReadGood(const float & indelRate, const float & subRate, const UINT16 & PacBioReadLength)
 {
-	UINT64 numOfSubstitions = 0;
-	if (editDistance >= numOfDeletions + numOfInsertions ) /* number of substitutions in the alignment */
-		numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
-	else
-		FILE_LOG(logWARNING) << "In read " << readName << " editDistance is smaller than the number of indels, NM is not reliable and number of substitutions is set to 0.";
+	UINT64 numOfSubstitions = getNumOfSubstitutionsInRead();
 	UINT64 readLength = readDnaString.length();
 	UINT64 mappedLength = readDnaString.length() - leftClip - rightClip; /* length of the aligned segment, not counting the left and right clipping */
 	FILE_LOG(logDEBUG3) << numOfSubstitions << " substitutions in " << mappedLength << " mapped bps";
@@ -348,7 +344,7 @@ bool Read::isReadGood(const float & indelRate, const float & subRate)
 	{
 		return false;
 	}
-	if (getStartCoord() < 0 )               /* TODO: should also include the length of the PacBio read, so the other end could be taken care of */
+	if (getStartCoord() < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
 	{
 		return false;
 	}
@@ -419,9 +415,14 @@ bool Read::setFrequency(UINT32 freq)
 }
 
 
-UINT64 Read::getNumOfSubstitutions()
+UINT64 Read::getNumOfSubstitutionsInRead()
 {
-	return (editDistance - numOfDeletions - numOfInsertions);
+	UINT64 numOfSubstitions = 0;
+	if (editDistance >= numOfDeletions + numOfInsertions ) /* number of substitutions in the alignment */
+		numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
+	else
+		FILE_LOG(logWARNING) << "In read " << readName << " editDistance is smaller than the number of indels, NM is not reliable and number of substitutions is set to 0.";
+	return numOfSubstitions;
 }
 
 /**********************************************************************************************************************

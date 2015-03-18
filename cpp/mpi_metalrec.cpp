@@ -209,7 +209,7 @@ void MasterProcess(const size_t & fileNum)
 }
 
 // slave job
-void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBioNames,
+void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBioNames, const vector<UINT16> & PacBioLengths,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
@@ -240,8 +240,9 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		Utils::mkdirIfNonExist(outputDir);
 
 		string refName = PacBioNames[currentWorkID];
+		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
-		metalrec(bamFiles, refName, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+		metalrec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 				indelRate, subRate, maxErrorRate);
 
 		// signal master when done
@@ -261,6 +262,7 @@ int main(int argc, char ** argv){
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
 	vector<string> PacBioNames;
+	vector<UINT16> PacBioLengths;
 	float indelRate, subRate, maxErrorRate;
 	double start_time, finish_time;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
@@ -327,7 +329,7 @@ int main(int argc, char ** argv){
 			{
 				Utils::exitWithError(" *** Failed command " + getRefNameCmd);
 			}
-			Utils::getRefNames(pipe, PacBioNames);
+			Utils::getRefNames(pipe, PacBioNames, PacBioLengths);
 			pclose(pipe);
 		}
 		else if (PacBio_file.length() > 0)
@@ -360,7 +362,7 @@ int main(int argc, char ** argv){
 			start_time = MPI_Wtime();
 			if (PacBioNames.size() == 1)
 			{
-				metalrec(bamFiles, PacBioNames.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+				metalrec(bamFiles, PacBioNames.at(0), 65000, allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 						indelRate, subRate, maxErrorRate);
 
 			}
@@ -374,7 +376,7 @@ int main(int argc, char ** argv){
 				{
 					FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 					string prefixName = Utils::intToString(j);
-					metalrec(bamFiles, PacBioNames.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+					metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j),prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 							indelRate, subRate, maxErrorRate);
 				}
 
@@ -386,7 +388,7 @@ int main(int argc, char ** argv){
 
 		else
 		{
-			SlaveProcess(bamFiles, PacBioNames, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+			SlaveProcess(bamFiles, PacBioNames, PacBioLengths, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, subRate, maxErrorRate);
 		}
 

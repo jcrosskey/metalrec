@@ -22,9 +22,10 @@ class Dataset
 		UINT64 numberOfUniqueReads;	// number of unique reads in the dataset.
 		UINT64 minimumOverlapLength;	// Length of the shortest read in the dataset.
 		string PacBioReadName;	// Name of the PacBio read
-		UINT64 PacBioReadLength; // Length of the PacBio read
+		UINT16 PacBioReadLength; // Length of the PacBio read
 		float subRate;
 		float indelRate;
+		UINT64 totalBps;
 
 	//map< int, vector<Reads *> > *readMaps;	// Use map instead of vector to store all the reads
 		vector<Read *> *reads;	// List of reads in the dataset.
@@ -54,6 +55,7 @@ class Dataset
 		bool AddDataset(FILE * inputSamStream);
 		bool setIndelRate(const float & indel_rate){indelRate = indel_rate; return true;}
 		bool setSubRate(const float & sub_rate){subRate = sub_rate; return true;}
+		bool setLRLength(const UINT16 & length){PacBioReadLength = length; return true;}
 
 		/* accessors */
 		string getPacBioReadName(void){return PacBioReadName;}	// Get the name for the PacBio filtered subread
@@ -67,6 +69,8 @@ class Dataset
 		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
 		UINT64 findMostLikelyReadID();  /* Find the read/contig that is most likely to have generated the PacBio read */
 		double getWeight(Edge * e);
+		double getSubsOnEdge(Edge *e);
+		double getAvgCoverage(){return (double)totalBps/(double)PacBioReadLength;}
 };
 
 

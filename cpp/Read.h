@@ -63,7 +63,7 @@ class Read
 		UINT16 numInEdges;	// Number of edges going into the read
 		UINT16 numOutEdges;	// Number of edges going out of the read
 
-		bool isReadGood(const float & indelRate, const float & subRate); /* Test if read is good enough */
+		bool isReadGood(const float & indelRate, const float & subRate, const UINT16 & PacBioReadLength); /* Test if read is good enough */
 		/* mutators */
 		bool setRead(const string & s); 		// Set the read from alignment record string, (with generic string parsing)
 		bool setReadID(UINT64 id); 			// Set the read ID.
@@ -71,7 +71,7 @@ class Read
 		bool setStartCoord(INT32 start_coord){startCoord = start_coord; return true;}	// Set the starting coordinate
 
 		/* accessors */
-		UINT64 getNumOfSubstitutions();
+		UINT64 getNumOfSubstitutionsInRead();
 		bool isContainedRead(void){return (superReadID == 0 ? false : true);};	// Whether the read is contained in another read
 		string getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
 		string getReadName(void){return readName;}	// Get the name of the current read.

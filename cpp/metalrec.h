@@ -28,7 +28,8 @@
  ********************************************************/
 
 // error correction job
-void metalrec(const vector<string> & bamFiles, const string & PacBioName, const string & allFileName,
+void metalrec(const vector<string> & bamFiles, const string & PacBioName,  
+		const UINT16 & PacBioLength, const string & allFileName,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
@@ -45,6 +46,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 		Dataset * dataSet = new Dataset();
 		dataSet->setIndelRate(indelRate);
 		dataSet->setSubRate(subRate);
+		dataSet->setLRLength(PacBioLength);
 
 		/* Read all bam file to collect Illumina reads aligned to this PacBio read */
 		for (size_t i = 0; i < bamFiles.size(); i++)
@@ -73,6 +75,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 		}
 		dataSet->finalize();
 		dataSet->setPacBioReadName(PacBioName);
+		FILE_LOG(logINFO) << "Average coverage depth is: " << dataSet->getAvgCoverage();
 
 		if (dataSet->getNumberOfReads() <= 1)
 			FILE_LOG(logWARNING) << "Data set has no more than 1 read in it, quitting...";
@@ -104,34 +107,25 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName, const 
 			else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 			{
 				vector<UINT64> * topoSortedNodes = new vector<UINT64>;
+				string finalString;
 				graph->DFS(topoSortedNodes);
-				graph->FindLongestPath(topoSortedNodes);
+				graph->FindLongestPath(topoSortedNodes, finalString);
 				delete topoSortedNodes;
-//				FILE_LOG(logINFO) << "nodes: " << graph->getNumberOfNodes() << " edges: " << graph->getNumberOfEdges();
-//				graph->removeAllSimpleEdgesWithoutFlow();
-//				if(loglevel > 4)
-//				{
-//					vector<Edge *> contigEdges;
-//					graph->getEdges(contigEdges);
-//					graph->printGraph(outDir + "/" + allFileName + ".afterFlow.gdl", contigEdges);
-//				}
-//				graph->simplifyGraph();
-//				vector<Edge *> contigEdges;
-//				graph->getEdges(contigEdges);
-//				if(loglevel > 4)
-//				{
-//					graph->printGraph(outDir + "/" + allFileName + ".final.gdl", contigEdges);
-//					graph->printContigs(outDir + "/" + allFileName + ".final.fasta",contigEdges,false);
-//				}
-////				graph->printContigs(outFile, contigEdges,true);
-//				vector< Edge *>  allPaths;
-//				graph->findPaths(allPaths);
-//				if(loglevel > 4)
-//				{
-//					graph->printPaths(outDir + "/" + allFileName + ".paths.fasta",allPaths,false);
-//				}
-//				graph->printPaths(outFile, allPaths, true); /* Use the path with longest span as final output */
 
+				// Print the sequence to output file
+				ofstream outputContigFilePointer;
+				outputContigFilePointer.open(outFile.c_str());
+				if(!outputContigFilePointer.is_open())
+					MYEXIT("Unable to open file: " + outFile);
+				outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Length: " << finalString.length() << endl;
+
+				UINT32 start=0;
+				do
+				{
+					outputContigFilePointer << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
+					start+=100;
+				} while (start < finalString.length());
+				outputContigFilePointer.close();
 			}
 			delete graph;
 		}

@@ -120,7 +120,7 @@ namespace Utils
     std::string last_line(const std::string & filename);
 
     /* Get ref sequence names and save them in a vector of strings, from stream */
-    bool getRefNames(FILE * stream, std::vector<std::string> & refNames);
+    bool getRefNames(FILE * stream, std::vector<std::string> & refNames, std::vector<unsigned short> & refLens);
 
     /* Get current working directory */
     std::string get_cwd();

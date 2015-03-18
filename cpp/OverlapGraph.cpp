@@ -263,6 +263,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 //			getEdges(contigEdges);
 //			printGraph(prefix+".dead.gdl",contigEdges);
 
+			counter += popBubbles();
 			iteration++;
 		} while (counter > 0);
 	}
@@ -633,7 +634,7 @@ UINT64 OverlapGraph::contractCompositePaths(void)
 		else
 			index++;
 	}
-	FILE_LOG(logDEBUG) << counter << " composite Edges merged.";
+	FILE_LOG(logINFO) << counter << " composite Edges merged.";
 	CLOCKSTOP;
 	return counter;
 }
@@ -955,7 +956,7 @@ bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & conti
 		thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
 		edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
 		//graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
-		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->flow <<  ")\" }" << endl;
+		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << dataSet->getSubsOnEdge(e) <<  ")\" }" << endl;
 	}
 	graphFilePointer << "}";
 	graphFilePointer.close();
@@ -1422,7 +1423,7 @@ UINT64 OverlapGraph::popBubbles(void)
 			for ( UINT64 j = 0; j < graph->at(i)->size(); j++) /* Inspect all the edges */
 			{
 				Edge * e1 = graph->at(i)->at(0); /* Pick an edge, and see if there are other edges with same destination read */
-				UINT64 source1 = e1->getSourceRead()->getID(); /* Get the source and destination reads for the edge */
+//				UINT64 source1 = e1->getSourceRead()->getID(); /* Get the source and destination reads for the edge */
 				UINT64 dest1 = e1->getDestinationRead()->getID();
 				for( UINT64 k = j + 1; k < graph->at(i)->size(); k++)
 				{
@@ -1433,7 +1434,7 @@ UINT64 OverlapGraph::popBubbles(void)
 						UINT64 l;
 						for ( l = 0; l < listOfEdgesToRemove.size(); l++ )
 						{
-							if (listOfEdgesToRemove.at(l) == e1 || listOfEdgesToRemove.at(l) == e2) /* If either of the read is alread in the to-remove list, break */
+							if (listOfEdgesToRemove.at(l) == e1 || listOfEdgesToRemove.at(l) == e2) /* If either of the read is already in the to-remove list, break */
 								break;
 						}
 						/* Criterion for choosing between 2 edges:
@@ -1444,22 +1445,28 @@ UINT64 OverlapGraph::popBubbles(void)
 						 * 4. What if they are all the same??!! Do not pop bubbles in this case*/
 						if (l == listOfEdgesToRemove.size()){
 							int keep = 0;
-							if (getStringInEdge(e1).compare(getStringInEdge(e2))==0) /* If the strings spelled by the edges are the same, keep either one */
+//							if (getStringInEdge(e1).compare(getStringInEdge(e2))==0) /* If the strings spelled by the edges are the same, keep either one */
+//								keep = 1;
+//							else if (e1->getNumOfSubstitutions() == 0 && e2->getNumOfSubstitutions() > 0)
+//								keep = 1;
+//							else if (e2->getNumOfSubstitutions() == 0 && e1->getNumOfSubstitutions() > 0) 
+//								keep = 2;
+//							else if (e1->getOverlapOffset() < e2->getOverlapOffset())
+//								keep = 2;
+//							else if (e1->getOverlapOffset() > e1->getOverlapOffset())
+//								keep = 1;
+//							else if (e1->getListOfReads()->size() > e2->getListOfReads()->size())
+//								keep = 1;
+//							else if (e2->getListOfReads()->size() > e1->getListOfReads()->size())
+//								keep = 2;
+//							else
+//								FILE_LOG(logWARNING) << "Comparing two edges, but neither of the edges wins: " << source1 << " --> " << dest1;
+							/* Change the criterion to choose edge between bubble: pick the edge with bigger weight */
+							if (dataSet->getWeight(e1) > dataSet->getWeight(e2)){
 								keep = 1;
-							else if (e1->getNumOfSubstitutions() == 0 && e2->getNumOfSubstitutions() > 0)
-								keep = 1;
-							else if (e2->getNumOfSubstitutions() == 0 && e1->getNumOfSubstitutions() > 0) 
-								keep = 2;
-							else if (e1->getOverlapOffset() < e2->getOverlapOffset())
-								keep = 2;
-							else if (e1->getOverlapOffset() > e1->getOverlapOffset())
-								keep = 1;
-							else if (e1->getListOfReads()->size() > e2->getListOfReads()->size())
-								keep = 1;
-							else if (e2->getListOfReads()->size() > e1->getListOfReads()->size())
-								keep = 2;
+							}
 							else
-								FILE_LOG(logWARNING) << "Comparing two edges, but neither of the edges wins: " << source1 << " --> " << dest1;
+								keep = 2;
 							if (keep == 1) {
 								listOfEdgesToRemove.push_back(e2);
 								listOfEdgesToKeep.push_back(e1);
@@ -1474,7 +1481,7 @@ UINT64 OverlapGraph::popBubbles(void)
 			}
 		}
 	}
-	FILE_LOG(logINFO) << listOfEdgesToRemove.size() << " Edges to remove to pop the bubbles";
+//	FILE_LOG(logINFO) << listOfEdgesToRemove.size() << " Edges to remove to pop the bubbles";
 	for(UINT64 i = 0; i < listOfEdgesToRemove.size(); i++)
 	{
 		FILE_LOG(logDEBUG2) <<  ++ counter << ": removing edge ("<<  listOfEdgesToRemove.at(i)->getSourceRead()->getID()<<"," <<  listOfEdgesToRemove.at(i)->getDestinationRead()->getID()<<")" ;
@@ -1487,7 +1494,7 @@ UINT64 OverlapGraph::popBubbles(void)
 		listOfEdgesToKeep.at(i)->flow += listOfEdgesToRemove.at(i)->flow;			// Move the flow of the delete edge to this edge.
 		removeEdge(listOfEdgesToRemove.at(i));	// Then remove the edge with similar string.
 	}
-	FILE_LOG(logINFO) << listOfEdgesToRemove.size() << " edges removed.";
+	FILE_LOG(logINFO) << listOfEdgesToRemove.size() << " edges removed to pop bubbles.";
 	CLOCKSTOP;
 	return listOfEdgesToRemove.size();
 }
@@ -1678,41 +1685,65 @@ bool OverlapGraph::isEdgePresent(UINT64 source, UINT64 destination)
 /**********************************************************************************************************************
   This function returns the string spelled out by overlapping the reads in an edge in the overlap graph
  **********************************************************************************************************************/
-string OverlapGraph::getStringInEdge(Edge *edge)
+//string OverlapGraph::getStringInEdge(Edge *edge)
+//{
+//	string read1_string, read2_string, readTemp, returnString;
+//	// strings of the source and destination reads
+//	read1_string =  edge->getSourceRead()->getDnaStringForward();
+//	read2_string =  edge->getDestinationRead()->getDnaStringForward();
+//	returnString = read2_string;
+//
+//	UINT64 previousLength = read1_string.length(), substringLength;
+//
+//	// Going through all the reads on the edge (if this edge is composite)
+//	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)
+//	{
+//		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward(); /* next read in the edge */
+//
+//		substringLength =  readTemp.length() + edge->getListOfOverlapOffsets()->at(i) - previousLength;	// Length of the added substring
+//		if( edge->getListOfOverlapOffsets()->at(i) ==  previousLength)	// Overlap offset is equal to the length of the previous read (not really overlap, two reads just touch each other at the ends)
+//			returnString = returnString + "N";
+//		returnString = returnString + readTemp.substr(readTemp.length() - substringLength, substringLength);
+//		previousLength = readTemp.length();
+//	}
+//
+//	if(edge->getListOfReads()->empty()) // Simple edge
+//	{
+//		substringLength =  read2_string.length() + edge->getOverlapOffset() - read1_string.length();
+//		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
+//	}
+//	else
+//	{
+//		substringLength = read2_string.length() + edge->getOverlapOffset() - returnString.length();
+//		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
+//	}
+//	return returnString;
+//}
+
+
+string OverlapGraph::getStringInEdge(Edge *edge, bool includeLast)
 {
-	string read1_string, read2_string, readTemp, returnString;
+	string source_string, dest_string, readTemp, returnString;
 	// strings of the source and destination reads
-	read1_string =  edge->getSourceRead()->getDnaStringForward();
-	read2_string =  edge->getDestinationRead()->getDnaStringForward();
-	returnString = read1_string;
-
-	UINT64 previousLength = read1_string.length(), substringLength;
-
-//	cout << "number of reads in the edge: " << edge->getListOfReads()->size();
-//	cout << "number of overlap offsets in the edge: " << edge->getListOfOverlapOffsets()->size();
-	// Going through all the reads on the edge (if this edge is composite)
-	for(UINT64 i = 0; i < edge->getListOfReads()->size(); i++)
-	{
-		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward(); /* next read in the edge */
-
-		substringLength =  readTemp.length() + edge->getListOfOverlapOffsets()->at(i) - previousLength;	// Length of the added substring
-		if( edge->getListOfOverlapOffsets()->at(i) ==  previousLength)	// Overlap offset is equal to the length of the previous read (not really overlap, two reads just touch each other at the ends)
-			returnString = returnString + "N";
-		returnString = returnString + readTemp.substr(readTemp.length() - substringLength, substringLength);
-		previousLength = readTemp.length();
+	source_string =  edge->getSourceRead()->getDnaStringForward();
+	dest_string =  edge->getDestinationRead()->getDnaStringForward();
+	if(edge->getListOfReads()->empty()){
+		returnString = source_string.substr(0,edge->getOverlapOffset());
 	}
-
-	if(edge->getListOfReads()->empty()) // Simple edge
-	{
-		substringLength =  read2_string.length() + edge->getOverlapOffset() - read1_string.length();
-		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
+	else{
+		returnString = source_string.substr(0,edge->getListOfOverlapOffsets()->at(0));
+		UINT64 lastOffset = edge->getOverlapOffset() - edge->getListOfOverlapOffsets()->at(0);
+		UINT64 i  = 0;
+		for(i = 0; i < (edge->getListOfReads()->size() - 1); i++)
+		{
+			readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward();
+			returnString = returnString + readTemp.substr(0, edge->getListOfOverlapOffsets()->at(i+1));
+			lastOffset -= edge->getListOfOverlapOffsets()->at(i+1);
+		}
+		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward();
+		returnString = returnString + readTemp.substr(0, lastOffset);
 	}
-	else
-	{
-		substringLength = read2_string.length() + edge->getOverlapOffset() - returnString.length();
-		returnString = returnString + read2_string.substr(read2_string.length() - substringLength, substringLength);
-	}
-	return returnString;
+	return includeLast?(returnString+dest_string):returnString;
 }
 
 
@@ -1971,12 +2002,14 @@ bool OverlapGraph::DFS(vector< UINT64 > * topoSortedNodes) /* Depth first search
 	reverse(topoSortedNodes->begin(), topoSortedNodes->end()); 
 
 	/* Debug, print the topological sorted nodes, and check the result */
-	FILE_LOG(logDEBUG2) << "Nodes in topological sorted order:";
-	for(UINT64 k = 0; k < topoSortedNodes->size(); k++)
-	{
-		cout << topoSortedNodes->at(k) << " ";
+	if (loglevel > 4){
+		FILE_LOG(logDEBUG2) << "Nodes in topological sorted order:";
+		for(UINT64 k = 0; k < topoSortedNodes->size(); k++)
+		{
+			cout << topoSortedNodes->at(k) << " ";
+		}
+		cout << endl;
 	}
-	cout << endl;
 	/* End Debug */
 
 	/* Remove back edges and therefore cycles in the graph */
@@ -1994,7 +2027,6 @@ bool OverlapGraph::DFS(vector< UINT64 > * topoSortedNodes) /* Depth first search
 	CLOCKSTOP;
 	return true;
 }
-
 
 
 /* 
@@ -2037,7 +2069,7 @@ bool OverlapGraph::DFS_visit(UINT64 u, vector<int> * searchStatus, vector<UINT64
  *  Description:  Find longest path in the graph
  * =====================================================================================
  */
-bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes)         /* Find longest path in the graph */
+bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString)         /* Find longest path in the graph */
 {
 	CLOCKSTART;
 	UINT64 numOfNodes = topoSortedNodes->size(); /*  number of nodes that have edges in the graph */
@@ -2092,14 +2124,32 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes)         /* 
 				maxLength = lengthUntilNodes->at(readID);
 				nodeWithLongestPath = readID;
 			}
+			calculated->at(readID) = true;
 		}
 		
 	}
-	cout << "node where the longest path ends is " << nodeWithLongestPath << endl;
-	for(UINT64 k = longestPathsUntilNodes->at(nodeWithLongestPath)->size() - 1; k > 0; k--)
-		cout << longestPathsUntilNodes->at(nodeWithLongestPath)->at(k) << " ";
-	cout << nodeWithLongestPath << endl;
-	cout << "And the longest path has length " << maxLength << endl;
+	FILE_LOG(logINFO) << "node where the longest path ends is " << nodeWithLongestPath;
+	vector<UINT64>::reverse_iterator rit = longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin();
+	if(loglevel > 1){
+		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=longestPathsUntilNodes->at(nodeWithLongestPath)->rend();rit++)
+			cout << *rit << " ";
+		cout << endl;
+	}
+	FILE_LOG(logINFO) << "And the longest path has weight " << maxLength;
+
+	/* Print the longest path */
+	finalString = "";
+	for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-2);rit++)
+	{
+		Edge * e = findEdge(*rit, *(rit+1));
+		finalString += getStringInEdge(e, false);
+//		cout << finalString.length() << ": " << *rit << " to " << *(rit+1) << endl << finalString << endl;
+	}
+	/* Last edge in the path need to include the last read string */
+	Edge *e = findEdge(*rit, *(rit+1));
+	finalString += getStringInEdge(e, true);
+
+//	cout << finalString.length() << endl;
 
 	delete lengthUntilNodes;
 	delete calculated;
