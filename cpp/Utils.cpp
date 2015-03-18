@@ -579,4 +579,14 @@ namespace Utils
 
 	    return true;
     }
+
+    /* Get length of pacbio read from its name */
+    unsigned short getPacBioLength(const std::string & readName)
+    {
+	    size_t lastSlash = readName.find_last_of("/");
+	    size_t lastUnderscore = readName.find_last_of("_");
+	    unsigned short startPos = std::stoi(readName.substr(lastSlash+1, lastUnderscore-lastSlash));
+	    unsigned short endPos = std::stoi(readName.substr(lastUnderscore+1, std::string::npos));
+	    return (endPos - startPos);
+    }
 }
