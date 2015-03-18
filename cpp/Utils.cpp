@@ -521,8 +521,8 @@ namespace Utils
     }
 
 
-    /* Get ref sequence names and save them in a vector of strings, from stream */
-    bool getRefNames(FILE * stream, std::vector<std::string> & refNames)
+    /* Get ref sequence names and length, save them in a vector of strings and vector of unsigned integers, from stream */
+    bool getRefNames(FILE * stream, std::vector<std::string> & refNames, std::vector<UINT16> & refLens)
     {
 	    std::string line = "";
 	    char buffer[BUFFER_SIZE];
@@ -544,6 +544,9 @@ namespace Utils
 				    size_t SNPos = line.find("SN:");
 				    size_t nextTabPos = line.find("\t", SNPos+3);
 				    refNames.push_back(line.substr(SNPos+3,nextTabPos-SNPos-3)); /* length of the PacBio read */
+				    size_t LNPos = line.find("LN:");
+				    nextTabPos = line.find("\t", LNPos+3);
+				    refLens.push_back(std::stoi(line.substr(SNPos+3,nextTabPos-SNPos-3))); /* length of the PacBio read */
 			    }
 			    line = "";              /* Set line to empty again */
 		    }
