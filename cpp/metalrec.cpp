@@ -39,7 +39,6 @@ void usage()
 
 		<< " [options]" << endl
 		<< "   -name <pacbio_name> PacBio read to error correct (default: Try to correct all)" << endl
-		<< "   -l <pacbio_length> Length of the PacBio read (default: 65000)" << endl
 		<< "   -f <PacBio_file> File including names of PacBio reads to correct, one name on each line (default: none)" << endl
 		<< "   -h/--help Display this help message" << endl
 		<< endl;
@@ -50,7 +49,6 @@ void usage()
 int initializeArguments(int argc, char ** argv,               /* BAM file */
 		string & outDir,       /* output directory */
 		string & configFile,            /* Configuration file, required */
-		UINT16 & PacBioLength,
 		string & PacBioReadName, string & PacBio_file)        /* A particular PacBio read to correct, or a file including all the PacBio read names */ 
 {
 	vector<string> Arguments;
@@ -61,7 +59,6 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 	configFile = "";
 	PacBioReadName = "";
 	PacBio_file = "";
-	PacBioLength = 65000;
 
 	for(int i = 1; i < (int)Arguments.size(); i++)
 	{
@@ -75,10 +72,6 @@ int initializeArguments(int argc, char ** argv,               /* BAM file */
 
 		else if (Arguments[i] == "-name"){
 			PacBioReadName = Arguments.at(++i);
-		}
-
-		else if (Arguments[i] == "-l"){
-			PacBioLength = stoi(Arguments.at(++i));
 		}
 
 		else if (Arguments[i] == "-f"){
@@ -170,7 +163,7 @@ int main(int argc, char ** argv){
 	string samtools_path, configFile, outDir, allFileName, PacBioName, PacBio_file;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
-	UINT16 PacBioLength;
+	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
 	float indelRate, subRate, maxErrorRate;
@@ -186,9 +179,10 @@ int main(int argc, char ** argv){
 	param_map["indelRate"] = "0.25"; 
 	param_map["subRate"] = "0.05";
 	param_map["samtools_path"] = "samtools";
+	param_map["minPacBioLength"] = "1000";
 
 	/* initialize command line arguments */
-	int init = initializeArguments(argc, argv, outDir, configFile, PacBioLength, PacBioName, PacBio_file);
+	int init = initializeArguments(argc, argv, outDir, configFile, PacBioName, PacBio_file);
 	loglevel = FILELog::ReportingLevel(); // logging level in integer
 
 	if(init != 0){
@@ -222,6 +216,8 @@ int main(int argc, char ** argv){
 		allFileName = param_map["allFileName"];
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
+		minPacBioLength = stoi(param_map["minPacBioLength"]);
+
 
 		/* If no specific PacBio read(s) is requested from command line, 
 		 * Use samtools to get the header lines, and then get the names of all PacBio names */
@@ -239,12 +235,15 @@ int main(int argc, char ** argv){
 		else if (PacBio_file.length() > 0)
 		{
 			Utils::saveLinesToVec(PacBio_file, PacBioNames);
+			for(size_t i = 0; i < PacBioNames.size(); i++){
+				PacBioLengths.push_back(Utils::getPacBioLength(PacBioNames.at(i)));
+			}
 		}
 		else                            /* Only 1 read to correct */
 		{
 			PacBioNames.push_back(PacBioName);
-			PacBioLengths.push_back(PacBioLength);
-			FILE_LOG(logINFO) << "PacBio Read Length is: " << PacBioLength;
+			PacBioLengths.push_back(Utils::getPacBioLength(PacBioName));
+			FILE_LOG(logINFO) << "PacBio Read Length is: " << PacBioLengths.at(0);
 		}
 
 		FILE_LOG(logINFO) << "Number of PacBio reads in first bam file is: " << PacBioNames.size();
@@ -267,7 +266,7 @@ int main(int argc, char ** argv){
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
 			metalrec(bamFiles, PacBioNames.at(0), PacBioLengths.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate);
+					indelRate, subRate, maxErrorRate,minPacBioLength);
 		}
 		else{
 			for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
@@ -275,7 +274,7 @@ int main(int argc, char ** argv){
 				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 				string prefixName = Utils::intToString(j);
 				metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, subRate, maxErrorRate);
+						indelRate, subRate, maxErrorRate,minPacBioLength);
 			}
 		}
 

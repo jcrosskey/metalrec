@@ -213,7 +213,7 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & subRate, const float & maxErrorRate)
+		const float & indelRate, const float & subRate, const float & maxErrorRate, const UINT16 & minPacBioLength)
 {
 	MPI_Status status;
 	int currentWorkID, myid;
@@ -243,7 +243,7 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
 		metalrec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-				indelRate, subRate, maxErrorRate);
+				indelRate, subRate, maxErrorRate, minPacBioLength);
 
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -261,6 +261,7 @@ int main(int argc, char ** argv){
 	int myid, num_proc;                               /* worker ID in mpi setting */
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;
+	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
 	float indelRate, subRate, maxErrorRate;
@@ -277,6 +278,7 @@ int main(int argc, char ** argv){
 	param_map["indelRate"] = "0.25"; 
 	param_map["subRate"] = "0.05";
 	param_map["samtools_path"] = "samtools";
+	param_map["minPacBioLength"] = "1000";
 
 
 	MPI_Comm_rank(MPI_COMM_WORLD,&myid);
@@ -318,6 +320,7 @@ int main(int argc, char ** argv){
 		allFileName = param_map["allFileName"];
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
+		minPacBioLength = stoi(param_map["minPacBioLength"]);
 
 		/* If no specific PacBio read(s) is requested from command line, 
 		 * Use samtools to get the header lines, and then get the names of all PacBio names */
@@ -363,7 +366,7 @@ int main(int argc, char ** argv){
 			if (PacBioNames.size() == 1)
 			{
 				metalrec(bamFiles, PacBioNames.at(0), 65000, allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, subRate, maxErrorRate);
+						indelRate, subRate, maxErrorRate, minPacBioLength);
 
 			}
 			if(num_proc > 1)        /* If there is more than 1 mpi processes */
@@ -377,7 +380,7 @@ int main(int argc, char ** argv){
 					FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 					string prefixName = Utils::intToString(j);
 					metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j),prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-							indelRate, subRate, maxErrorRate);
+							indelRate, subRate, maxErrorRate, minPacBioLength);
 				}
 
 				cout << " Done!"<< Utils::currentDateTime() << endl;
@@ -389,7 +392,7 @@ int main(int argc, char ** argv){
 		else
 		{
 			SlaveProcess(bamFiles, PacBioNames, PacBioLengths, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate);
+					indelRate, subRate, maxErrorRate, minPacBioLength);
 		}
 
 		if( myid == 0 )
