@@ -11,8 +11,10 @@
     - The program was tested on Linux and MacOS with GNU compiler.
     - samtools is required
     - BLASR is required for the mpi-wrapper of BLASR
+- To compile serial version of MetaLREC only:
+	type `make`
 - To compile MPI version of MetaLREC only:
-	type `make -f Make_mpi`
+	type `make mpi`
 - To compile MPI wrapper for BLASR:
 	type `make -f Make_align`
 - Change your compiler in the corresponding makefiles as needed.
