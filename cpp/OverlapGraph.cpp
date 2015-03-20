@@ -6,8 +6,6 @@
  */
 
 #include "OverlapGraph.h"
-#include "CS2/cs2.h"
-
 
 /**************************************************
  * Function to compare two edges. Used for sorting.
@@ -259,7 +257,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 //			getEdges(contigEdges);
 //			printGraph(prefix+".comp.gdl",contigEdges);
 
-			counter += removeDeadEndNodes();
+//			counter += removeDeadEndNodes();
 //			getEdges(contigEdges);
 //			printGraph(prefix+".dead.gdl",contigEdges);
 
@@ -1498,156 +1496,6 @@ UINT64 OverlapGraph::popBubbles(void)
 	CLOCKSTOP;
 	return listOfEdgesToRemove.size();
 }
-
-
-/**********************************************************************************************************************
-  This function calculates the cost and bounds for an edge in the overlap graph.
-  This function is very sensitive to the assembled contigs.
- **********************************************************************************************************************/
-bool OverlapGraph::calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST)
-{
-	FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = -50;
-	for(UINT64 i = 1; i < 3; i++)		// For the simple edges we put very high cost
-	{
-		FLOWLB[i] = 0; FLOWUB[i] = 0; COST[i] = 50;
-//		FLOWLB[i] = 0; FLOWUB[i] = 1; COST[i] = 50000;
-//		FLOWLB[i] = 0; FLOWUB[i] = 10; COST[i] = 500000;
-	}
-
-	if(!edge->getListOfReads()->empty()) // Composite Edge
-	{
-		if(edge->getListOfReads()->size() > 0 ) // Composite Edge of at least 20 reads, or with length at least 1000. Must have at least one unit of flow.
-		{
-			FLOWLB[0] = 1; FLOWUB[0] = 1; COST[0] = 0-(edge->getListOfReads()->size())*10;
-			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
-			FLOWLB[2] = 0; FLOWUB[2] = 8; COST[2] = 100000;
-		}
-		else // Short composite edge containing less than 20 reads or with overlap offset less than 1000. May have zero flow.
-		{
-			FLOWLB[0] = 0; FLOWUB[0] = 1; COST[0] = 1;
-			FLOWLB[1] = 0; FLOWUB[1] = 1; COST[1] = 50000;
-			FLOWLB[2] = 0; FLOWUB[2] = 8; COST[2] = 100000;
-		}
-	}
-
-	return true;
-}
-
-
-/********************************
- * Calculate minimum cost flow
- ********************************/
-bool OverlapGraph::calculateFlow(void)
-{
-	CLOCKSTART;
-	// Add super source and super sink nodes, add edge from super sink to super source with very big cost
-	// Add edge from super source to every node in the graph, also from every node in the graph to the super sink
-	// Every edge will be assigned a lower bound and an upper bound of the flow (capacity), and the cost associated with the edge
-	// NEW CHANGES:
-	// Now change the initial flow so that super source only connects to the source nodes (no in-edges only out-edges), and
-	// only sink nodes connect to the super sink. This way the simple edges that are not really needed but that will make the paths longer will be kept.
-	//
-	UINT64 V = numberOfNodes + 2, E = numberOfEdges * 3 + numberOfNodes * 2 + 1 , SUPERSOURCE = 1, SUPERSINK = V;
-	INT64 FLOWLB[3], FLOWUB[3], COST[3];			// Flow bounds and cost of the edges, cost function originally is a piecewise function with 3 segments
-	stringstream ss;
-	ss << "p min " << setw(10) << V << " " << setw(10) << E << endl;  	// Problem description: Number of nodes and edges in the graph.
-	ss << "n " << setw(10) << SUPERSOURCE << setw(10) << " 0" << endl;	// Flow in the super source
-	ss << "n " << setw(10) << SUPERSINK << setw(10) << " 0" << endl;	// Flow in the super sink.
-
-	// Flow lower bound and upper bound, and the cost for the first segment in the piecewise cost function 
-	FLOWLB[0] = 1; FLOWUB[0] = 1000000; COST[0] = 1000000;
-	ss << "a " << setw(10) << SUPERSINK << " " << setw(10) << SUPERSOURCE << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl; // Add an edge from super sink to super source with very high cost (almost infinity), also at most can be used once
-
-
-	// If the ID of a node in the original graph is 100 and directed graph is 5
-	// Then listOfNodes->at(100) is equal to 5
-	// and ListOfNodesReverse->at(5) is equal to 100.
-	vector<UINT64> *listOfNodes = new vector<UINT64>;
-	vector<UINT64> *listOfNodesReverse = new vector<UINT64>;
-
-	for(UINT64 i = 0; i <= graph->size(); i++)		// For n nodes in the graph, CS2 requires that the nodes are numbered from 1 to n. In the overlap graph, the nodes does not have sequencinal ID. We need to convert them to 1 - n
-	{
-		listOfNodes->push_back(0);
-		listOfNodesReverse->push_back(0);
-	}
-
-	// This loop set lower bound and upper bound from super source to each node, and from each node to super sink. All costs are 0.
-	UINT64 currentIndex = 1;
-	for(UINT64 i = 1; i < graph->size(); i++)
-	{
-		if( (dataSet->getReadFromID(i)->superReadID==0) && ((dataSet->getReadFromID(i)->numInEdges + dataSet->getReadFromID(i)->numOutEdges) != 0) ) // edges to and from the super source and super sink
-		{
-			FILE_LOG(logDEBUG4) << "Found node " << i << " corresponding to index " << currentIndex;
-			listOfNodes->at(i) = currentIndex;					// Mapping between original node ID and cs2 node ID
-			listOfNodesReverse->at(currentIndex) = i;			// Mapping between original node ID and cs2 node ID
-			FLOWLB[0] = 0; FLOWUB[0] = 1000000; COST[0] = 0;
-			ss << "a " << setw(10) << SUPERSOURCE << " " << setw(10) << currentIndex + 1 << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
-			ss << "a " << setw(10) << currentIndex + 1 << " " << setw(10) << SUPERSINK << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
-			currentIndex++;
-		}
-	}
-
-	// This loop converts each of the original edges to 3 edges
-	// This loop set the lower and upper bounds of the flow in each edge, and the cost
-	UINT64 maxNumOfReads = 0;
-	for(UINT64 i = 1; i < graph->size(); i++)
-	{
-		if((!graph->at(i)->empty()) && (dataSet->getReadFromID(i)->superReadID==0)) // edges to and from the super source and super sink
-		{
-			for(UINT64 j = 0; j < graph->at(i)->size(); j++)
-			{
-				Edge *edge = graph->at(i)->at(j);
-				if (edge->getListOfReads()->size() > maxNumOfReads)
-					maxNumOfReads = edge->getListOfReads()->size();
-				UINT64 u = listOfNodes->at(edge->getSourceRead()->getID());	// Node number of source read in the new graph
-				UINT64 v = listOfNodes->at(edge->getDestinationRead()->getID());	// Node number of destination read in the new graph
-
-				calculateBoundAndCost(edge, FLOWLB, FLOWUB, COST);	// Calculate bounds and cost depending on the edge property (number of reads in edge, or string length)
-
-				// Here for each edge we add three edges with different values of cost and bounds, 3 pieces in the piecewise function
-				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[0] << " " << setw(10) << FLOWUB[0] << " " << setw(10) << COST[0] << endl;
-				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[1] << " " << setw(10) << FLOWUB[1] << " " << setw(10) << COST[1] << endl;
-				ss << "a " << setw(10) << u + 1 << " " << setw(10) << v + 1 << " " << setw(10) << FLOWLB[2] << " " << setw(10) << FLOWUB[2] << " " << setw(10) << COST[2] << endl;
-			}
-		}
-	}
-
-	FILE_LOG(logINFO) << "maximum number of reads contained in the composite edges is: " << maxNumOfReads;
-
-	stringstream oss;                       /* stringstream to catch the output */
-	FILE_LOG(logINFO) << "Calling CS2 for flow analysis on " << dataSet->getPacBioReadName();
-	main_cs2(&ss, oss);			// Call CS2
-	FILE_LOG(logINFO) << "Flow analysis finished";
-
-
-	string s, d, f;
-	UINT64 lineNum = 0;
-	while(!oss.eof())
-	{
-		lineNum ++;
-		UINT64 source, destination, flow;
-		oss >> source >> destination >> flow;		// get the flow from CS2
-
-		if(source != SUPERSINK && source != SUPERSOURCE && destination != SUPERSOURCE && destination != SUPERSINK && flow!=0)
-		{
-			UINT64 mySource = listOfNodesReverse->at(source-1);				// Map the source to the original graph
-			UINT64 myDestination = listOfNodesReverse->at(destination-1);	// Map the destination in the original graph
-			Edge *edge = findEdge(mySource, myDestination);	// Find the edge in the original graph.
-			edge->flow += flow;												// Add the flow in the original graph.
-			FILE_LOG(logDEBUG2) << "Edge from " << mySource << " to " << myDestination << " has flow " << edge->flow;
-		}
-		else if (source == SUPERSINK && destination == SUPERSOURCE)
-		{
-			FILE_LOG(logINFO) << "Flow from super sink to super source is " << flow;
-		}
-	}
-	delete listOfNodes;
-	delete listOfNodesReverse;
-	this->flowComputed = true;
-	CLOCKSTOP;
-	return true;
-}
-
 
 /**********************************************************************************************************************
   return edge between source and destination

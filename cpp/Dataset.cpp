@@ -12,6 +12,7 @@
 /**********************************************************************************************************************
  * Function to compare two reads by their start mapping coordinate. Used for sorting.
  * If two reads have same start mapping coordinate, sort by their lengths (i.e. by their ending coordinates).
+ * i.e. longer read will be placed before the shorter read when they have the same starting coordinates.
  **********************************************************************************************************************/
 bool compareReads (Read *read1, Read *read2)
 {
@@ -35,6 +36,11 @@ Dataset::Dataset(void)
 	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
 	longestReadLength = 0X0000000000000000;
 	PacBioReadName = "";
+	PacBioReadLength = 0;
+	subRate = 0.01;
+	indelRate = 0.15;
+	insRate = 0.10;
+	delRate = 0.05;
 	reads = new vector<Read *>;
 }
 
@@ -52,6 +58,11 @@ Dataset::Dataset(const Dataset & D)
 	shortestReadLength = D.shortestReadLength;
 	longestReadLength = D.longestReadLength;
 	PacBioReadName = D.PacBioReadName;
+	PacBioReadLength = D.PacBioReadLength;
+	subRate = D.subRate;
+	indelRate = D.indelRate;
+	insRate = D.insRate;
+	delRate = D.delRate;
 	reads = new vector<Read *>;
 	reads->resize((D.reads)->size());
 	for(size_t k = 0; k < reads->size(); k++){
@@ -75,6 +86,11 @@ Dataset & Dataset::operator= (const Dataset & D)
 	shortestReadLength = D.shortestReadLength;
 	longestReadLength = D.longestReadLength;
 	PacBioReadName = D.PacBioReadName;
+	PacBioReadLength = D.PacBioReadLength;
+	subRate = D.subRate;
+	indelRate = D.indelRate;
+	insRate = D.insRate;
+	delRate = D.delRate;
 
 	delete this->reads;
 	reads = new vector<Read *>;
@@ -90,7 +106,7 @@ Dataset & Dataset::operator= (const Dataset & D)
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -101,7 +117,10 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 	longestReadLength = 0X0000000000000000;
 	reads = new vector<Read *>;
 	minimumOverlapLength = minOverlap;
-	//PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
+	indelRate = indel_rate;
+	subRate = sub_rate;
+	insRate = ins_rate;
+	delRate = del_rate;
 
 	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
@@ -124,7 +143,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 				{
 					size_t LNPos = line.find("LN:");
 					size_t nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
+					PacBioReadLength = stoi(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
 					LNPos = line.find("SN:");
 					nextTabPos = line.find("\t", LNPos+3);
 					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
@@ -137,7 +156,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 				{
 					Read *r = new Read(line);
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -152,7 +171,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
+						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -175,7 +194,7 @@ Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & i
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_rate, const float & sub_rate)
+Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -188,17 +207,14 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 	minimumOverlapLength = minOverlap;
 	indelRate = indel_rate;
 	subRate = sub_rate;
+	insRate = ins_rate;
+	delRate = del_rate;
 	PacBioReadName = "";
-	//PacBioReadName = Utils::getFilename(inputSamFile);	// Name of the PacBio read (same as the sam file name)
 
 	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
 	string line = "";
 	char buffer[BUFFER_SIZE];
-//	long streamSize;
-//	fseek(inputSamStream, 0, SEEK_SET);
-//	streamSize = ftell(inputSamStream);
-//	FILE_LOG(logDEBUG) << "Stream size is: " << streamSize;
 	while(1)
 	{
 		if(fgets(buffer, BUFFER_SIZE, inputSamStream)==NULL)
@@ -235,7 +251,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 					if ( PacBioReadName.length() == 0 )
 						PacBioReadName = r->getRefName();
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -250,7 +266,7 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
+						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -269,18 +285,20 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 	CLOCKSTOP;
 }
 
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  AddDataset
+ *  Description:  Add more aligned reads to this LR from another input stream
+ * =====================================================================================
+ */
 bool Dataset::AddDataset(FILE * inputSamStream)
 {
 	CLOCKSTART;
-
 	UINT64 goodReads = 0, badReads = 0;
 	/** get reads from sam file **/
 	string line = "";
 	char buffer[BUFFER_SIZE];
-//	long streamSize;
-//	fseek(inputSamStream, 0, SEEK_SET);
-//	streamSize = ftell(inputSamStream);
-//	FILE_LOG(logDEBUG) << "Stream size is: " << streamSize;
 	while(1)
 	{
 		if(fgets(buffer, BUFFER_SIZE, inputSamStream)==NULL)
@@ -317,7 +335,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					if ( PacBioReadName.length() == 0 )
 						PacBioReadName = r->getRefName();
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -333,7 +351,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate, subRate, PacBioReadLength)))
+						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -373,9 +391,10 @@ Dataset::~Dataset(void)
 	for(UINT64 i = 0; i < reads->size(); i++)
 	{
 		delete reads->at(i);
+		reads->at(i) = NULL;
 	}
 	delete reads;
-
+	reads = NULL;
 }
 
 /****************************************************
@@ -402,7 +421,7 @@ bool Dataset::removeDupicateReads(void)
 		numberOfUniqueReads = 0;
 	else
 	{
-		for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads in the top of the sorted list. Store the frequency of the duplicated reads.
+		for(UINT64 i = 0; i < reads->size(); i++)	// Move the unique reads to the top of the sorted list. Store the frequency of the duplicated reads.
 		{
 			if(reads->at(j)->getStartCoord()!= reads->at(i)->getStartCoord() \
 					|| reads->at(j)->getDnaStringForward() != reads->at(i)->getDnaStringForward())	// Two reads have different start mapping coordinates, or different strings
@@ -431,55 +450,80 @@ bool Dataset::removeDupicateReads(void)
 }
 
 /**********************************************************************************************************************
-  Returns true if the read contains only {A,C,G,T} and does not contain more than 80% of the same nucleotide
+  Returns true if the read is longer than the overlap offset and contains only {A,C,G,T} 
  **********************************************************************************************************************/
 bool Dataset::testRead(const string & readDnaString)
 {
-
-	UINT64 cnt[4] = {0,0,0,0};
-	size_t readLength = readDnaString.length();
-	if ( readLength < minimumOverlapLength)
+	if ( readDnaString.length() < minimumOverlapLength)
 	{
 		FILE_LOG(logDEBUG3) << "Read's length is smaller than the minimumOverlapLength " << readDnaString;
 		return false;
 	}
-	for(UINT64 i = 0; i < readLength; i++) // Count the number of A's, C's , G's and T's in the string.
-	{
-		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
-		{
-			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
-			return false;
-		}
-		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
+	/* make sure there is no characters other than ACGT */
+	if(readDnaString.find_first_not_of("ACGT") != string::npos){
+		FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
+		return false;
 	}
-	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
-	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
-	{
-		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
-		return false;	// If 80% bases are the same base.
-	}
+	/* We do not check the composition of the read any more, since this might not be what the user wants */
+/* 	for(UINT64 i = 0; i < readLength; i++) // Count the number of A's, C's , G's and T's in the string.
+ * 	{
+ * 		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
+ * 		{
+ * 			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
+ * 			return false;
+ * 		}
+ * 		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
+ * 	}
+ * 	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
+ * 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
+ * 	{
+ * 		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
+ * 		return false;	// If 80% bases are the same base.
+ * 	}
+ */
 	return true;
 }
 
 /**********************************************************************************************************************
   Search a read in the dataset using binary search
  **********************************************************************************************************************/
-Read * Dataset::getReadFromCoord(const INT32 & coord)	// Find a read in the database given the start mapping coord. Uses binary search in the list of reads.
+vector<Read *> Dataset::getReadsFromCoord(const INT32 & coord)	// Find a read in the database given the start mapping coord. Uses binary search in the list of reads.
 {
-	UINT64 min = 0, max = getNumberOfUniqueReads()-1;
+	vector<Read *> readsFound;
+	UINT64 min = 0, max = getNumberOfUniqueReads()-1, mid, midLast;
 	int comparator;
 	while (max >= min) 	// At first search for the forward string.
 	{
-		UINT64 mid = (min + max) / 2; 	// Determine which subarray to search.
+		mid = (min + max) / 2; 	// Determine which subarray to search.
 		comparator = reads->at(mid)->getStartCoord() - coord;
 		if(comparator == 0)
-			return reads->at(mid);
+			break;                  /* Found a read with the specified starting coordinate */
 		else if (comparator < 0) 	// Change min index to search upper subarray.
 			min = mid + 1;
 		else if (comparator > 0) 	// Change max index to search lower subarray.
 			max = mid - 1;
 	}
-	MYEXIT( "No reads were found in Dataset starting at coordinate: " + Utils::intToString(coord));
+	if (comparator == 0)
+	{
+		midLast = mid;
+		while (mid > 0){
+			if(reads->at(mid-1)->getStartCoord() == coord)
+				mid--;
+			else
+				break;
+		}
+		while (midLast < getNumberOfUniqueReads()-1){
+			if(reads->at(midLast+1)->getStartCoord() == coord)
+				midLast++;
+			else
+				break;
+		}
+		for(UINT64 i = mid; i <= midLast; i++)
+		{
+			readsFound.push_back(reads->at(i));
+		}
+	}
+	return readsFound;
 }
 
 /**********************************************************************************************************************
@@ -516,6 +560,9 @@ void Dataset::saveReads(string fileName)
 				<< " # Start coord: " << read1->getStartCoord() \
 				<< " # End coord: " << read1->getEndCoord() \
 				<< " # Length: " << read1->getReadLength() \
+				<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
+				<< " # Ins: " << read1->getNumOfInsertionsInRead() \
+				<< " # Del: " << read1->getNumOfDeletionsInRead() \
 				<< " # Contained in "  << read1->superReadID \
 				<< "\n" << read1->getDnaStringForward() << endl;
 		}
@@ -525,6 +572,9 @@ void Dataset::saveReads(string fileName)
 				<< " # Start coord: " << read1->getStartCoord() \
 				<< " # End coord: " << read1->getEndCoord() \
 				<< " # Length: " << read1->getReadLength() \
+				<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
+				<< " # Ins: " << read1->getNumOfInsertionsInRead() \
+				<< " # Del: " << read1->getNumOfDeletionsInRead() \
 				<< " # Noncontained, contains: ";
 			for(size_t i = 0; i < read1->getContainedReadIDs()->size(); i++)
 				outputFile << read1->getContainedReadIDs()->at(i) << ", ";
@@ -632,6 +682,5 @@ double Dataset::getSubsOnEdge(Edge *e)
 		Read *r = getReadFromID(e->getListOfReads()->at(e->getListOfReads()->size()-1));
 		substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * lastOverlap)/(double)r->getAlignedLength();
 	}
-//	substitutionsInEdge += (double)(e->getDestinationRead()->getNumOfSubstitutionsInRead());
 	return substitutionsInEdge;
 }

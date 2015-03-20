@@ -1,5 +1,5 @@
 #include <mpi.h>
-#include "metalrec.h"
+#include "ec.h"
 int loglevel;                                   /* level of log information(verbosity) */
 
 /********************************************************
@@ -213,7 +213,7 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & subRate, const float & maxErrorRate, const UINT16 & minPacBioLength)
+		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 & minPacBioLength)
 {
 	MPI_Status status;
 	int currentWorkID, myid;
@@ -242,8 +242,8 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		string refName = PacBioNames[currentWorkID];
 		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
-		metalrec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-				indelRate, subRate, maxErrorRate, minPacBioLength);
+		ec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+				indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -264,7 +264,7 @@ int main(int argc, char ** argv){
 	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
-	float indelRate, subRate, maxErrorRate;
+	float indelRate, insRate, delRate, subRate, maxErrorRate;
 	double start_time, finish_time;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 
@@ -276,6 +276,8 @@ int main(int argc, char ** argv){
 	param_map["maxErrorRate"] = "0.0";
 	param_map["rubberPos"] ="10";
 	param_map["indelRate"] = "0.25"; 
+	param_map["insRate"] = "0.15"; 
+	param_map["delRate"] = "0.10"; 
 	param_map["subRate"] = "0.05";
 	param_map["samtools_path"] = "samtools";
 	param_map["minPacBioLength"] = "1000";
@@ -315,6 +317,8 @@ int main(int argc, char ** argv){
 		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
 		rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
 		indelRate = stof(param_map["indelRate"]);
+		insRate = stof(param_map["insRate"]);
+		delRate = stof(param_map["delRate"]);
 		maxErrorRate = stof(param_map["maxErrorRate"]);
 		subRate = stof(param_map["subRate"]);
 		allFileName = param_map["allFileName"];
@@ -358,6 +362,8 @@ int main(int argc, char ** argv){
 			cout << "maxError: " << maxError << endl;
 			cout << "max error rate : " << maxErrorRate << endl;
 			cout << "indel rate: " << indelRate << endl;
+			cout << "insertion rate: " << insRate;
+			cout << "deletion rate: " << delRate;
 			cout << "substitution rate: " << subRate << endl;
 			cout << "============================================================================" << endl;
 			cout << "Beginning Error Correction" << Utils::currentDateTime() << endl;
@@ -365,8 +371,8 @@ int main(int argc, char ** argv){
 			start_time = MPI_Wtime();
 			if (PacBioNames.size() == 1)
 			{
-				metalrec(bamFiles, PacBioNames.at(0), 65000, allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, subRate, maxErrorRate, minPacBioLength);
+				ec(bamFiles, PacBioNames.at(0), 65000, allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+						indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 
 			}
 			if(num_proc > 1)        /* If there is more than 1 mpi processes */
@@ -379,8 +385,8 @@ int main(int argc, char ** argv){
 				{
 					FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 					string prefixName = Utils::intToString(j);
-					metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j),prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-							indelRate, subRate, maxErrorRate, minPacBioLength);
+					ec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j),prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+							indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 				}
 
 				cout << " Done!"<< Utils::currentDateTime() << endl;
@@ -392,7 +398,7 @@ int main(int argc, char ** argv){
 		else
 		{
 			SlaveProcess(bamFiles, PacBioNames, PacBioLengths, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate, minPacBioLength);
+					indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 		}
 
 		if( myid == 0 )

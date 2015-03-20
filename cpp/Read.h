@@ -63,15 +63,17 @@ class Read
 		UINT16 numInEdges;	// Number of edges going into the read
 		UINT16 numOutEdges;	// Number of edges going out of the read
 
-		bool isReadGood(const float & indelRate, const float & subRate, const UINT16 & PacBioReadLength); /* Test if read is good enough */
+		bool isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength); /* Test if read is good enough */
 		/* mutators */
 		bool setRead(const string & s); 		// Set the read from alignment record string, (with generic string parsing)
-		bool setReadID(UINT64 id); 			// Set the read ID.
+		bool setReadID(UINT64 id){ID = id; return true;} 			// Set the read ID.
 		bool setFrequency(UINT32 freq);	// Set the ferquency of the read.
 		bool setStartCoord(INT32 start_coord){startCoord = start_coord; return true;}	// Set the starting coordinate
 
 		/* accessors */
 		UINT64 getNumOfSubstitutionsInRead();
+		UINT64 getNumOfInsertionsInRead(void){return numOfInsertions;}
+		UINT64 getNumOfDeletionsInRead(void){return numOfDeletions;}
 		bool isContainedRead(void){return (superReadID == 0 ? false : true);};	// Whether the read is contained in another read
 		string getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
 		string getReadName(void){return readName;}	// Get the name of the current read.

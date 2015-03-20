@@ -15,14 +15,25 @@ Read::Read(void)
 {
 	// Initialize the variables.
 	ID = 0;
+	readName = "";
+	readDnaString = "";
+	cigarString = "";
 	frequency = 0;
-	superReadID = 0;
-	numInEdges = 0;
-	numOutEdges = 0;
+	rStart = 0;
+	leftClip = 0;
+	rightClip = 0;
+	mapQV = 0;
 	numOfInsertions = 0;
 	numOfDeletions = 0;
 	numOfMatchMismatches = 0;
 	editDistance = 0;
+	isReverseComplement = false;
+	alignScore = 0;
+	startCoord = 0;
+	refName = "";
+	superReadID = 0;
+	numInEdges = 0;
+	numOutEdges = 0;
 
 	listOfEdgesForward = new vector<Edge *>;
 	listOfEdgesForward->resize(listOfEdgesForward->size());			// Resize to 0 to reduce space.
@@ -38,7 +49,6 @@ Read::Read(void)
 	overlapReadOffsets = new vector<UINT64>;
 	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 }
-
 
 
 /* 
@@ -222,16 +232,6 @@ Read::Read(const string & s)
 **********************************************************************************************************************/
 Read::~Read(void)
 {
-// delete all the pointers.
-//	if (listOfEdgesForward != NULL)
-//	{
-//		for(size_t k = 0; k < listOfEdgesForward->size(); k++){
-//			if (listOfEdgesForward->at(k) != NULL)
-//				delete listOfEdgesForward->at(k);
-//		}
-//		delete listOfEdgesForward;
-//	}
-
 	delete listOfEdgesForward;
 	delete locationOnEdgesForward;
 	delete containedReadIDs;
@@ -330,9 +330,12 @@ bool Read::setEdits(const string & s)
  * ===  FUNCTION  ======================================================================
  *         Name:  isReadGood
  *  Description:  Test and see if read is good (whether it should be mapped to this PacBio read)
+ *  		1. clipped length should be less than half of the whole read
+ *  		2. whole read should be contained in the LR
+ *  		3. sub, ins, del errors should be within the thresholds
  * =====================================================================================
  */
-bool Read::isReadGood(const float & indelRate, const float & subRate, const UINT16 & PacBioReadLength)
+bool Read::isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength)
 {
 	UINT64 numOfSubstitions = getNumOfSubstitutionsInRead();
 	UINT64 readLength = readDnaString.length();
@@ -341,23 +344,18 @@ bool Read::isReadGood(const float & indelRate, const float & subRate, const UINT
 	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << leftClip + rightClip << " clipped bases in " << readLength << " bps";
 	if (float(leftClip + rightClip) > readLength * 0.5)
-	{
 		return false;
-	}
 	if (getStartCoord() < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
-	{
 		return false;
-	}
 	if (numOfSubstitions >  mappedLength * subRate) /* too many substitution errors */
-	{
 		return false;
-	}
-	else if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
-	{
+	if ( numOfInsertions  > mappedLength * insRate) /* too many insertion erros */
 		return false;
-	}
-	else
-		return true;
+	if ( numOfDeletions  > mappedLength * delRate) /* too many deletion erros */
+		return false;
+	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
+		return false;
+	return true;
 }
 
 /**********************************************************************************************************************
@@ -394,14 +392,6 @@ bool Read::setClip(const string & cigarString)
 	return true;
 }
 
-/**********************************************************************************************************************
-	This function assigns an ID to the read.
-**********************************************************************************************************************/
-bool Read::setReadID(UINT64 id)
-{
-	ID = id;	// Set the read number.
-	return true;
-}
 
 /**********************************************************************************************************************
 	This function sets the frequency of the read.
@@ -413,7 +403,6 @@ bool Read::setFrequency(UINT32 freq)
 	frequency = freq;	// Set the frequency of the read.
 	return true;
 }
-
 
 UINT64 Read::getNumOfSubstitutionsInRead()
 {
@@ -438,6 +427,7 @@ INT32 Read::getEndCoordInLR(void)
 {
 	return ( startCoord + readDnaString.length() - rightClip) ; // 0-based, position after the last bp of the read, in the long read
 }
+
 /**********************************************************************************************************************
 	Return the value for a certain required tag from the align record
 **********************************************************************************************************************/
@@ -459,7 +449,6 @@ INT32 Read::getTag(const string & tagName, const string & alignRecord)
 	}
 
 }
-
 
 /* 
  * ===  FUNCTION  ======================================================================

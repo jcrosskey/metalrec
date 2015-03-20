@@ -1,4 +1,4 @@
-#include "metalrec.h"
+#include "ec.h"
 int loglevel;                                   /* level of log information(verbosity) */
 
 /********************************************************
@@ -166,7 +166,7 @@ int main(int argc, char ** argv){
 	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
-	float indelRate, subRate, maxErrorRate;
+	float indelRate, insRate, delRate, subRate, maxErrorRate;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 
 	/* Set default values */
@@ -177,6 +177,8 @@ int main(int argc, char ** argv){
 	param_map["maxErrorRate"] = "0.0";
 	param_map["rubberPos"] ="10";
 	param_map["indelRate"] = "0.25"; 
+	param_map["insRate"] = "0.15"; 
+	param_map["delRate"] = "0.10"; 
 	param_map["subRate"] = "0.05";
 	param_map["samtools_path"] = "samtools";
 	param_map["minPacBioLength"] = "1000";
@@ -211,6 +213,8 @@ int main(int argc, char ** argv){
 		maxError = (UINT32) Utils::stringToUnsignedInt(param_map["maxError"]);
 		rubberPos = (UINT32) Utils::stringToUnsignedInt(param_map["rubberPos"]);
 		indelRate = stof(param_map["indelRate"]);
+		insRate = stof(param_map["insRate"]);
+		delRate = stof(param_map["delRate"]);
 		maxErrorRate = stof(param_map["maxErrorRate"]);
 		subRate = stof(param_map["subRate"]);
 		allFileName = param_map["allFileName"];
@@ -258,6 +262,8 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "maxError: " << maxError;
 		FILE_LOG(logINFO) << "max error rate : " << maxErrorRate;
 		FILE_LOG(logINFO) << "indel rate: " << indelRate;
+		FILE_LOG(logINFO) << "insertion rate: " << insRate;
+		FILE_LOG(logINFO) << "deletion rate: " << delRate;
 		FILE_LOG(logINFO) << "substitution rate: " << subRate;
 		FILE_LOG(logINFO) << "============================================================================";
 		FILE_LOG(logINFO) << "Beginning Error Correction";
@@ -265,16 +271,16 @@ int main(int argc, char ** argv){
 		if (PacBioNames.size() == 1)    /* When there is only 1 PacBio read to correct, use the specified prefix name */
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
-			metalrec(bamFiles, PacBioNames.at(0), PacBioLengths.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, subRate, maxErrorRate,minPacBioLength);
+			ec(bamFiles, PacBioNames.at(0), PacBioLengths.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+					indelRate, insRate, delRate, subRate, maxErrorRate,minPacBioLength);
 		}
 		else{
 			for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
 			{
 				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 				string prefixName = Utils::intToString(j);
-				metalrec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, subRate, maxErrorRate,minPacBioLength);
+				ec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+						indelRate, insRate, delRate, subRate, maxErrorRate,minPacBioLength);
 			}
 		}
 
