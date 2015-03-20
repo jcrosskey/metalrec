@@ -1934,7 +1934,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	UINT64 nodeWithLongestPath;
 	/* Initialization of the vectors */
 	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i ++){
-		lengthUntilNodes->push_back(-1000000);
+		lengthUntilNodes->push_back(0); /* Every node has starting weight of 0, so that any can be the start or end of a path */
 		vector<UINT64> *longestPathAtnode = new vector<UINT64>;
 		longestPathsUntilNodes->push_back(longestPathAtnode);
 		calculated->push_back(false);
