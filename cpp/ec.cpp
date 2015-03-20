@@ -1,39 +1,30 @@
-#include <stdexcept> // for standard exceptions out_or_range
-#include "Utils.h"
-/*** utility functions ***/
-#include "Common.h"
-/*** Read class ***/
-#include "Read.h"
-/*** Dataset class ***/
-#include "Dataset.h"
-/*** Edge class ***/
-#include "Edge.h"
-/*** HashTable class ***/
-#include "HashTable.h"
-/*** OverlapGraph class ***/
-#include "OverlapGraph.h"
-/* check file existence and permissions */
-#include <unistd.h>
-
-/********************************************************
- * metalrec.h
-
- * metalrec that correct 1 PacBio read from a number of bam files.
- * Input file is BAM file(s) with Illumina reads aligned to PacBio reads.
- * samtools is required
+/*
+ * =====================================================================================
  *
- * Created by JJ Chai  Thu Sep 18 09:35:28 EDT 2014. Last modified Feb 09, 2015. 
- * Copyright (c) 2014 JJ Chai (ORNL). Allrights reserved.
+ *       Filename:  ec.cpp
+ *
+ *    Description:  ec corrects 1 PacBio read from a number of bam files.  
+ *    Input file is BAM file(s) with Illumina reads aligned to PacBio reads.  
+ *    samtools is required
+ *
+ *        Version:  1.0
+ *        Created:  03/20/2015 13:04:47
+ *       Revision:  none
+ *       Compiler:  gcc
+ *
+ *         Author:  JJ Chai (jjchai), jjchai01@gmail.com
+ *   Organization:  ORNL
+ *
+ * =====================================================================================
+ */
 
- ********************************************************/
-
-// error correction job
-void metalrec(const vector<string> & bamFiles, const string & PacBioName,  
+#include "ec.h"
+void ec(const vector<string> & bamFiles, const string & PacBioName,  
 		const UINT16 & PacBioLength, const string & allFileName,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength)
+		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength)
 {
 	CLOCKSTART;
 	if(PacBioName.length() > 0)
@@ -49,6 +40,8 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName,
 			/* Initiate Dataset object, and set the indel and substitution rates allowed in the alignment */
 			Dataset * dataSet = new Dataset();
 			dataSet->setIndelRate(indelRate);
+			dataSet->setInsRate(insRate);
+			dataSet->setDelRate(delRate);
 			dataSet->setSubRate(subRate);
 			dataSet->setLRLength(PacBioLength);
 
@@ -79,6 +72,10 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName,
 			}
 			dataSet->finalize();
 			dataSet->setPacBioReadName(PacBioName);
+			if(loglevel > 3)
+			{
+				dataSet->saveReads(outDir + "/" + allFileName + ".reads");
+			}
 			FILE_LOG(logINFO) << "Average coverage depth is: " << dataSet->getAvgCoverage();
 
 			if (dataSet->getNumberOfReads() <= 1)
@@ -98,7 +95,7 @@ void metalrec(const vector<string> & bamFiles, const string & PacBioName,
 				HashTable *ht = new HashTable();
 				ht->insertDataset(dataSet, hashStringLength);
 				OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
-				if(loglevel > 4)
+				if(loglevel > 3)
 				{
 					vector<Edge *> contigEdges;
 					graph->getEdges(contigEdges);
