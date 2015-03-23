@@ -265,6 +265,7 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "insertion rate: " << insRate;
 		FILE_LOG(logINFO) << "deletion rate: " << delRate;
 		FILE_LOG(logINFO) << "substitution rate: " << subRate;
+		FILE_LOG(logINFO) << "rubber length for alignment buffer: " << rubberPos;
 		FILE_LOG(logINFO) << "============================================================================";
 		FILE_LOG(logINFO) << "Beginning Error Correction";
 
