@@ -464,23 +464,25 @@ bool Dataset::testRead(const string & readDnaString)
 		FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
 		return false;
 	}
-	/* We do not check the composition of the read any more, since this might not be what the user wants */
-/* 	for(UINT64 i = 0; i < readLength; i++) // Count the number of A's, C's , G's and T's in the string.
- * 	{
- * 		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
- * 		{
- * 			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
- * 			return false;
- * 		}
- * 		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
- * 	}
- * 	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
- * 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
- * 	{
- * 		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
- * 		return false;	// If 80% bases are the same base.
- * 	}
- */
+	/* We might not want to check the composition of the read any more, since this might not be what the user wants 
+	 * However, homopolymer run is more problematic than simply high composition of a single nucleotide.*/
+	UINT64 cnt[4] = {0,0,0,0};
+	for(UINT64 i = 0; i < readDnaString.length(); i++) // Count the number of A's, C's , G's and T's in the string.
+	{
+		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
+		{
+			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
+			return false;
+		}
+		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
+	}
+	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
+	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
+	{
+		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
+		return false;	// If 80% bases are the same base.
+	}
+
 	return true;
 }
 
