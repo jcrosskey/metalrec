@@ -98,7 +98,7 @@ OverlapGraph & OverlapGraph::operator= (const OverlapGraph & O)
 /**********************************************************************************************************************
   Another Constructor. Build the overlap grpah from the data_Set, and specified parameter values
  **********************************************************************************************************************/
-OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos)
+OverlapGraph::OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const UINT32 & rubber_pos)
 {
 	minimumOverlapLength = minOverlap;
 	maxError = max_Error;
@@ -248,6 +248,10 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	/* contracting composite edges, do not remove dead end nodes for now */
 	if (numberOfEdges > 0)
 	{
+		if (loglevel > 3){
+			getEdges(contigEdges);
+			printGraph("debug.gdl",contigEdges);
+		}
 		unsigned int iteration = 0;
 		do
 		{
@@ -1096,7 +1100,8 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 			for(UINT64 k = 0; k < listOfReads->size(); k++) // For each such reads.
 			{
 				UINT64 data = listOfReads->at(k);			// We used bit operations in the hash table. Most significant 2 bits store orientation and least significant 62 bits store read ID.
-				UINT16 overlapOffset;
+				UINT16 overlapOffset; 
+				UINT64 coordOffset;
 				UINT8 orientation;
 				Read *read2 = dataSet->getReadFromID(data & 0X3FFFFFFFFFFFFFFF); 	// Least significant 62 bits store the read number.
 				UINT64 readNumber2 = read2->getID();
@@ -1135,10 +1140,13 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read1 	---------MMMMMMMMMMMM
 					// read2		 MMMMMMMMMMMM-----------
 					if ( orientation == 0 && readNumber < readNumber2 ) {
-						if (abs(read2->getStartCoord() - read1->getStartCoord() - (INT32)j) < 2*rubberPos )
+						coordOffset = read2->getStartCoord() - read1->getStartCoord();
+						overlapOffset =  j;
+						/* make sure the distance between overlap offset and coordinate offset is smaller than 2*rubberpos */
+						if ((coordOffset + 2*rubberPos > overlapOffset) && (overlapOffset > ((coordOffset > 2*rubberPos)?(coordOffset - 2*rubberPos):(2*rubberPos-coordOffset))))
 						{
-							overlapOffset =  j;
 							insertEdge(read1, read2, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << "coord offset: " << coordOffset << "\t overlapOffset: " << overlapOffset;
 							FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << " ";
@@ -1149,10 +1157,12 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read2 	---------MMMMMMMMMMMM
 					else if ( orientation == 1 && readNumber > readNumber2)
 					{
-						if (abs(read1->getStartCoord() - read2->getStartCoord() - (INT32)j) < 2*rubberPos )
+						coordOffset = read1->getStartCoord() - read2->getStartCoord();
+						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+						if ((coordOffset + 2*rubberPos > overlapOffset) && (overlapOffset > ((coordOffset > 2*rubberPos)?(coordOffset - 2*rubberPos):(2*rubberPos-coordOffset))))
 						{
-							overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
 							insertEdge(read2, read1, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << "coord offset: " << coordOffset << "\t overlapOffset: " << overlapOffset;
 							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << " ";
@@ -1163,9 +1173,12 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read2 	          ---------MMMMMMMMMMMM
 					else if (orientation == 1 && readNumber < readNumber2)
 					{
-						if (abs(-read1->getStartCoord() + read2->getStartCoord() + (INT32)j) < 2*rubberPos )
+						coordOffset = read2->getStartCoord() - read1->getStartCoord();
+						overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+						if (2*rubberPos > coordOffset &&  2*rubberPos-coordOffset > overlapOffset)
 						{
-							overlapOffset = read2->getReadLength() - hashTable->getHashStringLength() - j;
+							insertEdge(read2, read1, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << "coord offset: " << coordOffset << "\t overlapOffset: " << overlapOffset;
 							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read1->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << read2->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << " ";
@@ -1176,9 +1189,12 @@ bool OverlapGraph::insertAllEdgesOfRead(UINT64 readNumber, vector<nodeType> * ex
 					// read2		 MMMMMMMMMMMM-----------
 					// readNumber > readNumber2 and orientation == 0
 					else {
-						if (abs(read1->getStartCoord() - read2->getStartCoord() + (INT32)j) < 2*rubberPos )
+						coordOffset = read1->getStartCoord() - read2->getStartCoord();
+						overlapOffset = j;
+						if (2*rubberPos > coordOffset &&  2*rubberPos-coordOffset > overlapOffset)
 						{
-							overlapOffset = j;
+							insertEdge(read1, read2, overlapOffset, numSub, listSubs);
+							FILE_LOG(logDEBUG4) << "coord offset: " << coordOffset << "\t overlapOffset: " << overlapOffset;
 							FILE_LOG(logDEBUG4) << read1->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << string(overlapOffset, '-') + read2->getDnaStringForward();
 							FILE_LOG(logDEBUG4) << " ";

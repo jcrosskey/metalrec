@@ -51,7 +51,7 @@ class OverlapGraph
 		UINT64 minimumOverlapLength;	// Length of the minimum overlap to consider two reads as overlapping
 		UINT32 maxError;	// maximum number of substitutions allowed in overlap between Illumina reads
 		float maxErrorRate;	// maximum error rate
-		INT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
+		UINT32 rubberPos;	// Number of base pairs allowed for the errors of the starting and ending coordinates.
 
 		UINT64 numberOfNodes;	// Number of nodes in the overlap graph.
 		UINT64 numberOfEdges;	// Number of edges in the overlap graph.
@@ -66,7 +66,7 @@ class OverlapGraph
 	public:
 		bool flowComputed;	// Flag to check wheather the flow is computed or not.
 		OverlapGraph(void);	// Default constructor.
-		OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const INT32 & rubber_pos);	// Another constructor, from dataSet including all the reads, with specified values for other parameters. Default values are also included
+		OverlapGraph(HashTable *ht, const UINT64 & minOverlap, const UINT32 & max_Error, const float & max_ErrorRate, const UINT32 & rubber_pos);	// Another constructor, from dataSet including all the reads, with specified values for other parameters. Default values are also included
 		~OverlapGraph();	// Destructor.
 		OverlapGraph(const OverlapGraph & O);
 		OverlapGraph & operator= (const OverlapGraph & O);
@@ -100,7 +100,7 @@ class OverlapGraph
 		UINT64 getNumberOfEdges(void){return numberOfEdges;}	// Get the number of edges in the overlap graph.
 		UINT64 getNumberOfNodes(void){return numberOfNodes;}	// Get the number of nodes in the overlap graph.
 		bool setDataset(Dataset *data_Set){dataSet=data_Set; return true;}	// Set the dataset pointer.
-		bool setRubberPos(const INT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
+		bool setRubberPos(const UINT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
 		Edge *findEdge(UINT64 source, UINT64 destination);	// Find an edge from source to destination in the overlap graph.
 		bool isEdgePresent(UINT64 source, UINT64 destination);	// Check if an edge is present in the overlap graph between source and destination.
 		UINT64 popBubbles(void);	//If there is more than 1 edges connecting a pair of same nodes, pick one if possible
