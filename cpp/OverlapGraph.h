@@ -55,6 +55,7 @@ class OverlapGraph
 
 		UINT64 numberOfNodes;	// Number of nodes in the overlap graph.
 		UINT64 numberOfEdges;	// Number of edges in the overlap graph.
+		UINT64 numberOfEdgesEverMade;	// Number of edges created, simple or composite, during the layout process
 
 		Dataset * dataSet; 	// Pointer to the dataset containing all the reads.
 		HashTable *hashTable;           /* pointer to the hash table */
@@ -101,7 +102,8 @@ class OverlapGraph
 		UINT64 getNumberOfNodes(void){return numberOfNodes;}	// Get the number of nodes in the overlap graph.
 		bool setDataset(Dataset *data_Set){dataSet=data_Set; return true;}	// Set the dataset pointer.
 		bool setRubberPos(const UINT32 rubber_pos){rubberPos = rubber_pos; return true;}	// Set the rubber base pairs.
-		Edge *findEdge(UINT64 source, UINT64 destination);	// Find an edge from source to destination in the overlap graph.
+		vector<Edge *> findEdge(UINT64 source, UINT64 destination);	// Find an edge from source to destination in the overlap graph.
+		Edge * findEdge(UINT64 source, UINT64 destination, UINT64 edgeID);
 		bool isEdgePresent(UINT64 source, UINT64 destination);	// Check if an edge is present in the overlap graph between source and destination.
 		UINT64 popBubbles(void);	//If there is more than 1 edges connecting a pair of same nodes, pick one if possible
 		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.

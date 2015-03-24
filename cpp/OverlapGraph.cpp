@@ -138,6 +138,7 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	CLOCKSTART;
 	numberOfNodes = 0;
 	numberOfEdges = 0;
+	numberOfEdgesEverMade = 0;
 	flowComputed = false;
 	hashTable = ht;                         /* set hashtable */
 	dataSet = ht->getDataset();             /* set dataset */
@@ -236,39 +237,43 @@ bool OverlapGraph::buildOverlapGraphFromHashTable(HashTable *ht)
 	removeLoop();
 	// report total number
 	FILE_LOG(logINFO)<< "counter: " << counter << " Nodes: " << numberOfNodes << " Edges: " << numberOfEdges;
+	FILE_LOG(logINFO)<< "number of edges made so far: " << numberOfEdgesEverMade;
 
 	delete exploredReads;
 	delete queue;
 	delete markedNodes;
 
 
-	vector<Edge *> contigEdges;
-
-	counter = 0;
-	/* contracting composite edges, do not remove dead end nodes for now */
-	if (numberOfEdges > 0)
-	{
-		if (loglevel > 3){
-			getEdges(contigEdges);
-			printGraph("debug.gdl",contigEdges);
-		}
-		unsigned int iteration = 0;
-		do
-		{
-
-//			string prefix = "test" + Utils::intToString(iteration);
-			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
-//			getEdges(contigEdges);
-//			printGraph(prefix+".comp.gdl",contigEdges);
-
-//			counter += removeDeadEndNodes();
-//			getEdges(contigEdges);
-//			printGraph(prefix+".dead.gdl",contigEdges);
-
-			counter += popBubbles();
-			iteration++;
-		} while (counter > 0);
-	}
+/* 	vector<Edge *> contigEdges;
+ * 
+ * 	counter = 0;
+ * 	// contracting composite edges, do not remove dead end nodes for now 
+ * 	if (numberOfEdges > 0)
+ * 	{
+ * 		if (loglevel > 3){
+ * 			getEdges(contigEdges);
+ * 			printGraph("debug.gdl",contigEdges);
+ * 		}
+ * 		unsigned int iteration = 0;
+ * 		do
+ * 		{
+ * 
+ * 			string prefix = "test" + Utils::intToString(iteration);
+ * 			counter = contractCompositePaths();	// need to rewrite contractCompositePaths function
+ * 			FILE_LOG(logINFO)<< "number of edges made so far: " << numberOfEdgesEverMade;
+ * 			getEdges(contigEdges);
+ * 			printGraph(prefix+".comp.gdl",contigEdges);
+ * 
+ * 			counter += removeDeadEndNodes();
+ * 			getEdges(contigEdges);
+ * 			printGraph(prefix+".dead.gdl",contigEdges);
+ * 
+ * 			counter += popBubbles();
+ * 			iteration++;
+ * 		} while (counter > 0);
+ * 
+ * 	}
+ */
 	CLOCKSTOP;
 	return true;
 }
@@ -587,6 +592,8 @@ bool OverlapGraph::insertEdge(Edge * edge)
 	numberOfEdges++;	// Increase the number of edges.
 	updateReadLocations(edge);	// If the current edge contains some reads, then we need to update their location information.
 	reverseGraph.at(DestinationID).push_back(SourceID);
+	numberOfEdgesEverMade++;
+	edge->setID(numberOfEdgesEverMade);
 	return true;
 }
 
@@ -787,7 +794,7 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 			for(size_t k = 0; k < reverseGraph.at(i).size(); k++){
 				removeFlag = false;
 				UINT64 origin = reverseGraph.at(i).at(k); /* check the origin of the edge ended at i (backtrace with reverseGraph */
-				Edge * currentEdge = findEdge(origin, i); /* the edge with current node as dest node */
+				Edge * currentEdge = findEdge(origin, i).at(0); /* the edge with current node as dest node */
 				if (currentEdge->getListOfReads()->size() >= deadEndLength || getStringInEdge(currentEdge).length() > deadEndBp) /* edge is composite or long enough */
 					continue;
 
@@ -851,7 +858,7 @@ UINT64 OverlapGraph::removeDeadEndNodes(void)
 						}
 						/* If another edge is very good */
 						else if(readID != i){
-							Edge * anotherEdge = findEdge(readID, dest); /* find the edge between readID and i */
+							Edge * anotherEdge = findEdge(readID, dest).at(0); /* find the edge between readID and i */
 							if (anotherEdge->getListOfReads()->size() >= deadEndLength || getStringInEdge(anotherEdge).length() > deadEndBp) /* edge is composite or long enough */
 							{
 								removeFlag = true;
@@ -957,8 +964,7 @@ bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & conti
 		UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
 		thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
 		edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
-		//graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->coverageDepth << "x," << e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << e->getNumOfSubstitutions() <<  ")\" }" << endl;
-		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << dataSet->getSubsOnEdge(e) <<  ")\" }" << endl;
+		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << dataSet->getSubsOnEdge(e) <<  "," << e->getEdgeID() << ")\" }" << endl;
 	}
 	graphFilePointer << "}";
 	graphFilePointer.close();
@@ -1265,7 +1271,7 @@ bool OverlapGraph::removeLoop()
 			{
 				FILE_LOG(logINFO) << "Found edges in opposite directions between " << readNumber1 << " and " << readNumber2;
 				Edge *edge1 = graph->at(i)->at(j);
-				Edge *edge2 = findEdge(readNumber2, readNumber1);
+				Edge *edge2 = findEdge(readNumber2, readNumber1).at(0);
 				INT32 diff1 = abs((INT32)(edge1->getOverlapOffset()) - (dataSet->getReadFromID(readNumber2)->getStartCoord() - dataSet->getReadFromID(readNumber1)->getStartCoord()));
 				INT32 diff2 = abs((INT32)(edge2->getOverlapOffset()) - (dataSet->getReadFromID(readNumber1)->getStartCoord() - dataSet->getReadFromID(readNumber2)->getStartCoord()));
 				if(diff1 < diff2)
@@ -1503,6 +1509,10 @@ UINT64 OverlapGraph::popBubbles(void)
 		FILE_LOG(logDEBUG2) << "---> " << "OverlapOffsets: " <<  listOfEdgesToKeep.at(i)->getOverlapOffset() << " and " <<  listOfEdgesToRemove.at(i)->getOverlapOffset() ; 
 		FILE_LOG(logDEBUG2) << "---> " << "Reads on the edges: " << listOfEdgesToKeep.at(i)->getListOfReads()->size() << " and " << listOfEdgesToRemove.at(i)->getListOfReads()->size() ;
 		FILE_LOG(logDEBUG2) << "---> " << "Flows: " << listOfEdgesToKeep.at(i)->flow << " and " << listOfEdgesToRemove.at(i)->flow ;
+		FILE_LOG(logDEBUG2) << "---> " << "ID: " << listOfEdgesToKeep.at(i)->getEdgeID() << " and " << listOfEdgesToRemove.at(i)->getEdgeID();
+		FILE_LOG(logDEBUG2) << "---> " << "Strings: "; 
+		FILE_LOG(logDEBUG2) << getStringInEdge(listOfEdgesToKeep.at(i));
+		FILE_LOG(logDEBUG2) << getStringInEdge(listOfEdgesToRemove.at(i));
 		//FILE_LOG(logDEBUG2) << "---> " << "Edit Distance: " << listOfEditDistance.at(i) ;
 		//FILE_LOG(logDEBUG2) << "---> " << "Coverage Depths: " << listOfEdgesToKeep.at(i)->coverageDepth << " and " << listOfEdgesToRemove.at(i)->coverageDepth << endl;
 		listOfEdgesToKeep.at(i)->flow += listOfEdgesToRemove.at(i)->flow;			// Move the flow of the delete edge to this edge.
@@ -1516,14 +1526,29 @@ UINT64 OverlapGraph::popBubbles(void)
 /**********************************************************************************************************************
   return edge between source and destination
  **********************************************************************************************************************/
-Edge * OverlapGraph::findEdge(UINT64 source, UINT64 destination)
+vector<Edge *> OverlapGraph::findEdge(UINT64 source, UINT64 destination)
 {
+	vector<Edge *> edgesFound;
 	for(UINT64 i = 0; i < graph->at(source)->size(); i++) // For the list of edges of the source node.
 	{
 		if(graph->at(source)->at(i)->getDestinationRead()->getID() == destination)	// check if there is an edge to destination
+			edgesFound.push_back(graph->at(source)->at(i));	// return the edge.
+	}
+	if(edgesFound.empty()){
+		FILE_LOG(logINFO) << "Cannot find edge from " << source << " to " << destination;
+	}
+	return edgesFound;
+}
+
+
+Edge * OverlapGraph::findEdge(UINT64 source, UINT64 destination, UINT64 edgeID)
+{
+	for(UINT64 i = 0; i < graph->at(source)->size(); i++) // For the list of edges of the source node.
+	{
+		if(graph->at(source)->at(i)->getDestinationRead()->getID() == destination && graph->at(source)->at(i)->getEdgeID() == edgeID)	// check if there is an edge to destination
 			return graph->at(source)->at(i);	// return the edge.
 	}
-	FILE_LOG(logINFO) << "Check for error " << source << " to " << destination;
+	FILE_LOG(logINFO) << "Check for error " << source << " to " << destination << " with edgeID " << edgeID;
 	MYEXIT("Unable to find edge");
 }
 
@@ -1866,7 +1891,7 @@ bool OverlapGraph::DFS(vector< UINT64 > * topoSortedNodes) /* Depth first search
 	reverse(topoSortedNodes->begin(), topoSortedNodes->end()); 
 
 	/* Debug, print the topological sorted nodes, and check the result */
-	if (loglevel > 4){
+	if (loglevel > 5){
 		FILE_LOG(logDEBUG2) << "Nodes in topological sorted order:";
 		for(UINT64 k = 0; k < topoSortedNodes->size(); k++)
 		{
@@ -1946,13 +1971,16 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	double maxLength = 0;
 	/* longest path until each node */
 	vector<vector<UINT64> *> *longestPathsUntilNodes = new vector<vector<UINT64>*>;
+	vector<vector<UINT64> *> *edgeIDsUntilNodes = new vector<vector<UINT64>*>;
 	longestPathsUntilNodes->reserve(numOfNodes);
 	UINT64 nodeWithLongestPath;
 	/* Initialization of the vectors */
 	for(UINT64 i = 0; i <= dataSet->getNumberOfUniqueReads(); i ++){
 		lengthUntilNodes->push_back(0); /* Every node has starting weight of 0, so that any can be the start or end of a path */
 		vector<UINT64> *longestPathAtnode = new vector<UINT64>;
+		vector<UINT64> *edgeIDsAtnode = new vector<UINT64>;
 		longestPathsUntilNodes->push_back(longestPathAtnode);
+		edgeIDsUntilNodes->push_back(edgeIDsAtnode);
 		calculated->push_back(false);
 	}
 
@@ -1971,18 +1999,27 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 		if(!calculated->at(readID))
 		{
 			UINT64 maxSource = readID;
+			UINT64 maxEdgeID;
 			for(UINT64 j = 0; j < reverseGraph.at(readID).size(); j++)
 			{
 				UINT64 source = reverseGraph.at(readID).at(j); /* source of the edge going into readID */
-				double lengthFromSource = dataSet->getWeight(findEdge(source, readID)) + lengthUntilNodes->at(source);
-				if (lengthFromSource > lengthUntilNodes->at(readID)){
-					lengthUntilNodes->at(readID) = lengthFromSource;
-					maxSource = source;
+				vector<Edge *> connectEdges = findEdge(source, readID);
+				for(size_t i = 0; i < connectEdges.size(); i++)
+				{
+					double lengthFromSource = dataSet->getWeight(connectEdges.at(i)) + lengthUntilNodes->at(source);
+					if (lengthFromSource > lengthUntilNodes->at(readID)){
+						lengthUntilNodes->at(readID) = lengthFromSource;
+						maxSource = source;
+						maxEdgeID = connectEdges.at(i)->getEdgeID();
+					}
 				}
 			}
 			/* Update the path */
 			for(UINT64 k = 0; k < longestPathsUntilNodes->at(maxSource)->size(); k++)
 				longestPathsUntilNodes->at(readID)->push_back(longestPathsUntilNodes->at(maxSource)->at(k));
+			for(UINT64 k = 0; k < edgeIDsUntilNodes->at(maxSource)->size(); k++)
+				edgeIDsUntilNodes->at(readID)->push_back(edgeIDsUntilNodes->at(maxSource)->at(k));
+			edgeIDsUntilNodes->at(readID)->push_back(maxEdgeID);
 			if (lengthUntilNodes->at(readID) > maxLength)
 			{
 				maxLength = lengthUntilNodes->at(readID);
@@ -1994,23 +2031,26 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	}
 	FILE_LOG(logINFO) << "node where the longest path ends is " << nodeWithLongestPath;
 	vector<UINT64>::reverse_iterator rit = longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin();
+	vector<UINT64>::iterator it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
 	if(loglevel > 1){
-		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=longestPathsUntilNodes->at(nodeWithLongestPath)->rend();rit++)
-			cout << *rit << " ";
+		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-1);rit++,it++)
+			cout << *rit << " (--" << *it << "->) ";
+		cout << *rit;
 		cout << endl;
 	}
-	FILE_LOG(logINFO) << "And the longest path has weight " << maxLength;
+	FILE_LOG(logINFO) << "The longest path has weight " << maxLength;
 
 	/* Print the longest path */
 	finalString = "";
-	for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-2);rit++)
+	it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
+	for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-2);rit++,it++)
 	{
-		Edge * e = findEdge(*rit, *(rit+1));
+		Edge * e = findEdge(*rit, *(rit+1), *(it));
 		finalString += getStringInEdge(e, false);
 //		cout << finalString.length() << ": " << *rit << " to " << *(rit+1) << endl << finalString << endl;
 	}
 	/* Last edge in the path need to include the last read string */
-	Edge *e = findEdge(*rit, *(rit+1));
+	Edge *e = findEdge(*rit, *(rit+1), *(it));
 	finalString += getStringInEdge(e, true);
 
 //	cout << finalString.length() << endl;
@@ -2021,6 +2061,10 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 		delete longestPathsUntilNodes->at(i);
 	}
 	delete longestPathsUntilNodes;
+	for(UINT64 i = 0; i < edgeIDsUntilNodes->size(); i++){
+		delete edgeIDsUntilNodes->at(i);
+	}
+	delete edgeIDsUntilNodes;
 
 	CLOCKSTOP;
 	return true;
