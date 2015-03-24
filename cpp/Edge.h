@@ -20,6 +20,7 @@ class Edge{
 		Read *source; 	// Source read u
 		Read *destination; 	// Destination read v
 		UINT64 overlapOffset;	// Length of the overlap.
+		UINT64 edgeID;                  /* ID of the edge, used to track different edges, especially the ones connecting same nodes (in bubbles) in the graph */
 		// overlap offset in the following example is 6
 		// 	  012345678901234567890123456789
 		//	u ACTTACGGGATTATACCATCGAGA
@@ -46,12 +47,14 @@ class Edge{
 		bool makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
 		bool setEndCorrdinateLimit(UINT64 endCoordLimit){endCoordinateLimit = endCoordLimit; return true;} /* set the end coordinate limit */
 		bool operator<(Edge & anotherEdge);
+		bool setID(UINT64 edge_id){edgeID=edge_id; return true;} /* set ID for an edge */
 
 		UINT64 getStringLengthInRange(); /* Get the string length in the edge that is also in the range limit */
 		Read * getSourceRead() {return source;}	// Get the read object of the source node.
 		Read * getDestinationRead() {return destination; }	// Get the read object of the destination node.
 		UINT64 getOverlapOffset() {return overlapOffset;}	// Return the overlap offset.
 		UINT16 getNumOfSubstitutions() {return numOfSubstitions;}	// Return the number of substitutions in the edge.
+		UINT64 getEdgeID(void){return edgeID;} /* Return edgeID */
 
 
 		vector<UINT64> * getListOfReads() {return listOfReads;}	// Get the ordered list of reads in the current edge.
