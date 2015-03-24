@@ -466,20 +466,48 @@ bool Dataset::testRead(const string & readDnaString)
 	}
 	/* We might not want to check the composition of the read any more, since this might not be what the user wants 
 	 * However, homopolymer run is more problematic than simply high composition of a single nucleotide.*/
-	UINT64 cnt[4] = {0,0,0,0};
-	for(UINT64 i = 0; i < readDnaString.length(); i++) // Count the number of A's, C's , G's and T's in the string.
-	{
-		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
-		{
-			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
-			return false;
+	UINT64 cnt[4] = {0,0,0,0};              /* count of the 4 nucleotides */
+	UINT64 homopolymerRuns[4] = {0,0,0,0};  /* longest homopolymer runs for each nucleotide */
+	UINT64 longestRunPos[4] = {0,0,0,0};    /* position where the longest homopolymer runs end */
+	if(readDnaString.length() > 0){
+		UINT64 i = 0;
+		while(i < readDnaString.length()){
+			char base = readDnaString[i];
+			cnt[(base >> 1) & 0X03]++;
+			UINT64 currentRun = 1;
+			i++;
+			while(readDnaString[i] == base && i < readDnaString.length()){
+				cnt[(base >> 1) & 0X03]++;
+				currentRun++;
+				i++;
+			}
+			if (homopolymerRuns[(base >> 1) & 0X03] < currentRun)
+			{
+				homopolymerRuns[(base >> 1) & 0X03] = currentRun;
+				longestRunPos[(base>>1) & 0X03] = i-1;
+			}
 		}
-		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
 	}
+/* 	for(UINT64 i = 0; i < readDnaString.length(); i++) // Count the number of A's, C's , G's and T's in the string.
+ * 	{
+ * 		if(readDnaString[i]!= 'A' && readDnaString[i] != 'C' && readDnaString[i] != 'G' && readDnaString[i] != 'T')
+ * 		{
+ * 			FILE_LOG(logDEBUG3) << "Read has characters other than ACGT " << readDnaString;
+ * 			return false;
+ * 		}
+ * 		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
+ * 	}
+ */
 	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
 	{
 		FILE_LOG(logDEBUG3) << "More than 80%% of the read string has the same character " << readDnaString;
+		return false;	// If 80% bases are the same base.
+	}
+	/* If a read has homopolymer run longer than 15 bps, consider it as bad */
+	if(homopolymerRuns[0] >= 15 || homopolymerRuns[1] >= 15 || homopolymerRuns[2] >= 15 || homopolymerRuns[3] >= 15)
+	{
+		FILE_LOG(logDEBUG3) << "Long homopolymer run(s) > 15 bps exists in the read " << readDnaString;
 		return false;	// If 80% bases are the same base.
 	}
 
@@ -660,7 +688,7 @@ double Dataset::getWeight(Edge * e)
 	/* coverage depth */
 	UINT64 numOfOverlapOffsets = e->getListOfOverlapOffsets()->size()+1; 
 	/* approximate number of substitutions in an edge */
-	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*PacBioReadLength/(double)numberOfUniqueReads - getSubsOnEdge(e)*10);
+	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*PacBioReadLength/(double)numberOfUniqueReads - getSubsOnEdge(e)*20);
 }
 
 double Dataset::getSubsOnEdge(Edge *e)
