@@ -112,14 +112,15 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 					if(!outputContigFilePointer.is_open())
 						MYEXIT("Unable to open file: " + outFile);
 					UINT64 stringLen;
+					int iter = 0;
 					do{
-						int iter = 1;
 						vector<UINT64> * topoSortedNodes = new vector<UINT64>;
 						string finalString;
 						graph->DFS(topoSortedNodes);
 						graph->FindLongestPath(topoSortedNodes, finalString);
 						delete topoSortedNodes;
 						stringLen = finalString.length();
+						iter++;
 
 						if(loglevel > 3)
 						{
@@ -127,9 +128,9 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 							graph->getEdges(contigEdges);
 							graph->printGraph(outDir + "/" + allFileName + to_string(iter) + ".gdl", contigEdges);
 						}
-						FILE_LOG(logINFO) << "After longest path number " << iter << "is printed, number of edges left is: " << graph->getNumberOfEdges();
+						FILE_LOG(logINFO) << "After longest path number " << iter << " is printed, number of edges left is: " << graph->getNumberOfEdges();
 						// Print the sequence to output file
-						outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Length: " << stringLen << endl;
+						outputContigFilePointer << ">" << dataSet->getPacBioReadName() << "#" << iter << " Length: " << stringLen << endl;
 
 						UINT32 start=0;
 						do
