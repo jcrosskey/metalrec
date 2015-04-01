@@ -1285,6 +1285,35 @@ bool OverlapGraph::removeLoop()
 }
 
 
+
+/**********************************************************************************************************************
+  Remove all edges whose source or destination read has read number between (endpoints included) the two given numbers
+ **********************************************************************************************************************/
+bool OverlapGraph::removeEdgesBetweenReadNumbers(UINT64 readNumber1, UINT64 readNumber2)
+{
+	FILE_LOG(logDEBUG3) << "Remove edges between read numebers " << readNumber1 << " and " << readNumber2;
+	for (UINT64 index = 0; index < graph->size(); index++)	// Going through all the edges
+	{
+		if (graph->at(index)->size() > 0)
+		{
+			for( UINT64 j = 0; j < graph->at(index)->size(); j++)
+			{
+				Edge *edge = graph->at(index)->at(j);
+				UINT64 sourceID = edge->getSourceRead()->getID();
+				UINT64 destID = edge->getDestinationRead()->getID();
+				/* If either of the source or destination is in the given range */
+				if ((sourceID >= readNumber1 && sourceID <= readNumber2) || (destID >= readNumber1 && destID <= readNumber2))
+				{
+					FILE_LOG(logDEBUG3) << "Remove edges between read numebers " << sourceID << " and " << destID;
+					removeEdge(edge);
+					j--;    /* this is because when an edge is removed, the last edge incident to the node is moved to this position */
+				}
+			}
+		}
+	}
+	return true;
+}
+
 /**********************************************************************************************************************
   Remove all edges in and out of a given read.
  **********************************************************************************************************************/
@@ -1946,8 +1975,8 @@ bool OverlapGraph::DFS_visit(UINT64 u, vector<int> * searchStatus, vector<UINT64
 	}
 	searchStatus->at(u) = 2;
 	finishTime->at(u) = ++sTime;
-//	if(graph->at(u)->size()>0 || reverseGraph.at(u).size() > 0)
-	topoSortedNodes->push_back(u);          /* insert finished node into the topologically sorted list */
+	if(graph->at(u)->size()>0 || reverseGraph.at(u).size() > 0)
+		topoSortedNodes->push_back(u);          /* insert finished node into the topologically sorted list, only for the non-isolated nodes */
 	return true;
 }
 
@@ -2032,6 +2061,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	FILE_LOG(logINFO) << "node where the longest path ends is " << nodeWithLongestPath;
 	vector<UINT64>::reverse_iterator rit = longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin();
 	vector<UINT64>::iterator it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
+	UINT64 beginNodeID = *rit;
 	if(loglevel > 1){
 		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-1);rit++,it++)
 			cout << *rit << " (--" << *it << "->) ";
@@ -2052,7 +2082,10 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	/* Last edge in the path need to include the last read string */
 	Edge *e = findEdge(*rit, *(rit+1), *(it));
 	finalString += getStringInEdge(e, true);
+	UINT64 endNodeID = *(rit+1);
 
+	/* Remove the edges covered by the longest path */
+	removeEdgesBetweenReadNumbers(beginNodeID, endNodeID);
 //	cout << finalString.length() << endl;
 
 	delete lengthUntilNodes;

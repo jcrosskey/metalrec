@@ -107,25 +107,37 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 
 				else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 				{
-					vector<UINT64> * topoSortedNodes = new vector<UINT64>;
-					string finalString;
-					graph->DFS(topoSortedNodes);
-					graph->FindLongestPath(topoSortedNodes, finalString);
-					delete topoSortedNodes;
-
-					// Print the sequence to output file
 					ofstream outputContigFilePointer;
-					outputContigFilePointer.open(outFile.c_str());
+					outputContigFilePointer.open(outFile.c_str(), ofstream::app); /* append to the output file */
 					if(!outputContigFilePointer.is_open())
 						MYEXIT("Unable to open file: " + outFile);
-					outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Length: " << finalString.length() << endl;
+					UINT64 stringLen;
+					do{
+						int iter = 1;
+						vector<UINT64> * topoSortedNodes = new vector<UINT64>;
+						string finalString;
+						graph->DFS(topoSortedNodes);
+						graph->FindLongestPath(topoSortedNodes, finalString);
+						delete topoSortedNodes;
+						stringLen = finalString.length();
 
-					UINT32 start=0;
-					do
-					{
-						outputContigFilePointer << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
-						start+=100;
-					} while (start < finalString.length());
+						if(loglevel > 3)
+						{
+							vector<Edge *> contigEdges;
+							graph->getEdges(contigEdges);
+							graph->printGraph(outDir + "/" + allFileName + to_string(iter) + ".gdl", contigEdges);
+						}
+						FILE_LOG(logINFO) << "After longest path number " << iter << "is printed, number of edges left is: " << graph->getNumberOfEdges();
+						// Print the sequence to output file
+						outputContigFilePointer << ">" << dataSet->getPacBioReadName() << " Length: " << stringLen << endl;
+
+						UINT32 start=0;
+						do
+						{
+							outputContigFilePointer << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
+							start+=100;
+						} while (start < stringLen);
+					}while( stringLen > 500 && graph->getNumberOfEdges() > 0);
 					outputContigFilePointer.close();
 				}
 				delete graph;
