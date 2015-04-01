@@ -138,7 +138,7 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 							outputContigFilePointer << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
 							start+=100;
 						} while (start < stringLen);
-					}while( stringLen > 500 && graph->getNumberOfEdges() > 0);
+					}while( stringLen > 1000 && graph->getNumberOfEdges() > 0);
 					outputContigFilePointer.close();
 				}
 				delete graph;

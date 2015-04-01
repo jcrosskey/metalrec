@@ -231,18 +231,19 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		}
 
 		/* output file */
-		stringstream workID, folderID;
-		workID << currentWorkID;
-		int folderNum = currentWorkID / MAX_FILE_NUM; /* Corrected sequences are in different folders since number of files in a folder is limited */
-		folderID << folderNum;          /* folder name */
-		string prefixName = workID.str(); /* prefix for all output files */
-		string outputDir = outDir + "/" + folderID.str() + "/"; /* output directory, including the numbered folder */
-		Utils::mkdirIfNonExist(outputDir);
+//		stringstream workID, folderID;
+//		workID << currentWorkID;
+//		int folderNum = currentWorkID / MAX_FILE_NUM; /* Corrected sequences are in different folders since number of files in a folder is limited */
+//		folderID << folderNum;          /* folder name */
+//		string prefixName = workID.str(); /* prefix for all output files */
+//		string outputDir = outDir + "/" + folderID.str() + "/"; /* output directory, including the numbered folder */
+		Utils::mkdirIfNonExist(outDir);
+		string prefixName = to_string(myid);
 
 		string refName = PacBioNames[currentWorkID];
 		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
-		ec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outputDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+		ec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 				indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 
 		// signal master when done
