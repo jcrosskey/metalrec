@@ -19,8 +19,31 @@
  */
 
 #include "ec.h"
+/* Version where the output stream for error corrected contigs is not given */
 void ec(const vector<string> & bamFiles, const string & PacBioName,  
 		const UINT16 & PacBioLength, const string & allFileName,
+		const string & samtools_path, const string & outDir,
+		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
+		const UINT32 & maxError, const UINT32 &rubberPos,
+		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength)
+{
+	string outFile = outDir + "/" + allFileName + ".fasta"; // output corrected fasta file
+	ofstream outFastaStream;
+	outFastaStream.open(outFile.c_str(), ofstream::out); /* append to the output file */
+	if(!outFastaStream.is_open())
+	{
+		MYEXIT("Unable to open file: " + outFile);
+	}
+	else
+	{
+		ec_stream(bamFiles, PacBioName, PacBioLength, allFileName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos,indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+	}
+	outFastaStream.close();
+}
+
+/* Version where the output stream for error corrected contigs is given */
+void ec_stream(const vector<string> & bamFiles, const string & PacBioName,  
+		const UINT16 & PacBioLength, const string & allFileName, ofstream & outFastaStream,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
@@ -107,17 +130,13 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 
 				else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 				{
-					ofstream outputContigFilePointer;
-					outputContigFilePointer.open(outFile.c_str(), ofstream::app); /* append to the output file */
-					if(!outputContigFilePointer.is_open())
-						MYEXIT("Unable to open file: " + outFile);
-					UINT64 stringLen;
+					UINT64 stringLen, beginCoord, endCoord;
 					int iter = 0;
 					do{
 						vector<UINT64> * topoSortedNodes = new vector<UINT64>;
 						string finalString;
 						graph->DFS(topoSortedNodes);
-						graph->FindLongestPath(topoSortedNodes, finalString);
+						graph->FindLongestPath(topoSortedNodes, finalString, beginCoord, endCoord);
 						delete topoSortedNodes;
 						stringLen = finalString.length();
 						iter++;
@@ -130,16 +149,19 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 						}
 						FILE_LOG(logINFO) << "After longest path number " << iter << " is printed, number of edges left is: " << graph->getNumberOfEdges();
 						// Print the sequence to output file
-						outputContigFilePointer << ">" << dataSet->getPacBioReadName() << "#" << iter << " Length: " << stringLen << endl;
+						outFastaStream << ">" << dataSet->getPacBioReadName() << "#" << iter << " Length_" << stringLen \
+							<< " from_" << beginCoord << " to_" << endCoord \
+							<< " numReads_" << dataSet->getNumberOfUniqueReads() \
+							<< " covDepth_" << dataSet->getAvgCoverage() << " origLen_" << PacBioLength  \
+							<< endl;
 
 						UINT32 start=0;
 						do
 						{
-							outputContigFilePointer << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
+							outFastaStream << finalString.substr(start, 100) << endl;  // save 100 BP in each line.
 							start+=100;
 						} while (start < stringLen);
 					}while( stringLen > 1000 && graph->getNumberOfEdges() > 0);
-					outputContigFilePointer.close();
 				}
 				delete graph;
 			}

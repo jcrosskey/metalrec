@@ -221,6 +221,10 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
+	string outFile = outDir + "/" + to_string(myid) + ".fasta"; // output corrected fasta file
+	ofstream outFastaStream;
+	outFastaStream.open(outFile.c_str(), ofstream::app); /* append to the output file */
+	
 	// do jobs until master tells to stop
 	while (true) {
 		MPI_Recv(&currentWorkID, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
@@ -243,12 +247,12 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		string refName = PacBioNames[currentWorkID];
 		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
-		ec(bamFiles, refName, PacBioLength, prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-				indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+		ec_stream(bamFiles, refName, PacBioLength, prefixName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
 
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 	}
+	outFastaStream.close();
 }
 
 
@@ -396,7 +400,7 @@ int main(int argc, char ** argv){
 
 		}
 
-		else
+		else if(PacBioNames.size() > 1)
 		{
 			SlaveProcess(bamFiles, PacBioNames, PacBioLengths, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 					indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);

@@ -1987,7 +1987,7 @@ bool OverlapGraph::DFS_visit(UINT64 u, vector<int> * searchStatus, vector<UINT64
  *  Description:  Find longest path in the graph
  * =====================================================================================
  */
-bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString)         /* Find longest path in the graph */
+bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString, UINT64 & beginCoord, UINT64 & endCoord)         /* Find longest path in the graph */
 {
 	CLOCKSTART;
 	UINT64 numOfNodes = topoSortedNodes->size(); /*  number of nodes that have edges in the graph */
@@ -2083,6 +2083,8 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	Edge *e = findEdge(*rit, *(rit+1), *(it));
 	finalString += getStringInEdge(e, true);
 	UINT64 endNodeID = *(rit+1);
+	beginCoord = dataSet->getReadFromID(beginNodeID)->getStartCoord();
+	endCoord = dataSet->getReadFromID(endNodeID)->getEndCoord();
 
 	/* Remove the edges covered by the longest path */
 	removeEdgesBetweenReadNumbers(beginNodeID, endNodeID);

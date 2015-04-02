@@ -34,4 +34,10 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 		const UINT32 & maxError, const UINT32 &rubberPos,
 		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength);
 
+void ec_stream(const vector<string> & bamFiles, const string & PacBioName,  
+		const UINT16 & PacBioLength, const string & allFileName,ofstream & outFastaStream,
+		const string & samtools_path, const string & outDir,
+		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
+		const UINT32 & maxError, const UINT32 &rubberPos,
+		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength);
 #endif
