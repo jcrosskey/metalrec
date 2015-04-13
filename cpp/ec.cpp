@@ -115,6 +115,7 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 				 * */
 			{
 				FILE_LOG(logINFO) << "number of unique reads in dataset is " << dataSet->getNumberOfUniqueReads();
+				//UINT64 coveredBases = dataSet->getCoveredBases();
 				HashTable *ht = new HashTable();
 				ht->insertDataset(dataSet, hashStringLength);
 				OverlapGraph *graph = new OverlapGraph(ht, minimumOverlapLength, maxError, maxErrorRate, rubberPos);
@@ -152,6 +153,7 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 						outFastaStream << ">" << dataSet->getPacBioReadName() << "#" << iter << " Length_" << stringLen \
 							<< " from_" << beginCoord << " to_" << endCoord \
 							<< " numReads_" << dataSet->getNumberOfUniqueReads() \
+							<< " coveredBps_" << dataSet->getCoveredBases() \
 							<< " covDepth_" << dataSet->getAvgCoverage() << " origLen_" << PacBioLength  \
 							<< endl;
 
