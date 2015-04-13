@@ -29,6 +29,7 @@ class Dataset
 		/* Now separate the indel rate into two categories since insertion and deletion errors do not have the same rate. */
 		float insRate; /* insertion rate allowed */
 		float delRate; /* deletion rate allowed. */
+		float percentInLR; /* percentage of short read length contained in long read */
 
 		vector<Read *> *reads;	// List of reads in the dataset.
 		bool testRead(const string & readDnaString);	// Test if the read is good. Contains only {A,C,G,T}.
@@ -44,8 +45,8 @@ class Dataset
 
 		/* Constructors and destructor */
 		Dataset(void);	// Default constructor.
-		Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate, const float & insRate, const float & delRate);// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
-		Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRate, const float & subRate, const float & insRate, const float & delRate);// anotherconstructor, uses input stream directly instead of reading the file
+		Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indelRate, const float & subRate, const float & insRate, const float & delRate, const float & percent_inLR);// another constructor, from a BLASR generated sam file, use BamAlignmentRecord class
+		Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indelRate, const float & subRate, const float & insRate, const float & delRate, const float & percent_inLR);// anotherconstructor, uses input stream directly instead of reading the file
 		Dataset(const Dataset & D);
 		Dataset & operator= (const Dataset & D);
 		~Dataset(void);	// Default destructor.
@@ -58,6 +59,7 @@ class Dataset
 		bool setInsRate(const float & ins_rate){insRate = ins_rate; return true;}
 		bool setDelRate(const float & del_rate){delRate = del_rate; return true;}
 		bool setSubRate(const float & sub_rate){subRate = sub_rate; return true;}
+		bool setPercentInLR(const float & percent_inLR){percentInLR = percent_inLR; return true;}
 		bool setLRLength(const UINT16 & length){PacBioReadLength = length; return true;}
 
 		/* accessors */
@@ -65,15 +67,15 @@ class Dataset
 		UINT64 getPacBioReadLength(void){return PacBioReadLength;}	// Get the length of the PacBio filtered subread
 		UINT64 getNumberOfReads(void){return numberOfReads;}	// Get the number of total reads in the database.
 		UINT64 getNumberOfUniqueReads(void){return numberOfUniqueReads;}	// Get the number of unique reads in the database.
+		UINT64 getCoveredBases(void);
 
 		vector<Read *> getReadsFromCoord(const INT32 & coord);	// Find a read in the database given the start mapping coord. Uses binary search in the list of reads.
 		Read * getReadFromID(UINT64 ID);	// Find a read in the database given the ID in constant time.
 		void saveReads(string fileName);	// Save all the sorted unique reads in a text file. Used for debugging.
 		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
-		UINT64 findMostLikelyReadID();  /* Find the read/contig that is most likely to have generated the PacBio read */
 		double getWeight(Edge * e);
 		double getSubsOnEdge(Edge *e);
-		double getAvgCoverage(){return (double)totalBps/(double)PacBioReadLength;}
+		double getAvgCoverage(){return (double)totalBps/(double)getCoveredBases();}
 };
 
 

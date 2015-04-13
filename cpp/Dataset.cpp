@@ -41,6 +41,7 @@ Dataset::Dataset(void)
 	indelRate = 0.15;
 	insRate = 0.10;
 	delRate = 0.05;
+	percentInLR = 0.80;
 	reads = new vector<Read *>;
 }
 
@@ -63,6 +64,7 @@ Dataset::Dataset(const Dataset & D)
 	indelRate = D.indelRate;
 	insRate = D.insRate;
 	delRate = D.delRate;
+	percentInLR = D.percentInLR;
 	reads = new vector<Read *>;
 	reads->resize((D.reads)->size());
 	for(size_t k = 0; k < reads->size(); k++){
@@ -91,6 +93,7 @@ Dataset & Dataset::operator= (const Dataset & D)
 	indelRate = D.indelRate;
 	insRate = D.insRate;
 	delRate = D.delRate;
+	percentInLR = D.percentInLR;
 
 	delete this->reads;
 	reads = new vector<Read *>;
@@ -106,95 +109,24 @@ Dataset & Dataset::operator= (const Dataset & D)
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate)
+Dataset::Dataset(const string & inputSamFile, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate, const float & percent_inLR)
 {
-	CLOCKSTART;
-	// Initialize the variables.
-	numberOfUniqueReads = 0;
-	numberOfReads = 0;                      /* number of good reads in the dataset */
-	numberOfNonContainedReads = 0;
-	shortestReadLength = 0XFFFFFFFFFFFFFFFF;
-	longestReadLength = 0X0000000000000000;
-	reads = new vector<Read *>;
-	minimumOverlapLength = minOverlap;
-	indelRate = indel_rate;
-	subRate = sub_rate;
-	insRate = ins_rate;
-	delRate = del_rate;
-
-	UINT64 goodReads = 0, badReads = 0;
-	/** get reads from sam file **/
-	ifstream samIn;
-	samIn.open(inputSamFile.c_str());
-	if(!samIn.is_open())
-	{
-		MYEXIT( "Input sam file " + inputSamFile + " cannot be opened." );
-	}
+	/** get reads from sam file , instead of FILE object that identifies and contains information to control a stream**/
+	FILE * samIn;
+	samIn = fopen(inputSamFile.c_str(), "r");
+	if (samIn == NULL)
+		perror("Error opening file");
 	else
 	{
-		string line;
-		while(!samIn.eof())
-		{
-			getline(samIn, line, '\n');
-			if (line[0] == '@')
-			{
-				FILE_LOG(logDEBUG3) << "header line";
-				if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
-				{
-					size_t LNPos = line.find("LN:");
-					size_t nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadLength = stoi(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
-					LNPos = line.find("SN:");
-					nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
-				}
-			}
-			else	// not header line, alignment record
-			{
-				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
-				if (line.length() !=0)
-				{
-					Read *r = new Read(line);
-					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
-					{
-						UINT32 len = r->getReadLength();
-						if (len > longestReadLength)
-							longestReadLength = len;
-						if (len < shortestReadLength)
-							shortestReadLength = len;
-						reads->push_back(r);
-						numberOfReads++;
-						goodReads++;
-						totalBps += r->getAlignedLength();
-					}
-					else
-					{
-						badReads++;
-						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
-							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
-						else
-							FILE_LOG(logDEBUG3) << "Read is not valid";
-					}
-				}
-			}
-		}
+		Dataset(samIn, minOverlap, indel_rate, sub_rate, ins_rate, del_rate, percent_inLR);
+		fclose(samIn);// Close the sam file
 	}
-	samIn.close();	// Close the sam file
-
-	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
-	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
-	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
-	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
-	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
-	FILE_LOG(logINFO) << "Total number of aligned bps in the dataset so far: " << setw(5) << totalBps;
-	CLOCKSTOP;
 }
 
 /**********************************************************************************************************************
  * Another constructor, from BLASR generated sam file, do not use BamAlignmentRecord class
  **********************************************************************************************************************/
-Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate)
+Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_rate, const float & sub_rate, const float & ins_rate, const float & del_rate, const float & percent_inLR)
 {
 	CLOCKSTART;
 	// Initialize the variables.
@@ -209,79 +141,10 @@ Dataset::Dataset(FILE * inputSamStream, UINT64 minOverlap, const float & indel_r
 	subRate = sub_rate;
 	insRate = ins_rate;
 	delRate = del_rate;
+	percentInLR = percent_inLR;
 	PacBioReadName = "";
 
-	UINT64 goodReads = 0, badReads = 0;
-	/** get reads from sam file **/
-	string line = "";
-	char buffer[BUFFER_SIZE];
-	while(1)
-	{
-		if(fgets(buffer, BUFFER_SIZE, inputSamStream)==NULL)
-		{
-			//perror("In function Dataset, Encountered in function fgets");
-			if (ferror(inputSamStream))
-			{FILE_LOG(logERROR) << "error reading dataset";}
-			break;
-		}
-		line += buffer;
-		if (line.at(line.size() - 1) == '\n')        /* A whole line has been read, processing it */
-		{
-			line.erase(line.size()-1, 1);        /* Delete last character from line, which is EOL */
-			FILE_LOG(logDEBUG4) << "Line: " << line;
-			if (line[0] == '@')
-			{
-				FILE_LOG(logDEBUG3) << "header line";
-				if ( line.substr(0,3).compare("@SQ") ==0) /* SQ line */
-				{
-					size_t LNPos = line.find("LN:");
-					size_t nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadLength = Utils::stringToUnsignedInt(line.substr(LNPos+3,nextTabPos-LNPos-3)); /* length of the PacBio read */
-					LNPos = line.find("SN:");
-					nextTabPos = line.find("\t", LNPos+3);
-					PacBioReadName = line.substr(LNPos+3,nextTabPos-LNPos-3);
-				}
-			}
-			else	// not header line, alignment record
-			{
-				FILE_LOG(logDEBUG4) << "Read line with length: " << line.length();
-				if (line.length() !=0)
-				{
-					Read *r = new Read(line);
-					if ( PacBioReadName.length() == 0 )
-						PacBioReadName = r->getRefName();
-					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
-					{
-						UINT32 len = r->getReadLength();
-						if (len > longestReadLength)
-							longestReadLength = len;
-						if (len < shortestReadLength)
-							shortestReadLength = len;
-						reads->push_back(r);
-						numberOfReads++;
-						goodReads++;
-						totalBps += r->getAlignedLength();
-					}
-					else
-					{
-						badReads++;
-						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
-							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
-						else
-							FILE_LOG(logDEBUG3) << "Read is not valid";
-					}
-				}
-			}
-			line = "";              /* Set line to empty again */
-		}
-	}
-	FILE_LOG(logINFO) << "Shortest read length: " << setw(5) << shortestReadLength;
-	FILE_LOG(logINFO) << "Longest read length: " << setw(5) << longestReadLength;
-	FILE_LOG(logINFO) << "Number of good reads: " << setw(5) << goodReads;
-	FILE_LOG(logINFO) << "Number of bad reads: " << setw(5) << badReads;
-	FILE_LOG(logINFO) << "Total number of reads: " << setw(5) << badReads + goodReads;
-	FILE_LOG(logINFO) << "Total number of aligned bps in the dataset so far: " << setw(5) << totalBps;
+	AddDataset(inputSamStream);
 	CLOCKSTOP;
 }
 
@@ -335,7 +198,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					if ( PacBioReadName.length() == 0 )
 						PacBioReadName = r->getRefName();
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
-					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength) && testRead(r->getDnaStringForward()))
+					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength, percentInLR) && testRead(r->getDnaStringForward()))
 					{
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
@@ -351,7 +214,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					else
 					{
 						badReads++;
-						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength)))
+						if (!(r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength, percentInLR)))
 							FILE_LOG(logDEBUG3) << "Read " << r->getReadName() << " has too many errors";
 						else
 							FILE_LOG(logDEBUG3) << "Read is not valid";
@@ -514,6 +377,50 @@ bool Dataset::testRead(const string & readDnaString)
 	return true;
 }
 
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getCoveredBases
+ *  Description:  Find number of bases covered by Illumina reads
+ * =====================================================================================
+ */
+UINT64 Dataset::getCoveredBases(void)
+{
+	CLOCKSTART;
+	vector<INT64> startCoords, endCoords;
+	INT64 coveredBases = 0;
+	INT64 istart = -(numeric_limits<INT64>::max()-10);
+	INT64 iend = -(numeric_limits<INT64>::max()-10);
+	for(UINT64 i = 1; i <= numberOfUniqueReads; i++){
+		Read * read = getReadFromID(i);
+		if(read->getStartCoord() > iend) /* this read does not overlap with intervals already found */
+		{
+			if(iend > 0){         /* an interval ends here */
+				startCoords.push_back(istart<0?0:istart);
+				endCoords.push_back(iend<PacBioReadLength?iend:PacBioReadLength);
+			}
+			istart = read->getStartCoord();
+			iend = read->getEndCoord();
+		}
+		else if (read->getEndCoord() > iend){ /* only if this read has a chance to cover more bases */
+			iend = read->getEndCoord();
+		}
+	}
+	startCoords.push_back(istart<0?0:istart);
+	endCoords.push_back(iend<PacBioReadLength?iend:PacBioReadLength);
+	for(size_t i = 0; i < startCoords.size(); i++){
+		coveredBases += (endCoords.at(i) - startCoords.at(i));
+	}
+	FILE_LOG(logINFO) << coveredBases << " bps are covered by short reads, split into " << startCoords.size() << " intervals.";
+	FILE_LOG(logDEBUG2) << "Coordinates of these intervals are: ";
+	if(loglevel >= 3){
+		for(size_t i = 0; i < startCoords.size(); i++)
+			cout << "(" << startCoords.at(i) << ", " << endCoords.at(i) << ") ";
+		cout << endl;
+	}
+	CLOCKSTOP;
+	return coveredBases;
+}
+
 /**********************************************************************************************************************
   Search a read in the dataset using binary search
  **********************************************************************************************************************/
@@ -651,34 +558,6 @@ void Dataset::printReadsTiling(string fileName)	// Print all the reads in tiling
 
 /* 
  * ===  FUNCTION  ======================================================================
- *         Name:  findMostLikelyReadID
- *  Description:  Find the ID of the read/contig that is most likely to have generated the PacBio read
- * =====================================================================================
- */
-UINT64 Dataset::findMostLikelyReadID()
-{
-	double bestLikelihood = -numeric_limits<double>::max(); /* Smallest double number(negative) */
-	UINT64 mostLikelyID = 0;
-	FILE_LOG(logDEBUG3) << "Initialize the best likelihood to be " << bestLikelihood;
-	for (UINT64 i = 1; i <= numberOfUniqueReads; i++)
-	{
-		Read * r = getReadFromID(i);
-		if (r->calculateLikelihood(PacBioReadLength) > bestLikelihood)
-		{
-			bestLikelihood = r->calculateLikelihood(PacBioReadLength);
-			mostLikelyID = i;
-		}
-	}
-	if (mostLikelyID != 0)
-		FILE_LOG(logDEBUG3) << "Most likely read/contig to generate the PacBio read is: " << getReadFromID(mostLikelyID)->getReadName();
-	else
-		FILE_LOG(logDEBUG3) << "Something is wrong... most likely read ID is 0";
-
-	return mostLikelyID;
-}
-
-/* 
- * ===  FUNCTION  ======================================================================
  *         Name:  getWeight
  *  Description:  get weight of an edge
  * =====================================================================================
@@ -691,6 +570,12 @@ double Dataset::getWeight(Edge * e)
 	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*PacBioReadLength/(double)numberOfUniqueReads - getSubsOnEdge(e)*20);
 }
 
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getSubsOnEdge
+ *  Description:  Find expected number of substitutions on an edge
+ * =====================================================================================
+ */
 double Dataset::getSubsOnEdge(Edge *e)
 {
 	double substitutionsInEdge = 0.0;
