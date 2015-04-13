@@ -335,7 +335,7 @@ bool Read::setEdits(const string & s)
  *  		3. sub, ins, del errors should be within the thresholds
  * =====================================================================================
  */
-bool Read::isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength)
+bool Read::isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength, const float & percentInLR)
 {
 	UINT64 numOfSubstitions = getNumOfSubstitutionsInRead();
 	UINT64 readLength = readDnaString.length();
@@ -345,8 +345,13 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	FILE_LOG(logDEBUG3) << leftClip + rightClip << " clipped bases in " << readLength << " bps";
 	if (float(leftClip + rightClip) > readLength * 0.5)
 		return false;
-	if (getStartCoord() < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
-		return false;
+	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
+	{
+		UINT64 basesOutOfLR = (startCoord > 0 ? 0 : -startCoord);
+		basesOutOfLR += ((getEndCoord() > PacBioReadLength)?(getEndCoord()-PacBioReadLength):0);
+		if (basesOutOfLR > readLength * (1-percentInLR))
+			return false;
+	}
 	if (numOfSubstitions >  mappedLength * subRate) /* too many substitution errors */
 		return false;
 	if ( numOfInsertions  > mappedLength * insRate) /* too many insertion erros */
@@ -448,18 +453,4 @@ INT32 Read::getTag(const string & tagName, const string & alignRecord)
 		return -1;	// if the tag is not found, set the value to -1 ( another value might be better)
 	}
 
-}
-
-/* 
- * ===  FUNCTION  ======================================================================
- *         Name:  calculateLikelihoodWithReadID
- *  Description:  Calculate the likelihood of a read/contig from which the PacBio read came from
- * =====================================================================================
- */
-double Read::calculateLikelihood(UINT64 PacBioReadLength)
-{
-	UINT64 numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
-	UINT64 numOfMatches = numOfMatchMismatches - numOfSubstitions; /* number of mathes in the alignment */
-	UINT64 numOfNs = PacBioReadLength - numOfMatchMismatches - numOfDeletions; /* number of bases aligned to the PacBio read */
-	return numOfMatches*log(0.84) + numOfSubstitions*log(0.01) + (numOfInsertions+numOfDeletions)*log(0.15) - numOfNs*log(6.0);
 }

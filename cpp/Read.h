@@ -63,7 +63,7 @@ class Read
 		UINT16 numInEdges;	// Number of edges going into the read
 		UINT16 numOutEdges;	// Number of edges going out of the read
 
-		bool isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength); /* Test if read is good enough */
+		bool isReadGood(const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const UINT16 & PacBioReadLength, const float & percentInLR=0.80); /* Test if read is good enough */
 		/* mutators */
 		bool setRead(const string & s); 		// Set the read from alignment record string, (with generic string parsing)
 		bool setReadID(UINT64 id){ID = id; return true;} 			// Set the read ID.
@@ -95,7 +95,6 @@ class Read
 		vector<UINT64> * getContainedReadIDs(void){return containedReadIDs;}	// Get list of IDs of reads contained in this read.
 		vector<UINT64> * getOverlapReadIDs(void){return overlapReadIDs;}	// Get list of IDs of reads overlapping with this read.
 		vector<UINT64> * getOverlapReadOffsets(void){return overlapReadOffsets;}	// Get list of offsets for the corresponding overlapping reads.
-		double calculateLikelihood(UINT64 PacBioReadLength);
 };
 
 #endif /* READS_H_ */
