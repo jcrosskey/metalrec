@@ -166,7 +166,7 @@ int main(int argc, char ** argv){
 	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
-	float indelRate, insRate, delRate, subRate, maxErrorRate;
+	float indelRate, insRate, delRate, subRate, minPercentInLR, maxErrorRate;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 
 	/* Set default values */
@@ -180,6 +180,7 @@ int main(int argc, char ** argv){
 	param_map["insRate"] = "0.15"; 
 	param_map["delRate"] = "0.10"; 
 	param_map["subRate"] = "0.05";
+	param_map["minPercentInLR"] = "0.80";
 	param_map["samtools_path"] = "samtools";
 	param_map["minPacBioLength"] = "1000";
 
@@ -217,6 +218,7 @@ int main(int argc, char ** argv){
 		delRate = stof(param_map["delRate"]);
 		maxErrorRate = stof(param_map["maxErrorRate"]);
 		subRate = stof(param_map["subRate"]);
+		minPercentInLR = stof(param_map["minPercentInLR"]);
 		allFileName = param_map["allFileName"];
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
@@ -265,6 +267,7 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "insertion rate: " << insRate;
 		FILE_LOG(logINFO) << "deletion rate: " << delRate;
 		FILE_LOG(logINFO) << "substitution rate: " << subRate;
+		FILE_LOG(logINFO) << "minimum length percent of short read in long read: " << minPercentInLR;
 		FILE_LOG(logINFO) << "rubber length for alignment buffer: " << rubberPos;
 		FILE_LOG(logINFO) << "============================================================================";
 		FILE_LOG(logINFO) << "Beginning Error Correction";
@@ -273,7 +276,7 @@ int main(int argc, char ** argv){
 		{
 			FILE_LOG(logINFO) << "Read " << PacBioNames.at(0);
 			ec(bamFiles, PacBioNames.at(0), PacBioLengths.at(0), allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, insRate, delRate, subRate, maxErrorRate,minPacBioLength);
+					indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 		}
 		else{
 			for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
@@ -281,7 +284,7 @@ int main(int argc, char ** argv){
 				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 				string prefixName = Utils::intToString(j);
 				ec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, insRate, delRate, subRate, maxErrorRate,minPacBioLength);
+						indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 			}
 		}
 

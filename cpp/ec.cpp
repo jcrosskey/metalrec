@@ -25,7 +25,8 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength)
+		const float & indelRate, const float & insRate, const float & delRate, 
+		const float & subRate, const float & maxErrorRate, const float & minPercentInLR, const UINT16 minPacBioLength)
 {
 	string outFile = outDir + "/" + allFileName + ".fasta"; // output corrected fasta file
 	ofstream outFastaStream;
@@ -36,7 +37,7 @@ void ec(const vector<string> & bamFiles, const string & PacBioName,
 	}
 	else
 	{
-		ec_stream(bamFiles, PacBioName, PacBioLength, allFileName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos,indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+		ec_stream(bamFiles, PacBioName, PacBioLength, allFileName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos,indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 	}
 	outFastaStream.close();
 }
@@ -47,7 +48,8 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 minPacBioLength)
+		const float & indelRate, const float & insRate, const float & delRate, 
+		const float & subRate, const float & maxErrorRate, const float & minPercentInLR, const UINT16 minPacBioLength)
 {
 	CLOCKSTART;
 	if(PacBioName.length() > 0)
@@ -67,6 +69,7 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 			dataSet->setDelRate(delRate);
 			dataSet->setSubRate(subRate);
 			dataSet->setLRLength(PacBioLength);
+			dataSet->setPercentInLR(minPercentInLR);
 
 			/* Read all bam file to collect Illumina reads aligned to this PacBio read */
 			for (size_t i = 0; i < bamFiles.size(); i++)

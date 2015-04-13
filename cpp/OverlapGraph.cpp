@@ -2062,7 +2062,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	vector<UINT64>::reverse_iterator rit = longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin();
 	vector<UINT64>::iterator it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
 	UINT64 beginNodeID = *rit;
-	if(loglevel > 1){
+	if(loglevel > 2){
 		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-1);rit++,it++)
 			cout << *rit << " (--" << *it << "->) ";
 		cout << *rit;

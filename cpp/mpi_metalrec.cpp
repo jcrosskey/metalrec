@@ -213,7 +213,7 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		const string & samtools_path, const string & outDir,
 		const UINT64 & minimumOverlapLength, const UINT64 & hashStringLength,
 		const UINT32 & maxError, const UINT32 &rubberPos,
-		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const UINT16 & minPacBioLength)
+		const float & indelRate, const float & insRate, const float & delRate, const float & subRate, const float & maxErrorRate, const float & minPercentInLR, const UINT16 & minPacBioLength)
 {
 	MPI_Status status;
 	int currentWorkID, myid;
@@ -247,7 +247,7 @@ void SlaveProcess(const vector<string> & bamFiles, const vector<string> & PacBio
 		string refName = PacBioNames[currentWorkID];
 		UINT16 PacBioLength = PacBioLengths[currentWorkID];
 		cout << myid << ": working on " << refName << endl;
-		ec_stream(bamFiles, refName, PacBioLength, prefixName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+		ec_stream(bamFiles, refName, PacBioLength, prefixName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR,  minPacBioLength);
 
 		// signal master when done
 		MPI_Send(&finish, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
@@ -269,7 +269,7 @@ int main(int argc, char ** argv){
 	UINT16 minPacBioLength;
 	vector<string> PacBioNames;
 	vector<UINT16> PacBioLengths;
-	float indelRate, insRate, delRate, subRate, maxErrorRate;
+	float indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR; 
 	double start_time, finish_time;
 	map<string, string> param_map;          /* mapping from argument key to arg value, initialization */
 
@@ -284,6 +284,7 @@ int main(int argc, char ** argv){
 	param_map["insRate"] = "0.15"; 
 	param_map["delRate"] = "0.10"; 
 	param_map["subRate"] = "0.05";
+	param_map["minPercentInLR"] = "0.80";
 	param_map["samtools_path"] = "samtools";
 	param_map["minPacBioLength"] = "1000";
 
@@ -326,6 +327,7 @@ int main(int argc, char ** argv){
 		delRate = stof(param_map["delRate"]);
 		maxErrorRate = stof(param_map["maxErrorRate"]);
 		subRate = stof(param_map["subRate"]);
+		minPercentInLR = stof(param_map["minPercentInLR"]);
 		allFileName = param_map["allFileName"];
 		outDir = param_map["outDir"];
 		samtools_path = param_map["samtools_path"];
@@ -370,6 +372,7 @@ int main(int argc, char ** argv){
 			cout << "insertion rate: " << insRate;
 			cout << "deletion rate: " << delRate;
 			cout << "substitution rate: " << subRate << endl;
+			cout << "minimum length percent of short read in long read: " << minPercentInLR << endl;
 			cout << "============================================================================" << endl;
 			cout << "Beginning Error Correction" << Utils::currentDateTime() << endl;
 
@@ -377,7 +380,7 @@ int main(int argc, char ** argv){
 			if (PacBioNames.size() == 1)
 			{
 				ec(bamFiles, PacBioNames.at(0), 65000, allFileName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-						indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+						indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR,  minPacBioLength);
 
 			}
 			if(num_proc > 1)        /* If there is more than 1 mpi processes */
@@ -391,7 +394,7 @@ int main(int argc, char ** argv){
 					FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
 					string prefixName = Utils::intToString(j);
 					ec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j),prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-							indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+							indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 				}
 
 				cout << " Done!"<< Utils::currentDateTime() << endl;
@@ -403,7 +406,7 @@ int main(int argc, char ** argv){
 		else if(PacBioNames.size() > 1)
 		{
 			SlaveProcess(bamFiles, PacBioNames, PacBioLengths, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
-					indelRate, insRate, delRate, subRate, maxErrorRate, minPacBioLength);
+					indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR,  minPacBioLength);
 		}
 
 		if( myid == 0 )
