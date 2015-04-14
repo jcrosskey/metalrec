@@ -377,32 +377,72 @@ bool Dataset::testRead(const string & readDnaString)
 	return true;
 }
 
+
 /* 
  * ===  FUNCTION  ======================================================================
- *         Name:  getCoveredBases
- *  Description:  Find number of bases covered by Illumina reads
+ *         Name:  getNumberOfNonContainedReads
+ *  Description:  as function name suggested
  * =====================================================================================
  */
-UINT64 Dataset::getCoveredBases(void)
+UINT64 Dataset::getNumberOfNonContainedReads(void)
+{
+	UINT64 N = 0;
+	for(UINT64 i = 1; i <= numberOfUniqueReads; i++)
+	{
+		if(getReadFromID(i)->superReadID == 0)
+			N++;
+	}
+	return N;
+}
+
+
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getBpsOfNonContainedReads
+ *  Description:  Find total number of bases of the nonContained reads
+ * =====================================================================================
+ */
+UINT64 Dataset::getBpsOfNonContainedReads(void)
+{
+	UINT64 N = 0;
+	for(UINT64 i = 1; i <= numberOfUniqueReads; i++)
+	{
+		if(getReadFromID(i)->superReadID == 0)
+			N += getReadFromID(i)->getReadLength();
+	}
+	return N;
+}
+
+/* 
+ * ===  FUNCTION  ======================================================================
+ *         Name:  getCoveredInfo
+ *  Description:  Find number of bases covered by Illumina reads, and number of regions covered
+ * =====================================================================================
+ */
+bool Dataset::getCoveredInfo(INT64 & coveredBases, INT64 & coveredRegions)
 {
 	CLOCKSTART;
+	coveredBases = 0;
+	coveredRegions = 0;
 	vector<INT64> startCoords, endCoords;
-	INT64 coveredBases = 0;
 	INT64 istart = -(numeric_limits<INT64>::max()-10);
 	INT64 iend = -(numeric_limits<INT64>::max()-10);
 	for(UINT64 i = 1; i <= numberOfUniqueReads; i++){
 		Read * read = getReadFromID(i);
-		if(read->getStartCoord() > iend) /* this read does not overlap with intervals already found */
-		{
-			if(iend > 0){         /* an interval ends here */
-				startCoords.push_back(istart<0?0:istart);
-				endCoords.push_back(iend<PacBioReadLength?iend:PacBioReadLength);
+		if (read->superReadID == 0){
+			if(read->getStartCoord() > iend) /* this read does not overlap with intervals already found */
+			{
+				if(iend > 0){         /* an interval ends here */
+					startCoords.push_back(istart<0?0:istart);
+					endCoords.push_back(iend<PacBioReadLength?iend:PacBioReadLength);
+				}
+				istart = read->getStartCoord();
+				iend = read->getEndCoord();
 			}
-			istart = read->getStartCoord();
-			iend = read->getEndCoord();
-		}
-		else if (read->getEndCoord() > iend){ /* only if this read has a chance to cover more bases */
-			iend = read->getEndCoord();
+			else if (read->getEndCoord() > iend){ /* only if this read has a chance to cover more bases */
+				iend = read->getEndCoord();
+			}
 		}
 	}
 	startCoords.push_back(istart<0?0:istart);
@@ -410,7 +450,8 @@ UINT64 Dataset::getCoveredBases(void)
 	for(size_t i = 0; i < startCoords.size(); i++){
 		coveredBases += (endCoords.at(i) - startCoords.at(i));
 	}
-	FILE_LOG(logINFO) << coveredBases << " bps are covered by short reads, split into " << startCoords.size() << " intervals.";
+	coveredRegions = startCoords.size();
+	FILE_LOG(logINFO) << coveredBases << " bps are covered by short reads, split into " << coveredRegions << " intervals.";
 	FILE_LOG(logDEBUG2) << "Coordinates of these intervals are: ";
 	if(loglevel >= 3){
 		for(size_t i = 0; i < startCoords.size(); i++)
@@ -418,7 +459,7 @@ UINT64 Dataset::getCoveredBases(void)
 		cout << endl;
 	}
 	CLOCKSTOP;
-	return coveredBases;
+	return true;
 }
 
 /**********************************************************************************************************************

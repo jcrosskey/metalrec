@@ -348,7 +348,7 @@ int main(int argc, char ** argv){
 		}
 		else if (PacBio_file.length() > 0)
 		{
-			Utils::saveLinesToVec(PacBio_file, PacBioNames);
+			Utils::saveLinesToVec(PacBio_file, PacBioNames, PacBioLengths);
 		}
 		else                            /* Only 1 read to correct */
 			PacBioNames.push_back(PacBioName);

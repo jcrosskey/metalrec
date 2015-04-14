@@ -67,7 +67,10 @@ class Dataset
 		UINT64 getPacBioReadLength(void){return PacBioReadLength;}	// Get the length of the PacBio filtered subread
 		UINT64 getNumberOfReads(void){return numberOfReads;}	// Get the number of total reads in the database.
 		UINT64 getNumberOfUniqueReads(void){return numberOfUniqueReads;}	// Get the number of unique reads in the database.
-		UINT64 getCoveredBases(void);
+		UINT64 getNumberOfNonContainedReads(void);
+		UINT64 getBpsOfNonContainedReads(void);
+		UINT64 getTotalBps(void){return totalBps;}
+		bool getCoveredInfo(INT64 & coveredBases, INT64 & coveredRegions);
 
 		vector<Read *> getReadsFromCoord(const INT32 & coord);	// Find a read in the database given the start mapping coord. Uses binary search in the list of reads.
 		Read * getReadFromID(UINT64 ID);	// Find a read in the database given the ID in constant time.
@@ -75,7 +78,6 @@ class Dataset
 		void printReadsTiling(string fileName);	// Print all the reads in tiling format. Used for checking the overlap (debugging)
 		double getWeight(Edge * e);
 		double getSubsOnEdge(Edge *e);
-		double getAvgCoverage(){return (double)totalBps/(double)getCoveredBases();}
 };
 
 

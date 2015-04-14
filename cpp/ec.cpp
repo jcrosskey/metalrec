@@ -102,7 +102,6 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 			{
 				dataSet->saveReads(outDir + "/" + allFileName + ".reads");
 			}
-			FILE_LOG(logINFO) << "Average coverage depth is: " << dataSet->getAvgCoverage();
 
 			if (dataSet->getNumberOfReads() <= 1)
 				FILE_LOG(logWARNING) << "Data set has no more than 1 read in it, quitting...";
@@ -134,13 +133,17 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 
 				else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 				{
-					UINT64 stringLen, beginCoord, endCoord;
+					UINT64 stringLen, beginCoord, endCoord, totalOverlapLength, totalReads, totalSubs, totalIns, totalDel, totalClip, totalReadLength;
+					double maxWeight;
 					int iter = 0;
+					INT64 coveredBases, coveredRegions;
+					dataSet->getCoveredInfo(coveredBases, coveredRegions);
+					FILE_LOG(logINFO) << "Average coverage depth is: " << (double)dataSet->getTotalBps()/(double)coveredBases;
 					do{
 						vector<UINT64> * topoSortedNodes = new vector<UINT64>;
 						string finalString;
 						graph->DFS(topoSortedNodes);
-						graph->FindLongestPath(topoSortedNodes, finalString, beginCoord, endCoord);
+						graph->FindLongestPath(topoSortedNodes, finalString, beginCoord, endCoord, maxWeight, totalOverlapLength, totalReads, totalSubs, totalIns, totalDel, totalClip, totalReadLength);
 						delete topoSortedNodes;
 						stringLen = finalString.length();
 						iter++;
@@ -154,10 +157,22 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 						FILE_LOG(logINFO) << "After longest path number " << iter << " is printed, number of edges left is: " << graph->getNumberOfEdges();
 						// Print the sequence to output file
 						outFastaStream << ">" << dataSet->getPacBioReadName() << "#" << iter << " Length_" << stringLen \
+							<< " numUniqReads_" << dataSet->getNumberOfNonContainedReads() \
+							<< " numReads_" << dataSet->getNumberOfReads() \
+							<< " coveredBps_" << coveredBases \
+							<< " coveredRegions_" << coveredRegions \
+							<< " covUniqDepth_" << (double)dataSet->getBpsOfNonContainedReads()/(double)coveredBases \
+							<< " covDepth_" << (double)dataSet->getTotalBps()/(double)coveredBases \
 							<< " from_" << beginCoord << " to_" << endCoord \
-							<< " numReads_" << dataSet->getNumberOfUniqueReads() \
-							<< " coveredBps_" << dataSet->getCoveredBases() \
-							<< " covDepth_" << dataSet->getAvgCoverage() << " origLen_" << PacBioLength  \
+							<< " origLen_" << PacBioLength  \
+							<< " weight_" << maxWeight  \
+							<< " ovl_" << totalOverlapLength  \
+							<< " reads_" << totalReads  \
+							<< " subs_" << totalSubs  \
+							<< " ins_" << totalIns  \
+							<< " del_" << totalDel  \
+							<< " clip_" << totalClip  \
+							<< " readLen_" << totalReadLength  \
 							<< endl;
 
 						UINT32 start=0;

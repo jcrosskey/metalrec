@@ -121,7 +121,7 @@ class OverlapGraph
 		UINT64 getLengthInPacBio(Edge *edge);
 		bool DFS(vector< UINT64 > * topoSortedNodes); /* Depth first search of the graph, can also be used to determine when the graph is cyclic */
 		bool DFS_visit(UINT64 i, vector<int> *searchStatus, vector<UINT64> *predecessors, UINT64 & sTime, vector<int> * discoverTime, vector<int> * finishTime, vector<Edge *> * backEdges, vector<UINT64> * topoSortedNodes); /* visit all the neighbors of a node, and update the DFS vectors */
-		bool FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString, UINT64 & beginCoord, UINT64 & endCoord);         /* Find longest path in the graph */
+		bool FindLongestPath(vector<UINT64> * topoSortedNodes, string & finalString, UINT64 & beginCoord, UINT64 & endCoord, double & maxWeight, UINT64 & totalOverlapLength, UINT64 & totalReads, UINT64 & totalSubs, UINT64 & totalIns, UINT64 & totalDel,UINT64 & totalClip, UINT64 & totalReadLength);         /* Find longest path in the graph */
 };
 
 #endif /* OVERLAPGRAPH_H_ */

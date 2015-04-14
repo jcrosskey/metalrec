@@ -240,7 +240,7 @@ int main(int argc, char ** argv){
 		}
 		else if (PacBio_file.length() > 0)
 		{
-			Utils::saveLinesToVec(PacBio_file, PacBioNames);
+			Utils::saveLinesToVec(PacBio_file, PacBioNames, PacBioLengths);
 			for(size_t i = 0; i < PacBioNames.size(); i++){
 				PacBioLengths.push_back(Utils::getPacBioLength(PacBioNames.at(i)));
 			}
@@ -279,13 +279,16 @@ int main(int argc, char ** argv){
 					indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 		}
 		else{
+			ofstream outFastaStream;
+			string outFile = outDir + "/" + allFileName+".fasta";
+			outFastaStream.open(outFile.c_str(), ofstream::app);
 			for ( size_t j = 0; j < PacBioNames.size(); j++) /* Otherwise the prefix has to be changed so that each PacBio read has different prefix */
 			{
 				FILE_LOG(logINFO) << "Read " << PacBioNames.at(j);
-				string prefixName = Utils::intToString(j);
-				ec(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), prefixName, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
+				ec_stream(bamFiles, PacBioNames.at(j), PacBioLengths.at(j), allFileName, outFastaStream, samtools_path, outDir, minimumOverlapLength, hashStringLength, maxError, rubberPos, 
 						indelRate, insRate, delRate, subRate, maxErrorRate, minPercentInLR, minPacBioLength);
 			}
+			outFastaStream.close();
 		}
 
 		FILE_LOG(logINFO) << " Done!";
