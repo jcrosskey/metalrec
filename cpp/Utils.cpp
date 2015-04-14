@@ -562,17 +562,23 @@ namespace Utils
     }
 
     /* Read each line in a file and store in a vector of strings */
-    bool saveLinesToVec(const std::string & fileName, std::vector<std::string> & stringVector)
+    bool saveLinesToVec(const std::string & fileName, std::vector<std::string> & stringVector, std::vector<unsigned short> & lengthVector)
     {
 	    stringVector.clear();
+	    lengthVector.clear();
 	    std::ifstream fin(fileName.c_str());
+	    size_t delimit_pos;
 	    if(fin.is_open())
 	    {
 		    std::string line;
 		    while(std::getline(fin, line))
 		    {
 			    if (line.length() > 0)
-				    stringVector.push_back(line);
+			    {
+				    delimit_pos = line.find("\t");
+				    stringVector.push_back(line.substr(0, delimit_pos));
+				    //lengthVector.push_back(std::stoi(line.substr(delimit_pos+1, std::string::npos)));
+			    }
 		    }
 		    fin.close();
 	    }

@@ -126,7 +126,7 @@ namespace Utils
     std::string get_cwd();
 
     /* Read each line in a file and store in a vector of strings */
-    bool saveLinesToVec(const std::string & fileName, std::vector<std::string> & stringVector);
+    bool saveLinesToVec(const std::string & fileName, std::vector<std::string> & stringVector, std::vector<unsigned short> & lengthVector);
 
     /* Get length of pacbio read from its name */
     unsigned short getPacBioLength(const std::string & readName);
