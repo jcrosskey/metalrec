@@ -522,7 +522,7 @@ Read * Dataset::getReadFromID(UINT64 ID)
 /**********************************************************************************************************************
   This function saves the starting coordinate sorted unique reads in a file. Used for debugging only.
  **********************************************************************************************************************/
-void Dataset::saveReads(string fileName)
+void Dataset::saveReads(string fileName, bool writeContained)
 {
 	CLOCKSTART;
 	ofstream outputFile;
@@ -532,17 +532,20 @@ void Dataset::saveReads(string fileName)
 	for(UINT64 i = 1; i <= numberOfUniqueReads; i++)
 	{
 		Read * read1 = getReadFromID(i);
-		if(read1->superReadID!=0)
+		if(read1->superReadID!=0) 
 		{
-			outputFile << ">" << i <<  " # " << read1->getReadName() \
-				<< " # Start coord: " << read1->getStartCoord() \
-				<< " # End coord: " << read1->getEndCoord() \
-				<< " # Length: " << read1->getReadLength() \
-				<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
-				<< " # Ins: " << read1->getNumOfInsertionsInRead() \
-				<< " # Del: " << read1->getNumOfDeletionsInRead() \
-				<< " # Contained in "  << read1->superReadID \
-				<< "\n" << read1->getDnaStringForward() << endl;
+			if (writeContained)
+			{
+				outputFile << ">" << i <<  " # " << read1->getReadName() \
+					<< " # Start coord: " << read1->getStartCoord() \
+					<< " # End coord: " << read1->getEndCoord() \
+					<< " # Length: " << read1->getReadLength() \
+					<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
+					<< " # Ins: " << read1->getNumOfInsertionsInRead() \
+					<< " # Del: " << read1->getNumOfDeletionsInRead() \
+					<< " # Contained in "  << read1->superReadID \
+					<< "\n" << read1->getDnaStringForward() << endl;
+			}
 		}
 		else
 		{
@@ -553,6 +556,8 @@ void Dataset::saveReads(string fileName)
 				<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
 				<< " # Ins: " << read1->getNumOfInsertionsInRead() \
 				<< " # Del: " << read1->getNumOfDeletionsInRead() \
+				<< " # leftClip: " << read1->getLeftClip() \
+				<< " # rightClip: " << read1->getRightClip() \
 				<< " # Noncontained, contains: ";
 			for(size_t i = 0; i < read1->getContainedReadIDs()->size(); i++)
 				outputFile << read1->getContainedReadIDs()->at(i) << ", ";

@@ -343,7 +343,7 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	FILE_LOG(logDEBUG3) << numOfSubstitions << " substitutions in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << leftClip + rightClip << " clipped bases in " << readLength << " bps";
-	if (float(leftClip + rightClip) > readLength * 0.5)
+	if (float(leftClip + rightClip) > readLength * 0.5 || leftClip > 100 || rightClip > 100)
 		return false;
 	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
 	{
@@ -370,12 +370,21 @@ Note: rightClip is not used currently.
 bool Read::setClip(const string & cigarString)
 {
 	size_t pos = 0;
-	size_t S_pos = cigarString.find('S');
+	while(isdigit(cigarString.at(pos))){
+		pos++;
+	}
+	size_t S_pos = cigarString.find('S',pos);
 	if ( S_pos != string::npos )
 	{
-		leftClip = Utils::stringToUnsignedInt( cigarString.substr(pos, S_pos) );
-		pos = S_pos + 1;
-		S_pos = cigarString.find('S', pos);
+		if(S_pos == pos)
+		{
+			leftClip = Utils::stringToUnsignedInt( cigarString.substr(0, S_pos) );
+			pos = S_pos + 1;
+			S_pos = cigarString.find('S', pos);
+		}
+		else{
+			leftClip = 0;
+		}
 		if ( S_pos != string::npos )
 		{
 			size_t last_S_pos = S_pos;

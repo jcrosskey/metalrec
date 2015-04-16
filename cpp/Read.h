@@ -78,6 +78,8 @@ class Read
 		string getDnaStringForward(void){return readDnaString;}	// Get the forward string of the current read.
 		string getReadName(void){return readName;}	// Get the name of the current read.
 		INT32 getStartCoord(void){return startCoord;}	// Get the starting coordinate of the read, with clipped part added back
+		UINT32 getLeftClip(void) {return leftClip;}
+		UINT32 getRightClip(void) {return rightClip;}
 		INT32 getEndCoord(void);	// Get the ending coordinate of the read
 		INT32 getEndCoordInLR(void);
 		UINT32 getrStart(void) {return rStart;}	// Get the leftmost alignment position on the reference sequence.

@@ -98,10 +98,6 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 			}
 			dataSet->finalize();
 			dataSet->setPacBioReadName(PacBioName);
-			if(loglevel > 3)
-			{
-				dataSet->saveReads(outDir + "/" + allFileName + ".reads");
-			}
 
 			if (dataSet->getNumberOfReads() <= 1)
 				FILE_LOG(logWARNING) << "Data set has no more than 1 read in it, quitting...";
@@ -133,6 +129,10 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 
 				else /* If there is at least 1 edge in the data set, try to calculate flow and output contigs */
 				{
+					if(loglevel > 2)
+					{
+						dataSet->saveReads(outDir + "/" + allFileName + ".reads", false);
+					}
 					UINT64 stringLen, beginCoord, endCoord, totalOverlapLength, totalReads, totalSubs, totalIns, totalDel, totalClip, totalReadLength;
 					double maxWeight;
 					int iter = 0;
