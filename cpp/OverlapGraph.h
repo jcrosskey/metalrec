@@ -110,7 +110,7 @@ class OverlapGraph
 		bool calculateBoundAndCost(Edge *edge, INT64* FLOWLB, INT64* FLOWUB, INT64* COST); // Calculate bounds and costs of flow for minimum cost flow in the overlap graph.
 		bool calculateFlow1(string inputFileName, string outputFileName);
 		bool calculateFlow(void);	// Calculate the minimum cost flow of the overlap graph.
-		string getStringInEdge(Edge *edge, bool includeLast=true);	// Get the string in an edge by overlapping the ordered reads in the edge.
+		string getStringInEdge(Edge *edge, bool includeLast=true, bool leftClip=false, bool rightClip=false);	// Get the string in an edge by overlapping the ordered reads in the edge.
 		bool simplifyGraph(void);	// Some simple simplification.
 //		void getBaseByBaseCoverage(Edge *edge);	// Get the coverage Mean and SD of an edge. Only considering the unique reads.
 		void sortEdges();	// Sort edges of each read based on ID of the destination read.

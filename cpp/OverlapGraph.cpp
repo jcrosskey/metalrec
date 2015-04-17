@@ -1639,12 +1639,18 @@ bool OverlapGraph::isEdgePresent(UINT64 source, UINT64 destination)
 //}
 
 
-string OverlapGraph::getStringInEdge(Edge *edge, bool includeLast)
+string OverlapGraph::getStringInEdge(Edge *edge, bool includeLast, bool leftClip, bool rightClip)
 {
 	string source_string, dest_string, readTemp, returnString;
 	// strings of the source and destination reads
 	source_string =  edge->getSourceRead()->getDnaStringForward();
+	if(leftClip){
+		source_string = source_string.substr(edge->getSourceRead()->getLeftClip(), string::npos);
+	}
 	dest_string =  edge->getDestinationRead()->getDnaStringForward();
+	if(rightClip){
+		dest_string = dest_string.substr(0, edge->getDestinationRead()->getReadLength() - edge->getDestinationRead()->getRightClip());
+	}
 	if(edge->getListOfReads()->empty()){
 		returnString = source_string.substr(0,edge->getOverlapOffset());
 	}
@@ -2073,7 +2079,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	FILE_LOG(logINFO) << "\nFirst read in the path has length " << beginR->getReadLength() <<  " bps and " << beginR->getNumOfSubstitutionsInRead() << " subs.";
 	if(loglevel > 2){
 		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-1);rit++,it++)
-			cout << *rit << " (--" << *it << "->) ";
+			cout << *rit << " (--" << *it << ", " << findEdge(*rit, *(rit+1), *(it))->getOverlapOffset() << "->) ";
 		cout << *rit;
 		cout << endl;
 	}
@@ -2082,6 +2088,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	/* Print the longest path */
 	finalString = "";
 	it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
+	bool first_edge = true;
 	for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-2);rit++,it++)
 	{
 		Edge * e = findEdge(*rit, *(rit+1), *(it));
@@ -2093,11 +2100,18 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 		totalDel += sourceR->getNumOfDeletionsInRead();
 		totalClip += sourceR->getClippedLength();
 		totalReadLength += sourceR->getReadLength();
-		finalString += getStringInEdge(e, false);
+		if(first_edge)
+		{
+			finalString += getStringInEdge(e, false, true, false);
+			first_edge = false;
+		}
+		else
+			finalString += getStringInEdge(e, false, false, false);
+
 	}
 	/* Last edge in the path need to include the last read string */
 	Edge *e = findEdge(*rit, *(rit+1), *(it));
-	finalString += getStringInEdge(e, true);
+	finalString += getStringInEdge(e, true, false, true);
 	Read * sourceR = dataSet->getReadFromID(*(rit));
 	Read * destinationR = dataSet->getReadFromID(*(rit+1));
 	
