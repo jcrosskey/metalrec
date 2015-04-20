@@ -22,7 +22,7 @@
 - Change your compiler in the corresponding makefiles as needed.
 - Type `./mpi_align -h` or `./mpi_metalrec -h` for help to run the programs.
 - Example for running MPI version to correct all the long reads in the .bam files:
-	mpirun -np total_CPU_number -c config_file -od EC
+	mpirun -np total_CPU_number -c config_file -od EC -log ERROR
 - BAM files need to be sorted and indexed before being used as input to MetaLREC
 
 ## Contributor 
