@@ -4,7 +4,7 @@
 * A program designed for correcting long reads with high error rates, such as PacBio reads, with the help from high identity short reads (such as Illumina or CCS reads) from the same sample.
 * MetaLREC is written in C++ with MPI support, it's recommended now to use MPI instead of running single thread. Later threaded version might be supported.
 * A MPI wrapper to run BLASR in parallel as a preprocessing step for error correction is also included.
-* Version 1.0.1
+* Version 1.0.2
 
 ## BUILD and RUN
 - System requirement: 
@@ -23,7 +23,8 @@
 - Type `./mpi_align -h` or `./mpi_metalrec -h` for help to run the programs.
 - Example for running MPI version to correct all the long reads in the .bam files:
 	mpirun -np total_CPU_number -c config_file -od EC -log ERROR
-- BAM files need to be sorted and indexed before being used as input to MetaLREC
+
+- BAM files need to be sorted and indexed before being used as input to MetaLREC. Full read sequence with soft clip is required, as well as CIGAR string and NM tag in the alignment result. 
 
 ## Contributor 
 * For questions and suggestions, contact JJ Crosskey, jjchai01@gmail.com
