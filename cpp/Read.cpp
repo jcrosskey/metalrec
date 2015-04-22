@@ -292,6 +292,7 @@ bool Read::setRead(const string & s)
 bool Read::setEdits(const string & s)
 {
 	size_t pos, pos1 = 0, length = 0;
+	unsigned int numOfMatches = 0, numOfMismatches = 0;
 	int num;
 	for(pos = 0; pos < s.length(); pos++)
 	{
@@ -299,7 +300,7 @@ bool Read::setEdits(const string & s)
 		{
 			length++;
 		}
-		else if (isalpha(s.at(pos)))    /* if this position is alphabetic, meaning a new operation is found */
+		else    /* if this position is alphabetic, meaning a new operation is found */
 		{
 			switch(s.at(pos))
 			{
@@ -315,8 +316,16 @@ bool Read::setEdits(const string & s)
 					num = stoi(s.substr(pos1, length));
 					numOfMatchMismatches += num;
 					break;
+				case '=':
+					num = stoi(s.substr(pos1, length));
+					numOfMatches += num;
+					break;
+				case 'X':
+					num = stoi(s.substr(pos1, length));
+					numOfMismatches += num;
+					break;
 				default:
-					;
+					FILE_LOG(logWARNING) << "Unknown operation string in CIGAR string" << s.at(pos);
 			}
 			pos1 = pos + 1;         /* update the positions to find the next number */
 			length = 0;
@@ -343,15 +352,8 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	FILE_LOG(logDEBUG3) << numOfSubstitions << " substitutions in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << leftClip + rightClip << " clipped bases in " << readLength << " bps";
-	if (float(leftClip + rightClip) > readLength * 0.5 || leftClip > 100 || rightClip > 100)
+	if (leftClip > readLength * 0.25 || rightClip > readLength * 0.25) /* too many bases clipped */
 		return false;
-	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               /* If the read is not totally included in the PacBio read */
-	{
-		UINT64 basesOutOfLR = (startCoord > 0 ? 0 : -startCoord);
-		basesOutOfLR += ((getEndCoord() > PacBioReadLength)?(getEndCoord()-PacBioReadLength):0);
-		if (basesOutOfLR > readLength * (1-percentInLR))
-			return false;
-	}
 	if (numOfSubstitions >  mappedLength * subRate) /* too many substitution errors */
 		return false;
 	if ( numOfInsertions  > mappedLength * insRate) /* too many insertion erros */
@@ -360,6 +362,28 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 		return false;
 	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
 		return false;
+	/* If the read is not totally included in the PacBio read */
+/* 	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               
+ * 	{
+ * 		UINT64 basesOutOfLR = (startCoord > 0 ? 0 : -startCoord);
+ * 		basesOutOfLR += ((getEndCoord() > PacBioReadLength)?(getEndCoord()-PacBioReadLength):0);
+ * 		if (basesOutOfLR > readLength * (1-percentInLR))
+ * 			return false;
+ * 	}
+ */
+	/* If short read extends out of the long read at the beginning, reset the leftClip and DNA string */
+	if(startCoord < 0){
+		FILE_LOG(logDEBUG) << readName << " at the beginning is kept";
+		readDnaString = readDnaString.substr(leftClip, string::npos);
+		startCoord = rStart;
+		leftClip = 0;
+	}
+	if(getEndCoord() > PacBioReadLength){
+		FILE_LOG(logDEBUG) << readName << " at the end is kept";
+		readDnaString = readDnaString.substr(0,readDnaString.length()-rightClip);
+		rightClip = 0;
+		
+	}
 	return true;
 }
 
@@ -424,7 +448,7 @@ UINT64 Read::getNumOfSubstitutionsInRead()
 	if (editDistance >= numOfDeletions + numOfInsertions ) /* number of substitutions in the alignment */
 		numOfSubstitions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
 	else
-		FILE_LOG(logWARNING) << "In read " << readName << " editDistance is smaller than the number of indels, NM is not reliable and number of substitutions is set to 0.";
+		FILE_LOG(logWARNING) << "In read " << readName << " editDistance " << editDistance << " is smaller than the number of indels " << numOfDeletions+numOfInsertions << " , NM is not reliable and number of substitutions is set to 0.";
 	return numOfSubstitions;
 }
 

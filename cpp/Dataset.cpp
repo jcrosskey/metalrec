@@ -543,6 +543,8 @@ void Dataset::saveReads(string fileName, bool writeContained)
 					<< " # Subs: " << read1->getNumOfSubstitutionsInRead() \
 					<< " # Ins: " << read1->getNumOfInsertionsInRead() \
 					<< " # Del: " << read1->getNumOfDeletionsInRead() \
+					<< " # leftClip: " << read1->getLeftClip() \
+					<< " # rightClip: " << read1->getRightClip() \
 					<< " # Contained in "  << read1->superReadID \
 					<< "\n" << read1->getDnaStringForward() << endl;
 			}

@@ -132,6 +132,7 @@ void ec_stream(const vector<string> & bamFiles, const string & PacBioName,
 					if(loglevel > 2)
 					{
 						dataSet->saveReads(outDir + "/" + allFileName + ".reads", false);
+						dataSet->saveReads(outDir + "/" + allFileName + "all.reads", true);
 					}
 					UINT64 stringLen, beginCoord, endCoord, totalOverlapLength, totalReads, totalSubs, totalIns, totalDel, totalClip, totalReadLength;
 					double maxWeight;
