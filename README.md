@@ -11,18 +11,20 @@
     - The program was tested on Linux and MacOS with GNU compiler.
     - samtools is required
     - BLASR is required for the mpi-wrapper of BLASR
-- To compile serial version of MetaLREC only:
-	type `make`
-- To compile MPI version of MetaLREC only:
-	type `make mpi`
-- To compile both versions of MetaLREC only:
-	type `make all`
-- To compile MPI wrapper for BLASR:
-	type `make -f Make_align`
-- Change your compiler in the corresponding makefiles as needed.
+- To compile, change directory to MetaLREC/cpp/Debug:
+    - To compile serial version of MetaLREC only:
+    	type `make`
+    - To compile MPI version of MetaLREC only:
+    	type `make mpi`
+    - To compile both versions of MetaLREC only:
+    	type `make all`
+    - To compile MPI wrapper for BLASR:
+    	type `make -f Make_align`
+    - Change your compiler in the corresponding makefiles as needed.
 - Type `./mpi_align -h` or `./mpi_metalrec -h` for help to run the programs.
-- Example for running MPI version to correct all the long reads in the .bam files:
-	mpirun -np total_CPU_number -c config_file -od EC -log ERROR
+    - Example for running MPI version to correct all the long reads in the .bam files:
+	`mpirun -np total_CPU_number -c config_file -od EC -log ERROR`
+    - See sample config file included for parameters that can be defined by users.
 
 - BAM files need to be sorted and indexed before being used as input to MetaLREC. Full read sequence with soft clip is required, as well as CIGAR string and NM tag in the alignment result. 
 
