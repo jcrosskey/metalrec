@@ -16,6 +16,8 @@ int loglevel;                                   /* level of log information(verb
 #define WORKTAG    1
 #define DIETAG     2
 #define	MAX_FILE_NUM 20000	/* Limit of number of files in each folder (on some old file system) */
+#define VERSION_STRING "1.0.2"
+#define PROG_NAME "metalrec"
 using namespace std;
 
 /* Function declaration */
@@ -160,6 +162,7 @@ void parseConfig(const string & configFile, map<string, string> & param_map)
 // main function
 // function hmm_file prop count_file fastafile
 int main(int argc, char ** argv){
+	cout << PROG_NAME << " version " << VERSION_STRING << endl << endl;
 	string samtools_path, configFile, outDir, allFileName, PacBioName, PacBio_file;
 	UINT64 minimumOverlapLength, hashStringLength;
 	UINT32 maxError, rubberPos;

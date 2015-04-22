@@ -18,6 +18,8 @@ int loglevel;                                   /* level of log information(verb
 #define WORKTAG    1
 #define DIETAG     2
 #define	MAX_FILE_NUM 20000
+#define VERSION_STRING "1.0.2"
+#define PROG_NAME "metalrec"
 using namespace std;
 
 /* Function declaration */
@@ -356,6 +358,7 @@ int main(int argc, char ** argv){
 		size_t fileNum = PacBioNames.size();
 
 		if (myid == 0) {
+			cout << PROG_NAME << " version " << VERSION_STRING << endl;
 			cout << "Number of PacBio reads is: " << PacBioNames.size() << endl;
 			cout << "File with PacBio names is: " << PacBio_file << endl;
 			cout << "samtools path: " << samtools_path << endl;

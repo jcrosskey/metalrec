@@ -2075,8 +2075,8 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	vector<UINT64>::reverse_iterator rit = longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin();
 	vector<UINT64>::iterator it = edgeIDsUntilNodes->at(nodeWithLongestPath)->begin();
 	UINT64 beginNodeID = *rit;
-	Read * beginR = dataSet->getReadFromID(beginNodeID);
-	FILE_LOG(logINFO) << "\nFirst read in the path has length " << beginR->getReadLength() <<  " bps and " << beginR->getNumOfSubstitutionsInRead() << " subs.";
+	//Read * beginR = dataSet->getReadFromID(beginNodeID);
+	//FILE_LOG(logINFO) << "\nFirst read in the path has length " << beginR->getReadLength() <<  " bps and " << beginR->getNumOfSubstitutionsInRead() << " subs.";
 	if(loglevel > 2){
 		for(rit=longestPathsUntilNodes->at(nodeWithLongestPath)->rbegin(); rit!=(longestPathsUntilNodes->at(nodeWithLongestPath)->rend()-1);rit++,it++)
 			cout << *rit << " (--" << *it << ", " << findEdge(*rit, *(rit+1), *(it))->getOverlapOffset() << "->) ";
@@ -2127,8 +2127,8 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	endCoord = destinationR->getEndCoord();
 
 	/*  print info about the last read */
-	UINT64 addedLength = destinationR->getReadLength() + e->getOverlapOffset() - sourceR->getReadLength();
-	FILE_LOG(logINFO) << "Last read in the path has length " << destinationR->getReadLength() << " ,added " << addedLength << " bps and " << destinationR->getNumOfSubstitutionsInRead() << " subs to the result.\n";
+	//UINT64 addedLength = destinationR->getReadLength() + e->getOverlapOffset() - sourceR->getReadLength();
+	//FILE_LOG(logINFO) << "Last read in the path has length " << destinationR->getReadLength() << " ,added " << addedLength << " bps and " << destinationR->getNumOfSubstitutionsInRead() << " subs to the result.\n";
 
 	/* Remove the edges covered by the longest path */
 	removeEdgesBetweenReadNumbers(beginNodeID, *(rit+1));

@@ -324,8 +324,10 @@ bool Read::setEdits(const string & s)
 					num = stoi(s.substr(pos1, length));
 					numOfMismatches += num;
 					break;
+				case 'S':
+					break;
 				default:
-					FILE_LOG(logWARNING) << "Unknown operation string in CIGAR string" << s.at(pos);
+					FILE_LOG(logWARNING) << "Unknown operation string in CIGAR string " << s.at(pos);
 			}
 			pos1 = pos + 1;         /* update the positions to find the next number */
 			length = 0;
