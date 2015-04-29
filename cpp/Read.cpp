@@ -410,74 +410,31 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
 		return false;
 	/* If the read is not totally included in the PacBio read */
-/* 	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               
- * 	{
- * 		UINT64 basesOutOfLR = (startCoord > 0 ? 0 : -startCoord);
- * 		basesOutOfLR += ((getEndCoord() > PacBioReadLength)?(getEndCoord()-PacBioReadLength):0);
- * 		if (basesOutOfLR > readLength * (1-percentInLR))
- * 			return false;
+	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               
+	{
+		UINT64 basesOutOfLR = (startCoord > 0 ? 0 : -startCoord);
+		basesOutOfLR += ((getEndCoord() > PacBioReadLength)?(getEndCoord()-PacBioReadLength):0);
+		if (basesOutOfLR > readLength * (1-percentInLR))
+			return false;
+	}
+
+	/* If short read extends out of the long read at the beginning, reset the leftClip and DNA string */
+/* 	if(startCoord < 0){
+ * 		FILE_LOG(logDEBUG2) << readName << " at the beginning is kept";
+ * 		readDnaString = readDnaString.substr(leftClip, string::npos);
+ * 		startCoord = rStart;
+ * 		leftClip = 0;
+ * 	}
+ * 	if(getEndCoord() > PacBioReadLength){
+ * 		FILE_LOG(logDEBUG2) << readName << " at the end is kept";
+ * 		readDnaString = readDnaString.substr(0,readDnaString.length()-rightClip);
+ * 		rightClip = 0;
+ * 		
  * 	}
  */
-	/* If short read extends out of the long read at the beginning, reset the leftClip and DNA string */
-	if(startCoord < 0){
-		FILE_LOG(logDEBUG2) << readName << " at the beginning is kept";
-		readDnaString = readDnaString.substr(leftClip, string::npos);
-		startCoord = rStart;
-		leftClip = 0;
-	}
-	if(getEndCoord() > PacBioReadLength){
-		FILE_LOG(logDEBUG2) << readName << " at the end is kept";
-		readDnaString = readDnaString.substr(0,readDnaString.length()-rightClip);
-		rightClip = 0;
-		
-	}
 
 	return true;
 }
-
-/**********************************************************************************************************************
-  Get the clipped length on both ends from cigar string.
-Note: rightClip is not used currently.
-**********************************************************************************************************************/
-/* bool Read::setClip(const string & cigarString)
- * {
- * 	size_t pos = 0;
- * 	while(isdigit(cigarString.at(pos))){
- * 		pos++;
- * 	}
- * 	size_t S_pos = cigarString.find('S',pos);
- * 	if ( S_pos != string::npos )
- * 	{
- * 		if(S_pos == pos)
- * 		{
- * 			leftClip = Utils::stringToUnsignedInt( cigarString.substr(0, S_pos) );
- * 			pos = S_pos + 1;
- * 			S_pos = cigarString.find('S', pos);
- * 		}
- * 		else{
- * 			leftClip = 0;
- * 		}
- * 		if ( S_pos != string::npos )
- * 		{
- * 			size_t last_S_pos = S_pos;
- * 			while( isdigit ( cigarString.at(S_pos - 1)) ) // if the previous digit is a number
- * 			{
- * 				S_pos = S_pos - 1 ;
- * 			}
- * 			rightClip = Utils::stringToUnsignedInt( cigarString.substr(S_pos, last_S_pos) );
- * 
- * 		}
- * 		else
- * 			rightClip = 0;
- * 	}
- * 	else
- * 	{
- * 		leftClip = 0;
- * 		rightClip = 0;
- * 	}
- * 	return true;
- * }
- */
 
 
 /**********************************************************************************************************************
@@ -490,16 +447,6 @@ bool Read::setFrequency(UINT32 freq)
 	frequency = freq;	// Set the frequency of the read.
 	return true;
 }
-
-//UINT64 Read::getNumOfSubstitutionsInRead()
-//{
-//	UINT64 numOfSubstitutions = 0;
-//	if (editDistance >= numOfDeletions + numOfInsertions ) /* number of substitutions in the alignment */
-//		numOfSubstitutions = editDistance - numOfDeletions - numOfInsertions; /* number of substitutions in the alignment */
-//	else
-//		FILE_LOG(logWARNING) << "In read " << readName << " editDistance " << editDistance << " is smaller than the number of indels " << numOfDeletions+numOfInsertions << " , NM is not reliable and number of substitutions is set to 0.";
-//	return numOfSubstitutions;
-//}
 
 /**********************************************************************************************************************
 	Return the ending coordinates of the read, disregarding the alignment to PacBio read, 
