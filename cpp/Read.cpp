@@ -399,15 +399,8 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	FILE_LOG(logDEBUG3) << numOfSubstitutions << " substitutions in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << "leftClip: " << leftClip << " rightClip: " << rightClip << " in " << readLength << " bps";
-	if (leftClip > readLength * 0.2 || rightClip > readLength * 0.2) /* too many bases clipped */
-		return false;
-	if (numOfSubstitutions >  mappedLength * subRate) /* too many substitution errors */
-		return false;
-	if ( numOfInsertions  > mappedLength * insRate) /* too many insertion erros */
-		return false;
-	if ( numOfDeletions  > mappedLength * delRate) /* too many deletion erros */
-		return false;
-	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
+	//if (leftClip > readLength * 0.2 || rightClip > readLength * 0.2) /* too many bases clipped */
+	if (float(leftClip + rightClip) > readLength * 0.5 || leftClip > 100 || rightClip > 100) /* to be consistent with the earlier version */
 		return false;
 	/* If the read is not totally included in the PacBio read */
 	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               
@@ -417,6 +410,14 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 		if (basesOutOfLR > readLength * (1-percentInLR))
 			return false;
 	}
+	if (numOfSubstitutions >  mappedLength * subRate) /* too many substitution errors */
+		return false;
+	if ( numOfInsertions  > mappedLength * insRate) /* too many insertion erros */
+		return false;
+	if ( numOfDeletions  > mappedLength * delRate) /* too many deletion erros */
+		return false;
+	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
+		return false;
 
 	/* If short read extends out of the long read at the beginning, reset the leftClip and DNA string */
 /* 	if(startCoord < 0){

@@ -2102,7 +2102,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 		totalReadLength += sourceR->getReadLength();
 		if(first_edge)
 		{
-			finalString += getStringInEdge(e, false, true, false);
+			finalString += getStringInEdge(e, false, false, false);
 			first_edge = false;
 		}
 		else
@@ -2111,7 +2111,7 @@ bool OverlapGraph::FindLongestPath(vector<UINT64> * topoSortedNodes, string & fi
 	}
 	/* Last edge in the path need to include the last read string */
 	Edge *e = findEdge(*rit, *(rit+1), *(it));
-	finalString += getStringInEdge(e, true, false, true);
+	finalString += getStringInEdge(e, true, false, false);
 	Read * sourceR = dataSet->getReadFromID(*(rit));
 	Read * destinationR = dataSet->getReadFromID(*(rit+1));
 	
