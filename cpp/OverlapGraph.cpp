@@ -1644,9 +1644,10 @@ string OverlapGraph::getStringInEdge(Edge *edge, bool includeLast, bool leftClip
 	string source_string, dest_string, readTemp, returnString;
 	// strings of the source and destination reads
 	source_string =  edge->getSourceRead()->getDnaStringForward();
-	if(leftClip){
-		source_string = source_string.substr(edge->getSourceRead()->getLeftClip(), string::npos);
-	}
+/* 	if(leftClip){
+ * 		source_string = source_string.substr(edge->getSourceRead()->getLeftClip(), string::npos);
+ * 	}
+ */
 	dest_string =  edge->getDestinationRead()->getDnaStringForward();
 	if(rightClip){
 		dest_string = dest_string.substr(0, edge->getDestinationRead()->getReadLength() - edge->getDestinationRead()->getRightClip());
@@ -1666,6 +1667,13 @@ string OverlapGraph::getStringInEdge(Edge *edge, bool includeLast, bool leftClip
 		}
 		readTemp = dataSet->getReadFromID(edge->getListOfReads()->at(i))->getDnaStringForward();
 		returnString = returnString + readTemp.substr(0, lastOffset);
+	}
+	if(leftClip){
+		UINT64 left_clip = edge->getSourceRead()->getLeftClip();
+		if (returnString.length() < left_clip)
+			returnString = "";
+		else
+			returnString = returnString.substr(edge->getSourceRead()->getLeftClip(), string::npos);
 	}
 	return includeLast?(returnString+dest_string):returnString;
 }
