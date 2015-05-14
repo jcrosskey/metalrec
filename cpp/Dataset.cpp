@@ -294,8 +294,6 @@ bool Dataset::removeDupicateReads(void)
 				reads->at(j) = reads->at(i);	// Switch reads.at(i) and reads.at(j)
 				reads->at(i) = temp;
 			}
-			else if(i!=j)	// No more same reads as the current one, set the frequencies for this read
-				reads->at(j)->setFrequency(reads->at(j)->getFrequency() + 1);
 		}
 		numberOfUniqueReads = j+1;
 		for(UINT64 i = 0 ; i < reads->size(); i++) 	// Assing ID to the reads.
@@ -361,6 +359,7 @@ bool Dataset::testRead(const string & readDnaString)
  * 		cnt[(readDnaString[i] >> 1) & 0X03]++; // Least significant 2nd and 3rd bits of ASCII value used here
  * 	}
  */
+	/* TODO: put the percentage and homopolymer run length in the config file */
 	UINT64 threshold = readDnaString.length()*.8;	// 80% of the length.
 	if(cnt[0] >= threshold || cnt[1] >= threshold || cnt[2] >= threshold || cnt[3] >= threshold)
 	{
@@ -394,7 +393,6 @@ UINT64 Dataset::getNumberOfNonContainedReads(void)
 	}
 	return N;
 }
-
 
 
 /* 
@@ -614,7 +612,7 @@ double Dataset::getWeight(Edge * e)
 {
 	/* coverage depth */
 	UINT64 numOfOverlapOffsets = e->getListOfOverlapOffsets()->size()+1; 
-	/* approximate number of substitutions in an edge */
+
 	return ((double)e->getOverlapOffset() + (double)numOfOverlapOffsets*PacBioReadLength/(double)numberOfUniqueReads - getSubsOnEdge(e)*20);
 }
 
@@ -627,20 +625,22 @@ double Dataset::getWeight(Edge * e)
 double Dataset::getSubsOnEdge(Edge *e)
 {
 	double substitutionsInEdge = 0.0;
+	Read *sourceRead = e->getSourceRead();
 	if(e->getListOfReads()->size() == 0){   /* If this edge is a simple edge, then just 1 overlap offset */
 		/* #(substitution) * overlapoffset / alignedLength = expected # of subs in the overlapoffset part */
-		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutionsInRead() * e->getOverlapOffset())/(double)(e->getSourceRead()->getAlignedLength());
+		substitutionsInEdge += (double)(sourceRead->getNumOfSubstitutionsInRead() * e->getOverlapOffset())/(double)(sourceRead->getAlignedLength());
 	}
 	else{                                   /* composite edge, add up substitutions for each overlap offset */
 		UINT64 lastOverlap = e->getOverlapOffset(); /* last overlap offset, not stored in the list */
 		/* first overlap offset, on the source read */
-		substitutionsInEdge += (double)(e->getSourceRead()->getNumOfSubstitutionsInRead() * e->getListOfOverlapOffsets()->at(0))/(double)(e->getSourceRead()->getAlignedLength());
+		substitutionsInEdge += (double)(sourceRead->getNumOfSubstitutionsInRead() * e->getListOfOverlapOffsets()->at(0))/(double)(sourceRead->getAlignedLength());
 		lastOverlap -= e->getListOfOverlapOffsets()->at(0);
 		/* The following overlaps except the last one, since the offset length is not stored in the list */
 		for(UINT64 i = 0; i < (e->getListOfReads()->size()-1); i++){
 			Read *r = getReadFromID(e->getListOfReads()->at(i));
-			substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * e->getListOfOverlapOffsets()->at(i+1))/(double)r->getAlignedLength();
-			lastOverlap -= e->getListOfOverlapOffsets()->at(i+1);
+			UINT16 ovl = e->getListOfOverlapOffsets()->at(i+1);
+			substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * ovl)/(double)r->getAlignedLength();
+			lastOverlap -= ovl;
 		}
 		Read *r = getReadFromID(e->getListOfReads()->at(e->getListOfReads()->size()-1));
 		substitutionsInEdge += (double)(r->getNumOfSubstitutionsInRead() * lastOverlap)/(double)r->getAlignedLength();
