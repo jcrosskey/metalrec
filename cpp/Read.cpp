@@ -1,12 +1,11 @@
 /*
- * Reads.h
+ * Reads.cpp
  *
  * Created on: Fri Nov  7 11:51:37 EST 2014
  * Author: JJ Chai
  */
 
 #include "Read.h"
-
 
 /**********************************************************************************************************************
 	Default constructor
@@ -18,19 +17,15 @@ Read::Read(void)
 	readName = "";
 	readDnaString = "";
 	cigarString = "";
-	frequency = 0;
 	rStart = 0;
 	leftClip = 0;
 	rightClip = 0;
-	//mapQV = 0;
 	numOfInsertions = 0;
 	flag = 0;
 	numOfDeletions = 0;
 	numOfMatches = 0;
 	numOfSubstitutions = 0;
 	editDistance = 0;
-	isReverseComplement = false;
-//	alignScore = 0;
 	startCoord = 0;
 	refName = "";
 	superReadID = 0;
@@ -44,9 +39,6 @@ Read::Read(void)
 
 	containedReadIDs = new vector<UINT64>;
 	containedReadIDs->resize(containedReadIDs->size());	// Resize to 0 to reduce space.
-
-	overlapReadIDs = new vector<UINT64>;
-	overlapReadIDs->resize(overlapReadIDs->size());	// Resize to 0 to reduce space.
 
 	overlapReadOffsets = new vector<UINT64>;
 	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
@@ -66,19 +58,15 @@ Read::Read(const Read & R)
 	readName = R.readName;
 	readDnaString = R.readDnaString;
 	cigarString = R.cigarString;
-	frequency = R.frequency;
 	rStart = R.rStart;
 	leftClip = R.leftClip;
 	rightClip = R.rightClip;
-	//mapQV = R.mapQV;
 	numOfInsertions = R.numOfInsertions;
 	flag = R.flag;
 	numOfDeletions = R.numOfDeletions;
 	numOfMatches = R.numOfMatches;
 	numOfSubstitutions = R.numOfSubstitutions;
 	editDistance = R.editDistance;
-	isReverseComplement = R.isReverseComplement;
-//	alignScore = R.alignScore;
 	startCoord = R.startCoord;
 	refName = R.refName;
 	superReadID = R.superReadID;
@@ -106,15 +94,9 @@ Read::Read(const Read & R)
 		containedReadIDs->at(k) = (R.containedReadIDs)->at(k);
 	}
 
-	overlapReadIDs = new vector<UINT64>;
-	overlapReadIDs->resize((R.overlapReadIDs)->size());
-	for(k = 0; k < overlapReadIDs->size(); k++){
-		overlapReadIDs->at(k) = (R.overlapReadIDs)->at(k);
-	}
-
 	overlapReadOffsets = new vector<UINT64>;
 	overlapReadOffsets->resize((R.overlapReadOffsets)->size());
-	for(k = 0; k < overlapReadIDs->size(); k++){
+	for(k = 0; k < overlapReadOffsets->size(); k++){
 		overlapReadOffsets->at(k) = (R.overlapReadOffsets)->at(k);
 	}
 
@@ -133,7 +115,6 @@ Read & Read::operator= (const Read & R)
 	readName = R.readName;
 	readDnaString = R.readDnaString;
 	cigarString = R.cigarString;
-	frequency = R.frequency;
 	rStart = R.rStart;
 	leftClip = R.leftClip;
 	rightClip = R.rightClip;
@@ -144,7 +125,6 @@ Read & Read::operator= (const Read & R)
 	numOfMatches = R.numOfMatches;
 	numOfSubstitutions = R.numOfSubstitutions;
 	editDistance = R.editDistance;
-	isReverseComplement = R.isReverseComplement;
 	//alignScore = R.alignScore;
 	startCoord = R.startCoord;
 	refName = R.refName;
@@ -180,20 +160,13 @@ Read & Read::operator= (const Read & R)
 		containedReadIDs->at(k) = (R.containedReadIDs)->at(k);
 	}
 
-	delete overlapReadIDs;
-	overlapReadIDs = new vector<UINT64>;
-	overlapReadIDs->resize((R.overlapReadIDs)->size());
-	for(k = 0; k < overlapReadIDs->size(); k++){
-		overlapReadIDs->at(k) = (R.overlapReadIDs)->at(k);
-	}
 
 	delete overlapReadOffsets;
 	overlapReadOffsets = new vector<UINT64>;
 	overlapReadOffsets->resize((R.overlapReadOffsets)->size());
-	for(k = 0; k < overlapReadIDs->size(); k++){
+	for(k = 0; k < overlapReadOffsets->size(); k++){
 		overlapReadOffsets->at(k) = (R.overlapReadOffsets)->at(k);
 	}
-
 	return *this;
 }
 
@@ -208,7 +181,6 @@ Read::Read(const string & s)
 	readName = "";
 	readDnaString = "";
 	cigarString = "";
-	frequency = 0;
 	rStart = 0;
 	leftClip = 0;
 	rightClip = 0;
@@ -219,7 +191,6 @@ Read::Read(const string & s)
 	numOfMatches = 0;
 	numOfSubstitutions = 0;
 	editDistance = 0;
-	isReverseComplement = false;
 //	alignScore = 0;
 	startCoord = 0;
 	refName = "";
@@ -236,9 +207,6 @@ Read::Read(const string & s)
 	containedReadIDs = new vector<UINT64>;
 	containedReadIDs->resize(containedReadIDs->size());	// Resize to 0 to reduce space.
 
-	overlapReadIDs = new vector<UINT64>;
-	overlapReadIDs->resize(overlapReadIDs->size());	// Resize to 0 to reduce space.
-
 	overlapReadOffsets = new vector<UINT64>;
 	overlapReadOffsets->resize(overlapReadOffsets->size());	// Resize to 0 to reduce space.
 
@@ -254,7 +222,6 @@ Read::~Read(void)
 	delete listOfEdgesForward;
 	delete locationOnEdgesForward;
 	delete containedReadIDs;
-	delete overlapReadIDs;
 	delete overlapReadOffsets;
 }
 
@@ -264,7 +231,6 @@ Read::~Read(void)
 bool Read::setRead(const string & s)
 {
 	//FILE_LOG(logDEBUG3) << "Use generic sam record parsing\n";
-	setFrequency(1);	// Set the frequency to 1.
 	stringstream ss(s);
 	if (ss.good())
 	{
@@ -283,7 +249,7 @@ bool Read::setRead(const string & s)
 				// 3. Reference Name
 				rStart = stoi(fields.at(3)) - 1;	// 4. 1-based leftmost mapping position, changes to 0-based 
 				//mapQV = stoi(fields.at(4));	// 5. Mapping quality value
-				isReverseComplement = ( (flag & 0x10) == 0x10);	// Is SEQ reverse complemented
+				//isReverseComplement = ( (flag & 0x10) == 0x10);	// Is SEQ reverse complemented
 				cigarString = fields.at(5);	// 6. Cigar string
 				//setClip(cigarString); // Set the clipping lengths at both ends
 				setEdits(cigarString);
@@ -399,8 +365,8 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	FILE_LOG(logDEBUG3) << numOfSubstitutions << " substitutions in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << numOfDeletions << " deletions and " << numOfInsertions << " insertion in " << mappedLength << " mapped bps";
 	FILE_LOG(logDEBUG3) << "leftClip: " << leftClip << " rightClip: " << rightClip << " in " << readLength << " bps";
-	//if (leftClip > readLength * 0.2 || rightClip > readLength * 0.2) /* too many bases clipped */
-	if (float(leftClip + rightClip) > readLength * 0.5 || leftClip > 100 || rightClip > 100) /* to be consistent with the earlier version */
+	/* Too many clipped bases TODO: need to put these in the config file */
+	if (float(leftClip + rightClip) > readLength * 0.5 || leftClip > 100 || rightClip > 100) 
 		return false;
 	/* If the read is not totally included in the PacBio read */
 	if (startCoord < 0 || getEndCoord() > PacBioReadLength)               
@@ -419,35 +385,9 @@ bool Read::isReadGood(const float & indelRate, const float & insRate, const floa
 	if ( (numOfDeletions + numOfInsertions) > mappedLength * indelRate) /* too many indel erros */
 		return false;
 
-	/* If short read extends out of the long read at the beginning, reset the leftClip and DNA string */
-/* 	if(startCoord < 0){
- * 		FILE_LOG(logDEBUG2) << readName << " at the beginning is kept";
- * 		readDnaString = readDnaString.substr(leftClip, string::npos);
- * 		startCoord = rStart;
- * 		leftClip = 0;
- * 	}
- * 	if(getEndCoord() > PacBioReadLength){
- * 		FILE_LOG(logDEBUG2) << readName << " at the end is kept";
- * 		readDnaString = readDnaString.substr(0,readDnaString.length()-rightClip);
- * 		rightClip = 0;
- * 		
- * 	}
- */
-
 	return true;
 }
 
-
-/**********************************************************************************************************************
-	This function sets the frequency of the read.
-**********************************************************************************************************************/
-bool Read::setFrequency(UINT32 freq)
-{
-	if(freq < 1) 
-		MYEXIT("Frequency less than 1.");
-	frequency = freq;	// Set the frequency of the read.
-	return true;
-}
 
 /**********************************************************************************************************************
 	Return the ending coordinates of the read, disregarding the alignment to PacBio read, 
