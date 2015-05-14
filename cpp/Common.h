@@ -43,14 +43,7 @@ typedef unsigned long long UINT64;
 typedef long long INT64;
 
 
-//static int loglevel = 2;
 extern int loglevel;
-#define aStatisticsThreshold 3
-#define minDelta 1000
-#define deadEndLength 1
-#define deadEndBp 1000
-#define minimumSupport 1
-#define loopLimit 15
 #define maxCharInLine 10000
 // Exit code that displays the place of exit and message.
 #define MYEXIT(a) { FILE_LOG(logERROR) << "Exit from File: " << __FILE__ << " Line: " << __LINE__ << " Function: " << __FUNCTION__ << "()" << endl << "Message: " << a; exit(0);}
