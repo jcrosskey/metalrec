@@ -25,31 +25,27 @@ class Edge{
 		// 	  012345678901234567890123456789
 		//	u ACTTACGGGATTATACCATCGAGA
 		//	v       GGGATTATACCATCGAGATTCAAT
-		UINT16 numOfSubstitions;             /* number of substitutions in the edge */
-		UINT32 endCoordinateLimit;      /* Limit of the ending coordinate */
+		UINT16 numOfSubstitions;             /* number of substitutions in the overlap of the edge */
 		vector<UINT64> * listOfReads; 	// List of ordered reads in the current edge.
 		vector<UINT16> * listOfOverlapOffsets; 	// List of overlap offsets of the ordered reads in the current edge.
 		vector<UINT64> * listOfSubstitutionPoses; /* List of substitution positions */
 
 	public:
+		/* Members */
 		bool transitiveRemovalFlag;	// Used to mark transitive edges.
-		UINT16 flow;	// Store the flow in the current edge.
-		UINT64 coverageDepth;	// Estimated depth of coverage.
 
+		/* Constructors and Destructors */
 		Edge(void);	// Default constructor.
-		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs); 	// Another constructor.
-		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
+		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs); 	// Simple edge constructor.
+		Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs); /* composite edge constructor */
 		~Edge();	// Destructor.
-		Edge(const Edge & E);
-		Edge & operator= (const Edge & E);
+		Edge(const Edge & E);           /* copy constructor */
+		Edge & operator= (const Edge & E); /* copy assginment */
 
-		bool makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs);
-		bool makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs);
-		bool setEndCorrdinateLimit(UINT64 endCoordLimit){endCoordinateLimit = endCoordLimit; return true;} /* set the end coordinate limit */
-		bool operator<(Edge & anotherEdge);
+		/* Mutator */
 		bool setID(UINT64 edge_id){edgeID=edge_id; return true;} /* set ID for an edge */
 
-		UINT64 getStringLengthInRange(); /* Get the string length in the edge that is also in the range limit */
+		/* Accessors */
 		Read * getSourceRead() {return source;}	// Get the read object of the source node.
 		Read * getDestinationRead() {return destination; }	// Get the read object of the destination node.
 		UINT64 getOverlapOffset() {return overlapOffset;}	// Return the overlap offset.

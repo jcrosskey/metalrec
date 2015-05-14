@@ -18,9 +18,6 @@ Edge::Edge(void)
 	// Initialize the variables.
 	overlapOffset = 0;
 	transitiveRemovalFlag = false;
-	flow = 0;
-	coverageDepth = 0;
-	endCoordinateLimit = 0;
 }
 
 /**********************************************************************************************************************
@@ -31,10 +28,7 @@ Edge::Edge(const Edge & E)
 
 	overlapOffset = E.overlapOffset;
 	numOfSubstitions = E.numOfSubstitions;
-	endCoordinateLimit = E.endCoordinateLimit;
 	transitiveRemovalFlag = E.transitiveRemovalFlag;
-	flow = E.flow;
-	coverageDepth = E.coverageDepth;
 
 	source = new Read;
 	*source = *(E.source);
@@ -68,10 +62,7 @@ Edge & Edge::operator= (const Edge & E)
 
 	overlapOffset = E.overlapOffset;
 	numOfSubstitions = E.numOfSubstitions;
-	endCoordinateLimit = E.endCoordinateLimit;
 	transitiveRemovalFlag = E.transitiveRemovalFlag;
-	flow = E.flow;
-	coverageDepth = E.coverageDepth;
 
 	delete this->source;
 	source = new Read;
@@ -110,35 +101,6 @@ Edge & Edge::operator= (const Edge & E)
 **********************************************************************************************************************/
 Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs) 	// Another constructor.
 {
-	makeEdge(from, to, length, numSub, listSubs);
-	endCoordinateLimit = 0;
-}
-
-/**********************************************************************************************************************
- 	 Another Constructor
-**********************************************************************************************************************/
-Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
-{
-	makeEdge(from, to, length, numSub, listReads, listOverlapOffsets, listSubs);
-	endCoordinateLimit = 0;
-}
-
-/**********************************************************************************************************************
-	Default destructor
-**********************************************************************************************************************/
-Edge::~Edge()
-{
-	// Free the memory used by the current edge.
-	delete listOfReads;
-	delete listOfOverlapOffsets;
-	delete listOfSubstitutionPoses;
-}
-
-/**********************************************************************************************************************
-	Function to insert a simple edge
-**********************************************************************************************************************/
-bool Edge::makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listSubs)
-{
 	source = from;
 	destination = to;
 	overlapOffset = length;
@@ -146,8 +108,6 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<U
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
-	flow = 0;
-	coverageDepth = 0;
 
 	listOfReads = new vector<UINT64>;
 	listOfReads->resize(listOfReads->size());	// Resize to reduce space.
@@ -160,13 +120,12 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<U
 	for(size_t k = 0; k < listOfSubstitutionPoses->size(); k++){
 		listOfSubstitutionPoses->at(k) = listSubs->at(k);
 	}
-	return true;
 }
 
 /**********************************************************************************************************************
-	Function to add a composite edge
+ 	 Another Constructor
 **********************************************************************************************************************/
-bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
+Edge::Edge(Read *from, Read *to, UINT64 length, UINT16 numSub, vector<UINT64> *listReads, vector<UINT16> *listOverlapOffsets, vector<UINT64> *listSubs)
 {
 	source = from;
 	destination = to;
@@ -175,8 +134,6 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<
 
 	// Initialize variables.
 	transitiveRemovalFlag = false;
-	flow = 0;
-	coverageDepth = 0;
 
 	size_t k = 0;
 	/* Copy the pointers and the pointed values to the Edge, the passed parameters can be deleted later. */
@@ -198,45 +155,16 @@ bool Edge::makeEdge(Read *from, Read *to, UINT64 length,  UINT16 numSub, vector<
 	for(k = 0; k < listOfSubstitutionPoses->size(); k++){
 		listOfSubstitutionPoses->at(k) = listSubs->at(k);
 	}
-
-	return true;
 }
 
-
-/* 
- * ===  FUNCTION  ======================================================================
- *         Name:  getStringLengthInRange
- *  Description:  Get the string length in the edge that is also in the range limit
- * =====================================================================================
- */
-UINT64 Edge::getStringLengthInRange() 
+/**********************************************************************************************************************
+	Default destructor
+**********************************************************************************************************************/
+Edge::~Edge()
 {
-	INT32 totalLength = overlapOffset + destination->getReadLength();
-	if (source->getStartCoord() < 0 )
-	{
-		totalLength = totalLength + getSourceRead()->getStartCoord();
-	}
-	if ((UINT32) (destination->getEndCoord()) > endCoordinateLimit )
-	{
-		totalLength = totalLength - (destination->getEndCoord() - endCoordinateLimit);
-	}
-	if (totalLength > 0)
-		return (UINT64) totalLength;
-	else
-		return 0;
+	// Free the memory used by the current edge.
+	delete listOfReads;
+	delete listOfOverlapOffsets;
+	delete listOfSubstitutionPoses;
 }
-
-
-/* 
- * ===  FUNCTION  ======================================================================
- *         Name:  <
- *  Description:  Overloading comparing operator for edge object
- * =====================================================================================
- */
-bool Edge::operator<(Edge & anotherEdge)
-{
-	return (getStringLengthInRange() < anotherEdge.getStringLengthInRange());
-}
-
-
 
