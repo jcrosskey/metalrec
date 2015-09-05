@@ -48,14 +48,16 @@ LIBS=
 vpath %.cpp ../
 vpath %.h ../
 #SRCS := $(wildcard ../*.cpp)
-SRCS := Utils.cpp Read.cpp Dataset.cpp Edge.cpp OverlapGraph.cpp HashTable.cpp ec.cpp
+SRCS := Utils.cpp Read.cpp Dataset.cpp Edge.cpp OverlapGraph.cpp HashTable.cpp ec.cpp directoryStructure.cpp
 
 # use macro to get object files
 OBJS = $(SRCS:.cpp=.o)
+ALIGN_OBJS := Utils.o directoryStructure.o
 
 # program names
 PROG = metalrec 
 MPI_PROG = mpi_metalrec
+ALIGN_PROG = mpi_align
 
 .PHONY: default single mpi all clean
 
@@ -67,6 +69,10 @@ mpi:	$(MPI_PROG)
 all: $(PROG) $(MPI_PROG)
 	@echo Done
 
+$(ALIGN_PROG): $(ALIGN_OBJS) mpi_align.o
+	$(MPICC) $(LFLAGS) $(CFLAGS) $(INCLUDES) -o $(ALIGN_PROG) $(ALIGN_OBJS) $(LIBS) mpi_align.o
+	@echo $(ALIGN_PROG) compiled
+
 $(MPI_PROG): $(OBJS) mpi_metalrec.o
 	$(MPICC) $(LFLAGS) $(CFLAGS) $(INCLUDES) -o $(MPI_PROG) $(OBJS) $(LIBS) mpi_metalrec.o
 	@echo $(MPI_PROG) compiled
@@ -77,6 +83,9 @@ $(PROG): $(OBJS) metalrec.o
 
 metalrec.o: metalrec.cpp
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+mpi_align.o: mpi_align.cpp
+	$(MPICC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 mpi_metalrec.o: mpi_metalrec.cpp
 	$(MPICC) $(CFLAGS) $(INCLUDES) -c $< -o $@
