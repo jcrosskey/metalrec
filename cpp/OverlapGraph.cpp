@@ -695,7 +695,6 @@ bool OverlapGraph::getEdges(vector<Edge *> & contigEdges)
 bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & contigEdges)
 {
 	CLOCKSTART;
-	UINT64 thickness;
 	string edgeColor;
 	ofstream graphFilePointer; 
 
@@ -704,28 +703,21 @@ bool OverlapGraph::printGraph(string graphFileName, const vector<Edge *> & conti
 	if(!graphFilePointer.is_open())
 		MYEXIT("Unable to open file: "+graphFileName);
 
-	// Graph specification before the nodes and edges
-	graphFilePointer << "graph: {" << endl <<  "layoutalgorithm :forcedir" << endl <<  "fdmax:704" << endl <<  "tempmax:254" << endl <<  "tempmin:0" << endl <<  "temptreshold:3" << endl <<  "tempscheme:3" << endl <<  "tempfactor:1.08" << endl <<  "randomfactor:100" << endl <<  "gravity:0.0" << endl <<  "repulsion:161" << endl <<  "attraction:43" << endl <<  "ignore_singles:yes" << endl <<  "node.fontname:\"helvB10\"" << endl << "edge.fontname:\"helvB10\"" << endl <<  "node.shape:box" << endl <<  "node.width:80" << endl <<  "node.height:20" << endl <<  "node.borderwidth:1" << endl <<  "node.bordercolor:31" << endl;
+    graphFilePointer << "source\ttarget\tnumReads\toffset\n";
+    for (UINT64 i = 0; i < contigEdges.size(); i++)
+    {
+        Edge *e = contigEdges.at(i);
+        int num_reads = 0;
+        if(e->getListOfReads())
+            num_reads = e->getListOfReads()->size();
+        UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
+        // Edge label: (first overlap length, edge length, number of reads, overlap offset, last overlap length)
+        graphFilePointer << source << "\t" << destination << "\t" 
+            << num_reads << "\t" << e->getOverlapOffset() << "\n";
+    }
 
-	// All the nodes, title and label
-	for(UINT64 i = 1; i<= dataSet->getNumberOfUniqueReads(); i++)
-	{
-		if(dataSet->getReadFromID(i)->superReadID ==0)
-			graphFilePointer << "node: { title:\""<< i <<"\" label :\"" << i << ": " << dataSet->getReadFromID(i)->getStartCoord() <<"," <<  dataSet->getReadFromID(i)->getEndCoord() << "\" }" << endl;	// Print nodes even if there are no edge connected to it
-	}
-
-	// All the edges
-	for (UINT64 i = 0; i < contigEdges.size(); i++)
-	{
-		Edge * e = contigEdges.at(i);
-		UINT64 source = e->getSourceRead()->getID(), destination = e->getDestinationRead()->getID();
-		thickness = e->getListOfReads()->empty() ? 1 : 3;	// Thicker edges if composite
-		edgeColor = (e->getNumOfSubstitutions() != 0) ? "red" : "blue"; /* red edges if there is error */
-		graphFilePointer << "edge: { source:\"" << source << "\" target:\"" << destination << "\" thickness: " << thickness << " arrowstyle: solid backarrowstyle: none color: "<< edgeColor << " label: \"(" <<  e->getOverlapOffset() << "," << e->getListOfReads()->size() << "," << dataSet->getSubsOnEdge(e) <<  "," << e->getEdgeID() << ")\" }" << endl;
-	}
-	graphFilePointer << "}";
 	graphFilePointer.close();
-	FILE_LOG(logINFO) << "Aisee graph written." << endl;
+	FILE_LOG(logINFO) << "Graph written." << endl;
 	CLOCKSTOP;
 	return true;
 	/************************* Store the graph in a file done. ************************/
