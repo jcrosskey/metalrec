@@ -200,6 +200,7 @@ bool Dataset::AddDataset(FILE * inputSamStream)
 					FILE_LOG(logDEBUG4) << "Scanned read: " << r->getReadName();
 					if ( r->isReadGood(indelRate,insRate,delRate, subRate, PacBioReadLength, percentInLR) && testRead(r->getDnaStringForward()))
 					{
+                        FILE_LOG(logDEBUG) << line << "\n";
 						UINT32 len = r->getReadLength();
 						if (len > longestReadLength)
 							longestReadLength = len;
