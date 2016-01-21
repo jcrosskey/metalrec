@@ -260,6 +260,7 @@ int main(int argc, char ** argv){
 		FILE_LOG(logINFO) << "number of bam files: " << bamFiles.size();
 		FILE_LOG(logINFO) << "bamfiles: " << param_map["bamfiles"];
 		FILE_LOG(logINFO) << "output directory: " << outDir;
+        FILE_LOG(logINFO) << "Minimum length for a PacBio read to be corrected: "  << minPacBioLength << endl;
 		FILE_LOG(logINFO) << "number of pacbio reads to work on: " << PacBioNames.size();
 		FILE_LOG(logINFO) << "allFileName: " << allFileName;
 		FILE_LOG(logINFO) << "minimum overlap length: " << minimumOverlapLength;

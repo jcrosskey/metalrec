@@ -365,6 +365,7 @@ int main(int argc, char ** argv){
 			cout << "number of bam files: " << bamFiles.size() << endl;
 			cout << "bamfiles: " << param_map["bamfiles"] << endl;
 			cout << "output directory: " << outDir << endl;
+            cout << "Minimum length for a PacBio read to be corrected: "  << minPacBioLength << endl;
 			cout << "number of pacbio reads to work on: " << PacBioNames.size() << endl;
 			cout << "allFileName: " << allFileName << endl;
 			cout << "minimum overlap length: " << minimumOverlapLength << endl;
