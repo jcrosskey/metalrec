@@ -36,9 +36,7 @@ Suppose we have two datasets, one from Illumina and one from PacBio.
     - If your data set is really big you might want to split the Illumina reads and PacBio reads into smaller chunks, so that the mapping can be done on these chunks simutaneously. It's better to split the PacBio data set if possible. If the Illumina data set is really big, it's also fine to split them too. After splitting is done, save the split results for Illumina and PacBio reads into two different folders IlluminaDir, and PacbioDir, go to step 4.
     - Otherwise simply use BLASR (or your preferred mapping tools that can accommadate indels and high error rate) to map the Illumina reads to PacBio reads and go to step 5.
     - BAM files need to be sorted and indexed before being used as input to MetaLREC. Full read sequence with soft clip is required, as well as CIGAR string and NM tag in the alignment result. 
-```
-#!sh
-
+```shell
 blasr -noRefineAlign -advanceHalf -noSplitSubreads -minMatch 10 \
 -sdpTupleSize 7 -minPctIdentity 70 -bestn 10 \
 -sam -clipping soft -header \
@@ -51,22 +49,16 @@ samtools index ${bamfile}
 
 * Step 4: Run BLASR in parallel using the MPI wrapper, a sample align.config is provided in the package.
 
-```
-#!sh
-
+```shell
 # In this case, the bam files are automatically generated and sorted
 mpi_align -np $total_CPU_number -c $align_config -od $out_dir
-
 ```
 
 * Step 5: Run error correction, a sample configuration file metalrec.config is provided in the package. Please change the file locations, you can also change the parameter values, though these have been tuned to provide good error correction performance.
 
-```
-#!sh
-
+```shell
 mpi_metalrec -od $out_dir -c $ec_config -log ERROR
 metalrec -od $out_dir -c $ec_config -log ERROR
-
 ```
 
 ## Contributor 
